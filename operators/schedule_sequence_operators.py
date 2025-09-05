@@ -74,23 +74,3 @@ class EditSequenceTimeLag(bpy.types.Operator, tool.Ifc.Operator):
     def _execute(self, context):
         core.edit_sequence_lag_time(tool.Ifc, tool.Sequence, lag_time=tool.Ifc.get().by_id(self.lag_time))
 
-# ============================================================================
-# OPERATOR REGISTRATION
-# ============================================================================
-
-classes = [
-    EnableEditingTaskSequence,
-    EnableEditingSequenceAttributes,
-    EditSequenceAttributes,
-    DisableEditingSequence,
-    EnableEditingSequenceTimeLag,
-    EditSequenceTimeLag,
-]
-
-def register():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-def unregister():
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)

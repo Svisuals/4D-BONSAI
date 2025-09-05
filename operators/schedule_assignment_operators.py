@@ -358,39 +358,3 @@ class LoadProductTasks(bpy.types.Operator):
             traceback.print_exc()
             return {"CANCELLED"}
 
-
-# ============================================================================
-# OPERATOR REGISTRATION
-# ============================================================================
-
-classes = [
-    AssignPredecessor,
-    AssignSuccessor,
-    UnassignPredecessor,
-    UnassignSuccessor,
-    AssignProduct,
-    UnassignProduct,
-    AssignProcess,
-    UnassignProcess,
-    AssignRecurrencePattern,
-    UnassignRecurrencePattern,
-    AssignLagTime,
-    UnassignLagTime,
-    SelectTaskRelatedProducts,
-    SelectTaskRelatedInputs,
-    LoadProductTasks,
-]
-
-
-def register():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-
-def unregister():
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
-
-
-if __name__ == "__main__":
-    register()

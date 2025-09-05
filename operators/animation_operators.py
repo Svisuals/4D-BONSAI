@@ -3,6 +3,7 @@
 
 import bpy
 import bonsai.tool as tool
+from .. import hud_overlay
 from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
 
 # === Animation operators ===
@@ -222,32 +223,80 @@ def _sequence_has(attr: str) -> bool:
         return False
 
 def _clear_previous_animation(context) -> None:
-    """Unified function to clear all 4D animation data, including snapshots."""
-    try:
-        if _sequence_has("clear_objects_animation"):
-            print(f"🔄 Using tool.Sequence.clear_objects_animation")
-            tool.Sequence.clear_objects_animation(include_blender_objects=True, clear_texts=True, clear_bars=True, clear_materials=True, reset_timeline=True, clear_keyframes=True, reset_colors=True)
-        elif _sequence_has("clear_previous_animation"):
-            tool.Sequence.clear_previous_animation(tool.Sequence)
-        else:
-            for ob in list(bpy.data.objects):
-                if ob.animation_data: ob.animation_data_clear()
-                if hasattr(ob, 'hide_viewport'): ob.hide_viewport = False
-                if hasattr(ob, 'hide_render'): ob.hide_render = False
-                if hasattr(ob, 'color'): ob.color = (1.0, 1.0, 1.0, 1.0)
-            for coll_name in ["Schedule_Display_Texts", "Bar Visual"]:
-                if coll_name in bpy.data.collections:
-                    bpy.data.collections.remove(bpy.data.collections[coll_name])
-    except Exception as e:
-        print(f"Bonsai WARNING: An error occurred during the main animation clearing process: {e}")
+    """Función de limpieza unificada y robusta para toda la animación 4D."""
+    print("🧹 Iniciando limpieza completa de la animación...")
 
     try:
-        parent_name = "Schedule_Display_Parent"
-        if parent_name in bpy.data.objects:
-            bpy.data.objects.remove(bpy.data.objects[parent_name], do_unlink=True)
-            print(f"🧹 Cleaned up '{parent_name}' empty.")
+        # --- 1. DETENER LA ANIMACIÓN Y DESREGISTRAR TODOS LOS HANDLERS ---
+        # Es crucial hacer esto primero para detener cualquier proceso en segundo plano.
+
+        # Detener la reproducción si está activa
+        if bpy.context.screen.is_animation_playing:
+            bpy.ops.screen.animation_cancel(restore_frame=False)
+            print("  - Animación detenida.")
+
+        # Desregistrar el handler del HUD 2D (GPU Overlay)
+        if hud_overlay.is_hud_enabled():
+            hud_overlay.unregister_hud_handler()
+            print("  - Handler del HUD 2D desregistrado.")
+
+        # Desregistrar el handler de Live Color Updates (la causa más probable del problema)
+        if hasattr(tool.Sequence, 'unregister_live_color_update_handler'):
+            tool.Sequence.unregister_live_color_update_handler()
+            print("  - Handler de Live Color Updates desregistrado.")
+
+        # Desregistrar el handler de textos 3D
+        if hasattr(tool.Sequence, '_unregister_frame_change_handler'):
+            tool.Sequence._unregister_frame_change_handler()
+            print("  - Handler de textos 3D desregistrado.")
+
+        # --- 2. LIMPIAR OBJETOS DE LA ESCENA ---
+        # Eliminar objetos generados por la animación (textos, barras, etc.)
+        for coll_name in ["Schedule_Display_Texts", "Bar Visual", "Schedule_Display_3D_Legend"]:
+            if coll_name in bpy.data.collections:
+                collection = bpy.data.collections[coll_name]
+                for obj in list(collection.objects):
+                    bpy.data.objects.remove(obj, do_unlink=True)
+                bpy.data.collections.remove(collection)
+                print(f"  - Colección '{coll_name}' y sus objetos eliminados.")
+
+        # Eliminar el objeto 'empty' padre
+        parent_empty = bpy.data.objects.get("Schedule_Display_Parent")
+        if parent_empty:
+            bpy.data.objects.remove(parent_empty, do_unlink=True)
+            print("  - Objeto 'Schedule_Display_Parent' eliminado.")
+
+        # --- 3. LIMPIAR DATOS DE ANIMACIÓN DE OBJETOS 3D (PRODUCTOS IFC) ---
+        print("  - Limpiando keyframes y restaurando visibilidad de objetos 3D...")
+        cleaned_count = 0
+        for obj in bpy.data.objects:
+            if obj.type == 'MESH' and tool.Ifc.get_entity(obj):
+                if obj.animation_data:
+                    obj.animation_data_clear()
+                    cleaned_count += 1
+
+                # Restaurar estado por defecto
+                obj.hide_viewport = False
+                obj.hide_render = False
+                obj.color = (0.8, 0.8, 0.8, 1.0)
+        print(f"  - Keyframes eliminados de {cleaned_count} objetos.")
+
+        # --- 4. RESTAURAR LA LÍNEA DE TIEMPO Y LA UI ---
+        if "is_snapshot_mode" in context.scene:
+            del context.scene["is_snapshot_mode"]
+
+        restore_all_ui_state(context)
+        print("  - Estado de la UI restaurado.")
+
+        context.scene.frame_set(context.scene.frame_start)
+        print(f"  - Línea de tiempo reseteada al fotograma {context.scene.frame_start}.")
+
+        print("✅ Limpieza de animación completada.")
+
     except Exception as e:
-        print(f"Bonsai WARNING: Could not clean up parent empty: {e}")
+        print(f"Bonsai WARNING: Ocurrió un error durante la limpieza de la animación: {e}")
+        import traceback
+        traceback.print_exc()
 
 def _get_animation_settings(context):
     """Get animation settings with fallback for snapshot independence"""
@@ -514,25 +563,3 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
     def execute(self, context):
         return self._execute(context)
 
-
-# ============================================================================
-# OPERATOR REGISTRATION
-# ============================================================================
-
-classes = [
-    CreateAnimation,
-    ClearAnimation,
-    AddAnimationTaskType,
-    RemoveAnimationTaskType,
-    AddAnimationCamera,
-    ClearPreviousAnimation,
-    ClearPreviousSnapshot,
-]
-
-def register():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-def unregister():
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)

@@ -252,32 +252,3 @@ class GuessDateRange(bpy.types.Operator, tool.Ifc.Operator):
             date_source = getattr(props, "date_source_type", "SCHEDULE")
             self.report({'WARNING'}, f"No '{date_source.capitalize()}' dates found to guess a range.")
         return {"FINISHED"}
-
-# ============================================================================
-# OPERATOR REGISTRATION
-# ============================================================================
-
-classes = [
-    RecalculateSchedule,
-    GenerateGanttChart,
-    AddTaskColumn,
-    SetupDefaultTaskColumns,
-    RemoveTaskColumn,
-    SetTaskSortColumn,
-    CreateBaseline,
-    CalculateScheduleVariance,
-    ClearScheduleVariance,
-    DeactivateVarianceColorMode,
-    RefreshTaskOutputCounts,
-    AddTaskBars,
-    ClearTaskBars,
-    GuessDateRange,
-]
-
-def register():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-def unregister():
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)

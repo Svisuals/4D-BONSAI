@@ -352,24 +352,3 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
 
         self.report({'INFO'}, f"Snapshot created for date {snapshot_date.strftime('%Y-%m-%d')}")
         return {'FINISHED'}
-
-# ============================================================================
-# OPERATOR REGISTRATION
-# ============================================================================
-
-classes = [
-    Copy3D,
-    Sync3D,
-    AddSnapshotCamera,
-    AlignSnapshotCameraToView,
-    SnapshotWithcolortypesFixed,
-    SnapshotWithcolortypes,
-]
-
-def register():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-def unregister():
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)

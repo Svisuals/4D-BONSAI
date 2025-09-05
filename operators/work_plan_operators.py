@@ -68,23 +68,3 @@ class EnableEditingWorkPlanSchedules(bpy.types.Operator):
         core.enable_editing_work_plan_schedules(tool.Sequence, work_plan=tool.Ifc.get().by_id(self.work_plan))
         return {"FINISHED"}
 
-# ============================================================================
-# OPERATOR REGISTRATION
-# ============================================================================
-
-classes = [
-    AddWorkPlan,
-    EditWorkPlan,
-    RemoveWorkPlan,
-    EnableEditingWorkPlan,
-    DisableEditingWorkPlan,
-    EnableEditingWorkPlanSchedules,
-]
-
-def register():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-def unregister():
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)

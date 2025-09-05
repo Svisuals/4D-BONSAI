@@ -235,39 +235,3 @@ class EnableEditingTaskCalendar(bpy.types.Operator):
     def execute(self, context):
         core.enable_editing_task_calendar(tool.Sequence, task=tool.Ifc.get().by_id(self.task))
         return {"FINISHED"}
-
-# ============================================================================
-# OPERATOR REGISTRATION
-# ============================================================================
-
-classes = [
-    AddWorkCalendar,
-    EditWorkCalendar,
-    RemoveWorkCalendar,
-    EnableEditingWorkCalendar,
-    DisableEditingWorkCalendar,
-    EnableEditingWorkCalendarTimes,
-    AddWorkTime,
-    EnableEditingWorkTime,
-    DisableEditingWorkTime,
-    EditWorkTime,
-    RemoveWorkTime,
-    AddTimePeriod,
-    RemoveTimePeriod,
-    EnableEditingTaskTime,
-    EditTaskTime,
-    DisableEditingTaskTime,
-    EnableEditingTaskCalendar,
-    EditTaskCalendar,
-    RemoveTaskCalendar,
-]
-
-
-def register():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-
-def unregister():
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)

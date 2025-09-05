@@ -804,6 +804,20 @@ class UnifiedColorTypeManager:
     def load_colortypes_into_collection(props, context, group_name: str):
         """Loads colortypes from a group into the property collection"""
         
+        # Guard to prevent unnecessary reloading if already correctly populated
+        if group_name == "DEFAULT":
+            default_order = [
+                "CONSTRUCTION", "INSTALLATION", "DEMOLITION", "REMOVAL", 
+                "DISPOSAL", "DISMANTLE", "OPERATION", "MAINTENANCE", 
+                "ATTENDANCE", "RENOVATION", "LOGISTIC", "MOVE", "NOTDEFINED"
+            ]
+            
+            # Check if collection is already correctly populated
+            if (len(props.ColorTypes) == len(default_order) and 
+                all(props.ColorTypes[i].name == default_order[i] for i in range(len(default_order)))):
+                # Collection is already correctly populated, no need to reload
+                return
+        
         # CRITICAL CHANGE: For DEFAULT, ensure that ALL profiles exist
         # Always ensure DEFAULT profiles exist when DEFAULT group is specifically loaded
         if group_name == "DEFAULT":

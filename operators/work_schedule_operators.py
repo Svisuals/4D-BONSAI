@@ -632,37 +632,3 @@ class SelectUnassignedWorkScheduleProducts(bpy.types.Operator):
             self.report({'ERROR'}, f"Failed to select unassigned products: {str(e)}")
             return {'CANCELLED'}
 
-
-# ============================================================================
-# OPERATOR REGISTRATION
-# ============================================================================
-
-classes = [
-    AssignWorkSchedule,
-    UnassignWorkSchedule,
-    AddWorkSchedule,
-    EditWorkSchedule,
-    RemoveWorkSchedule,
-    CopyWorkSchedule,
-    EnableEditingWorkSchedule,
-    EnableEditingWorkScheduleTasks,
-    DisableEditingWorkSchedule,
-    SortWorkScheduleByIdAsc,
-    VisualiseWorkScheduleDateRange,
-    SelectWorkScheduleProducts,
-    SelectUnassignedWorkScheduleProducts,
-]
-
-
-def register():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-
-def unregister():
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
-
-
-if __name__ == "__main__":
-    register()
