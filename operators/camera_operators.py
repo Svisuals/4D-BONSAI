@@ -122,3 +122,94 @@ class Delete4DCamera(bpy.types.Operator):
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
+
+
+class AddSnapshotCamera(bpy.types.Operator):
+    """Add a static camera for snapshot viewing"""
+    bl_idname = "bim.add_snapshot_camera"
+    bl_label = "Add Snapshot Camera"
+    bl_description = "Create a new static camera positioned for snapshot viewing"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        try:
+            cam_obj = tool.Sequence.add_snapshot_camera()
+            self.report({'INFO'}, f"Snapshot camera '{cam_obj.name}' created and set as active")
+            return {'FINISHED'}
+        except Exception as e:
+            self.report({'ERROR'}, f"Failed to create snapshot camera: {str(e)}")
+            return {'CANCELLED'}
+
+
+class AlignSnapshotCameraToView(bpy.types.Operator):
+    """Align snapshot camera to current 3D viewport view"""
+    bl_idname = "bim.align_snapshot_camera_to_view"
+    bl_label = "Align Snapshot Camera to View"
+    bl_description = "Align the snapshot camera to match the current 3D viewport view"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        if not getattr(context.scene, "camera", None): return False
+        for area in context.screen.areas:
+            if area.type == 'VIEW_3D': return True
+        return False
+
+    def execute(self, context):
+        try:
+            tool.Sequence.align_snapshot_camera_to_view()
+            self.report({'INFO'}, f"Snapshot camera aligned to current view")
+            return {'FINISHED'}
+        except Exception as e:
+            self.report({'ERROR'}, f"Failed to align snapshot camera: {str(e)}")
+            return {'CANCELLED'}
+
+
+class AddAnimationCamera(bpy.types.Operator):
+    """Add a camera specifically for Animation Settings"""
+    bl_idname = "bim.add_animation_camera"
+    bl_label = "Add Animation Camera"
+    bl_description = "Create a new camera for Animation Settings with orbital animation"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        try:
+            # For animation cameras, we should try to call the full method if possible
+            # but have a fallback to simple creation
+            try:
+                cam_obj = tool.Sequence.add_animation_camera()
+            except:
+                # Fallback to simple camera creation
+                cam_data = bpy.data.cameras.new(name="4D_Animation_Camera")
+                cam_obj = bpy.data.objects.new(name="4D_Animation_Camera", object_data=cam_data)
+                
+                # Mark as animation camera
+                cam_obj['is_4d_camera'] = True
+                cam_obj['is_animation_camera'] = True
+                cam_obj['camera_context'] = 'animation'
+                
+                # Link to scene
+                context.collection.objects.link(cam_obj)
+                
+                # Configure camera settings
+                cam_data.lens = 50
+                cam_data.clip_start = 0.1
+                cam_data.clip_end = 1000
+                
+                # Position camera with a good default view
+                cam_obj.location = (15, -15, 10)
+                cam_obj.rotation_euler = (1.1, 0.0, 0.785)
+                
+                # Set as active camera
+                context.scene.camera = cam_obj
+            
+            # Select the camera
+            bpy.ops.object.select_all(action='DESELECT')
+            cam_obj.select_set(True)
+            context.view_layer.objects.active = cam_obj
+            
+            self.report({'INFO'}, f"Animation camera '{cam_obj.name}' created and set as active")
+            return {'FINISHED'}
+        except Exception as e:
+            self.report({'ERROR'}, f"Failed to create animation camera: {str(e)}")
+            return {'CANCELLED'}

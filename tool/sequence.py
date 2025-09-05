@@ -6784,6 +6784,108 @@ class Sequence(bonsai.core.tool.Sequence):
             import traceback
             traceback.print_exc()
 
+    @staticmethod
+    def add_group_to_animation_stack():
+        """Add a new group to the animation group stack"""
+        try:
+            anim_props = tool.Sequence.get_animation_props()
+            if not hasattr(anim_props, 'animation_group_stack'):
+                print("❌ animation_group_stack not found in animation properties")
+                return
+            
+            # Add new item to stack
+            item = anim_props.animation_group_stack.add()
+            item.group = "DEFAULT"  # Default group name
+            item.enabled = True
+            
+            # Set as active item
+            anim_props.animation_group_stack_index = len(anim_props.animation_group_stack) - 1
+            
+            print(f"✅ Added group '{item.group}' to animation stack")
+            
+        except Exception as e:
+            print(f"❌ Error adding group to animation stack: {e}")
+            import traceback
+            traceback.print_exc()
+
+    @staticmethod
+    def remove_group_from_animation_stack():
+        """Remove the selected group from the animation group stack"""
+        try:
+            anim_props = tool.Sequence.get_animation_props()
+            if not hasattr(anim_props, 'animation_group_stack'):
+                print("❌ animation_group_stack not found in animation properties")
+                return
+            
+            idx = anim_props.animation_group_stack_index
+            if 0 <= idx < len(anim_props.animation_group_stack):
+                removed_group = anim_props.animation_group_stack[idx].group
+                anim_props.animation_group_stack.remove(idx)
+                
+                # Adjust index if needed
+                if anim_props.animation_group_stack_index >= len(anim_props.animation_group_stack):
+                    anim_props.animation_group_stack_index = len(anim_props.animation_group_stack) - 1
+                    
+                print(f"✅ Removed group '{removed_group}' from animation stack")
+            else:
+                print("❌ No valid group selected to remove")
+                
+        except Exception as e:
+            print(f"❌ Error removing group from animation stack: {e}")
+            import traceback
+            traceback.print_exc()
+
+    @staticmethod
+    def move_group_in_animation_stack(direction):
+        """Move the selected group up or down in the animation group stack"""
+        try:
+            anim_props = tool.Sequence.get_animation_props()
+            if not hasattr(anim_props, 'animation_group_stack'):
+                print("❌ animation_group_stack not found in animation properties")
+                return
+            
+            idx = anim_props.animation_group_stack_index
+            stack_len = len(anim_props.animation_group_stack)
+            
+            if not (0 <= idx < stack_len):
+                print("❌ No valid group selected to move")
+                return
+                
+            new_idx = idx
+            if direction == "UP" and idx > 0:
+                new_idx = idx - 1
+            elif direction == "DOWN" and idx < stack_len - 1:
+                new_idx = idx + 1
+            else:
+                print(f"❌ Cannot move {direction} from position {idx}")
+                return
+                
+            # Move the item by removing and re-inserting
+            item = anim_props.animation_group_stack[idx]
+            group_name = item.group
+            enabled = item.enabled
+            
+            # Remove old item
+            anim_props.animation_group_stack.remove(idx)
+            
+            # Add at new position
+            new_item = anim_props.animation_group_stack.add()
+            anim_props.animation_group_stack.move(len(anim_props.animation_group_stack) - 1, new_idx)
+            
+            # Restore properties
+            anim_props.animation_group_stack[new_idx].group = group_name
+            anim_props.animation_group_stack[new_idx].enabled = enabled
+            
+            # Update index
+            anim_props.animation_group_stack_index = new_idx
+            
+            print(f"✅ Moved group '{group_name}' {direction} to position {new_idx}")
+            
+        except Exception as e:
+            print(f"❌ Error moving group in animation stack: {e}")
+            import traceback
+            traceback.print_exc()
+
 
 class SearchCustomColorTypeGroup(bpy.types.Operator):
     bl_idname = "bim.search_custom_ColorType_group"

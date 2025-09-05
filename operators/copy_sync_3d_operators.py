@@ -1,0 +1,375 @@
+# File: copy_sync_3d_operators.py
+# Description: Operators for copying 3D configurations, syncing elements, and creating snapshots.
+
+import bpy
+import bonsai.tool as tool
+from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state, _save_3d_texts_state, _restore_3d_texts_state
+from .animation_operators import _get_animation_settings, _compute_product_frames, _ensure_default_group
+
+# Helper function to get camera enums, now local to this file
+def _get_4d_cameras(self, context):
+    """EnumProperty items callback: returns available 4D cameras."""
+    try:
+        items = []
+        for obj in bpy.data.objects:
+            if tool.Sequence.is_bonsai_camera(obj):
+                items.append((obj.name, obj.name, '4D/Snapshot camera'))
+        if not items:
+            items = [('NONE', '<No cameras found>', 'No 4D or Snapshot cameras detected')]
+        return items
+    except Exception:
+        return [('NONE', '<No cameras found>', 'No 4D or Snapshot cameras detected')]
+
+# ============================================================================
+# COPY & SYNC OPERATORS
+# ============================================================================
+
+class Copy3D(bpy.types.Operator):
+    """Copy configuration from active schedule to other schedules with matching task indicators"""
+    bl_idname = "bim.copy_3d"
+    bl_label = "Copy 3D"
+    bl_description = "Copy task elements, PredefinedType, and colortype settings from active schedule to matching schedules"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        snapshot_all_ui_state(context)
+        try:
+            ifc_file = tool.Ifc.get()
+            if not ifc_file:
+                self.report({'ERROR'}, "No IFC file loaded.")
+                return {'CANCELLED'}
+            
+            active_schedule = tool.Sequence.get_active_work_schedule()
+            if not active_schedule:
+                self.report({'ERROR'}, "No active work schedule.")
+                return {'CANCELLED'}
+
+            result = tool.Sequence.copy_3d_configuration(active_schedule)
+            
+            if result.get("success", False):
+                copied_count = result.get("copied_schedules", 0)
+                task_matches = result.get("task_matches", 0)
+                self.report({'INFO'}, f"Configuration copied to {copied_count} schedules ({task_matches} task matches)")
+            else:
+                error_msg = result.get("error", "Unknown error during copy operation")
+                self.report({'ERROR'}, error_msg)
+                return {'CANCELLED'}
+                
+        except Exception as e:
+            self.report({'ERROR'}, f"Copy 3D failed: {str(e)}")
+            return {'CANCELLED'}
+        finally:
+            restore_all_ui_state(context)
+        return {'FINISHED'}
+
+class Sync3D(bpy.types.Operator):
+    """Sync task elements based on IFC property set values"""
+    bl_idname = "bim.sync_3d"
+    bl_label = "Sync 3D"
+    bl_description = "Automatically map IFC elements to tasks based on property set values"
+    bl_options = {"REGISTER", "UNDO"}
+
+    property_set_name: bpy.props.StringProperty(
+        name="Property Set Name",
+        description="Name of the property set to use for syncing",
+        default=""
+    )
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "property_set_name")
+
+    def execute(self, context):
+        if not self.property_set_name.strip():
+            self.report({'ERROR'}, "Property set name is required")
+            return {'CANCELLED'}
+
+        snapshot_all_ui_state(context)
+        try:
+            ifc_file = tool.Ifc.get()
+            if not ifc_file:
+                self.report({'ERROR'}, "No IFC file loaded.")
+                return {'CANCELLED'}
+            
+            active_schedule = tool.Sequence.get_active_work_schedule()
+            if not active_schedule:
+                self.report({'ERROR'}, "No active work schedule.")
+                return {'CANCELLED'}
+
+            result = tool.Sequence.sync_3d_elements(active_schedule, self.property_set_name.strip())
+            
+            if result.get("success", False):
+                matched_elements = result.get("matched_elements", 0)
+                processed_tasks = result.get("processed_tasks", 0)
+                self.report({'INFO'}, f"Synced {matched_elements} elements across {processed_tasks} tasks")
+            else:
+                error_msg = result.get("error", "Unknown error during sync operation")
+                self.report({'ERROR'}, error_msg)
+                return {'CANCELLED'}
+                
+        except Exception as e:
+            self.report({'ERROR'}, f"Sync 3D failed: {str(e)}")
+            return {'CANCELLED'}
+        finally:
+            restore_all_ui_state(context)
+        return {'FINISHED'}
+
+# ============================================================================
+# SNAPSHOT CAMERA & SNAPSHOT CREATION OPERATORS
+# ============================================================================
+
+class AddSnapshotCamera(bpy.types.Operator):
+    """Add a static camera for snapshot viewing"""
+    bl_idname = "bim.add_snapshot_camera"
+    bl_label = "Add Snapshot Camera"
+    bl_description = "Create a new static camera positioned for snapshot viewing"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        try:
+            cam_obj = tool.Sequence.add_snapshot_camera()
+            self.report({'INFO'}, f"Snapshot camera '{cam_obj.name}' created and set as active")
+            return {'FINISHED'}
+        except Exception as e:
+            self.report({'ERROR'}, f"Failed to create snapshot camera: {str(e)}")
+            return {'CANCELLED'}
+
+class AlignSnapshotCameraToView(bpy.types.Operator):
+    """Align snapshot camera to current 3D viewport view"""
+    bl_idname = "bim.align_snapshot_camera_to_view"
+    bl_label = "Align Snapshot Camera to View"
+    bl_description = "Align the snapshot camera to match the current 3D viewport view"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        if not getattr(context.scene, "camera", None): return False
+        for area in context.screen.areas:
+            if area.type == 'VIEW_3D': return True
+        return False
+
+    def execute(self, context):
+        try:
+            tool.Sequence.align_snapshot_camera_to_view()
+            self.report({'INFO'}, f"Snapshot camera aligned to current view")
+            return {'FINISHED'}
+        except Exception as e:
+            self.report({'ERROR'}, f"Failed to align snapshot camera: {str(e)}")
+            return {'CANCELLED'}
+
+class SnapshotWithcolortypes(tool.Ifc.Operator, bpy.types.Operator):
+    bl_idname = "bim.snapshot_with_colortypes"
+    bl_label = "Snapshot (colortypes)"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def _execute(self, context):
+        print("🚀🚀🚀 DEBUG: SnapshotWithcolortypes._execute() STARTED")
+        from ..prop import UnifiedColorTypeManager
+        _ensure_default_group(context)
+
+        # Save UI state before applying snapshot
+        print("🔄 DEBUG: Calling snapshot_all_ui_state...")
+        try:
+            snapshot_all_ui_state(context)
+            print("✅ DEBUG: snapshot_all_ui_state completed")
+        except Exception as e:
+            print(f"❌ DEBUG: snapshot_all_ui_state failed: {e}")
+            import traceback
+            traceback.print_exc()
+
+        try:
+            ws_props = tool.Sequence.get_work_schedule_props()
+            anim_props = tool.Sequence.get_animation_props()
+
+            ws_id = getattr(ws_props, "active_work_schedule_id", None)
+            if not ws_id:
+                self.report({'ERROR'}, "No active Work Schedule selected.")
+                return {'CANCELLED'}
+            work_schedule = tool.Ifc.get().by_id(ws_id)
+            if not work_schedule:
+                self.report({'ERROR'}, "Active Work Schedule not found in IFC.")
+                return {'CANCELLED'}
+
+            # Set snapshot mode flag for Timeline HUD
+            context.scene["is_snapshot_mode"] = True
+            print("✅ DEBUG: Set is_snapshot_mode flag")
+
+            # Get snapshot date
+            snapshot_date_str = getattr(ws_props, "visualisation_start", None)
+            if not snapshot_date_str or snapshot_date_str == "-":
+                self.report({'ERROR'}, "No snapshot date is set.")
+                return {'CANCELLED'}
+            
+            try:
+                snapshot_date = tool.Sequence.parse_isodate_datetime(snapshot_date_str)
+                if not snapshot_date: raise ValueError("Invalid date format")
+                print(f"✅ DEBUG: Using snapshot date: {snapshot_date}")
+            except Exception as e:
+                self.report({'ERROR'}, f"Invalid snapshot date: {snapshot_date_str}. Error: {e}")
+                return {'CANCELLED'}
+
+            # Process construction state and show snapshot
+            date_source = getattr(ws_props, "date_source_type", "SCHEDULE")
+            product_states = tool.Sequence.process_construction_state(
+                work_schedule, snapshot_date, date_source=date_source
+            )
+            tool.Sequence.show_snapshot(product_states)
+            
+            # Stop animation if playing
+            if context.screen.is_animation_playing:
+                bpy.ops.screen.animation_cancel(restore_frame=False)
+
+            # Check 3D texts after snapshot
+            print("🔍 DEBUG: Checking 3D texts after snapshot...")
+            texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
+            if texts_collection:
+                print(f"✅ DEBUG: Found Schedule_Display_Texts collection with {len(texts_collection.objects)} objects")
+                for obj in texts_collection.objects:
+                    print(f"  - Text object: {obj.name}, visible: {not obj.hide_viewport}")
+            else:
+                print("❌ DEBUG: No Schedule_Display_Texts collection found")
+
+            self.report({'INFO'}, f"Snapshot created for date {snapshot_date.strftime('%Y-%m-%d')}")
+            return {'FINISHED'}
+            
+        except Exception as e:
+            # Restore UI state if there's an error
+            try:
+                restore_all_ui_state(context)
+            except Exception:
+                pass
+            raise e
+
+    def execute(self, context):
+        print("🌟🌟🌟 DEBUG: SnapshotWithcolortypes.execute() CALLED")
+        try:
+            return self._execute(context)
+        except Exception as e:
+            print(f"❌❌❌ DEBUG: SnapshotWithcolortypes.execute() FAILED: {e}")
+            import traceback
+            traceback.print_exc()
+            self.report({'ERROR'}, f"Unexpected error: {e}")
+            return {'CANCELLED'}        
+
+class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
+    bl_idname = "bim.snapshot_with_colortypes_fixed"
+    bl_label = "Create Snapshot (Enhanced)"
+    bl_description = "Create snapshot with enhanced error handling and colortype management"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def _execute(self, context):
+        print("🚀🚀🚀 DEBUG: SnapshotWithcolortypesFixed._execute() STARTED")
+        snapshot_all_ui_state(context)
+        print("✅ DEBUG: snapshot_all_ui_state completed")
+        _save_3d_texts_state()
+        print("✅ DEBUG: _save_3d_texts_state completed")
+        context.scene["is_snapshot_mode"] = True
+        print("✅ DEBUG: is_snapshot_mode set to True")
+        
+        try:
+            tool.Sequence.sync_active_group_to_json()
+        except Exception as e:
+            print(f"Error syncing colortypes for snapshot: {e}")
+
+        ws_props = tool.Sequence.get_work_schedule_props()
+        work_schedule_id = getattr(ws_props, "active_work_schedule_id", None)
+        if not work_schedule_id:
+            self.report({'ERROR'}, "No active Work Schedule selected.")
+            return {'CANCELLED'}
+        work_schedule = tool.Ifc.get().by_id(work_schedule_id)
+        if not work_schedule:
+            self.report({'ERROR'}, "Active Work Schedule not found in IFC.")
+            return {'CANCELLED'}
+
+        snapshot_date_str = getattr(ws_props, "visualisation_start", None)
+        if not snapshot_date_str or snapshot_date_str == "-":
+            self.report({'ERROR'}, "No snapshot date is set.")
+            return {'CANCELLED'}
+        
+        try:
+            snapshot_date = tool.Sequence.parse_isodate_datetime(snapshot_date_str)
+            if not snapshot_date: raise ValueError("Invalid date format")
+        except Exception as e:
+            self.report({'ERROR'}, f"Invalid snapshot date: {snapshot_date_str}. Error: {e}")
+            return {'CANCELLED'}
+
+        date_source = getattr(ws_props, "date_source_type", "SCHEDULE")
+        product_states = tool.Sequence.process_construction_state(
+            work_schedule, snapshot_date, date_source=date_source
+        )
+        tool.Sequence.show_snapshot(product_states)
+        print("✅ DEBUG: show_snapshot completed")
+        
+        # Create 3D texts for snapshot display
+        print("🔄 DEBUG: Creating 3D texts for snapshot...")
+        try:
+            # Get settings needed for text creation
+            settings = {
+                'start': snapshot_date,
+                'finish': snapshot_date,  # Same date for snapshot
+                'speed': 1.0,
+                'include_texts': True
+            }
+            tool.Sequence.add_text_animation_handler(settings)
+            print("✅ DEBUG: 3D texts created successfully")
+            
+            # Arrange/align 3D texts properly
+            try:
+                bpy.ops.bim.arrange_schedule_texts()
+                print("✅ DEBUG: 3D texts arranged successfully")
+            except Exception as e:
+                print(f"⚠️ DEBUG: Failed to arrange 3D texts: {e}")
+            
+            # Force viewport update to ensure everything is ready
+            bpy.context.view_layer.update()
+            
+            # Refresh texts to show correct snapshot date/info
+            try:
+                bpy.ops.bim.refresh_snapshot_texts()
+                print("✅ DEBUG: 3D texts refreshed for snapshot date")
+            except Exception as e:
+                print(f"⚠️ DEBUG: Failed to refresh snapshot texts: {e}")
+        except Exception as e:
+            print(f"❌ DEBUG: Failed to create 3D texts: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        # Check 3D texts after snapshot
+        print("🔍 DEBUG: Checking 3D texts after snapshot...")
+        texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
+        if texts_collection:
+            print(f"✅ DEBUG: Found Schedule_Display_Texts collection with {len(texts_collection.objects)} objects")
+            for obj in texts_collection.objects:
+                print(f"  - Text object: {obj.name}, visible: {not obj.hide_viewport}")
+        else:
+            print("❌ DEBUG: No Schedule_Display_Texts collection found")
+        
+        if context.screen.is_animation_playing:
+            bpy.ops.screen.animation_cancel(restore_frame=False)
+
+        self.report({'INFO'}, f"Snapshot created for date {snapshot_date.strftime('%Y-%m-%d')}")
+        return {'FINISHED'}
+
+# ============================================================================
+# OPERATOR REGISTRATION
+# ============================================================================
+
+classes = [
+    Copy3D,
+    Sync3D,
+    AddSnapshotCamera,
+    AlignSnapshotCameraToView,
+    SnapshotWithcolortypesFixed,
+    SnapshotWithcolortypes,
+]
+
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+def unregister():
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
