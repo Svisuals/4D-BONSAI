@@ -22,13 +22,23 @@ import bpy
 from . import ui, prop, operator
 # In __init__.py
 from . import ui, prop, operator, camera_operators # <-- Add camera_operators here
+from . import ui, prop, operator, camera_operators, io_operators # <-- Add io_operators
 
 
 classes = (
-    # Operators from the new camera_operators.py module
+    # Operators from the camera_operators.py module
     camera_operators.ResetCameraSettings,
     camera_operators.Align4DCameraToView,
     camera_operators.Delete4DCamera,
+
+    # Operators from the new io_operators.py module
+    io_operators.ImportWorkScheduleCSV,
+    io_operators.ImportP6,
+    io_operators.ImportP6XER,
+    io_operators.ImportPP,
+    io_operators.ImportMSP,
+    io_operators.ExportMSP,
+    io_operators.ExportP6,
 
     # Operators from the main operator.py (now cleaner)
     operator.Copy3D,
@@ -97,15 +107,10 @@ classes = (
     operator.EnableEditingWorkTime,
     operator.ExpandAllTasks,
     operator.ExpandTask,
-    operator.ExportMSP,
-    operator.ExportP6,
     operator.GenerateGanttChart,
     operator.GuessDateRange,
     operator.GoToTask,
-    operator.ImportWorkScheduleCSV,
     operator.SortWorkScheduleByIdAsc,
-    operator.ImportP6XER,
-    operator.ImportPP,
     operator.LoadAnimationColorScheme,
     operator.LoadDefaultAnimationColors,
     operator.LoadProductTasks,
