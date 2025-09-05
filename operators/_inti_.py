@@ -7,6 +7,7 @@ from . import camera_operators
 from . import io_operators
 
 # A single tuple containing all operator classes to be registered
+
 classes = (
     # from camera_operators.py
     camera_operators.ResetCameraSettings,

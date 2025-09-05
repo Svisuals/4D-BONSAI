@@ -22,6 +22,8 @@ import bpy
 from . import ui, prop
 
 
+classes = (
+
 # Property groups from prop.py
     prop.WorkPlan,
     prop.BIMWorkPlanProperties,
