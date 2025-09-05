@@ -19,11 +19,13 @@
 # pyright: reportAttributeAccessIssue=false
 
 import bpy
+
 from . import ui, prop
+from . import operators
 
 
 classes = (
-
+    
 # Property groups from prop.py
     prop.WorkPlan,
     prop.BIMWorkPlanProperties,
@@ -101,6 +103,9 @@ def menu_func_import(self, context):
 
 
 def register():
+    # Register operators from operators module
+    operators.register()
+    
     # Register all classes for this module
     try:
         for cls in classes:
@@ -195,6 +200,9 @@ except Exception:
 
 
 def unregister():
+    # Unregister operators from operators module first
+    operators.unregister()
+    
     # Unregister classes in reverse order
     try:
         for cls in reversed(classes):
