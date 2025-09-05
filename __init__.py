@@ -19,9 +19,6 @@
 # pyright: reportAttributeAccessIssue=false
 
 import bpy
-from . import ui, prop, operator
-# In __init__.py
-from . import ui, prop, operator, camera_operators # <-- Add camera_operators here
 from . import ui, prop, operator, camera_operators, io_operators # <-- Add io_operators
 
 
