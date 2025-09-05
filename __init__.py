@@ -20,10 +20,17 @@
 
 import bpy
 from . import ui, prop, operator
+# In __init__.py
+from . import ui, prop, operator, camera_operators # <-- Add camera_operators here
 
 
 classes = (
-    # Operators from operator.py
+    # Operators from the new camera_operators.py module
+    camera_operators.ResetCameraSettings,
+    camera_operators.Align4DCameraToView,
+    camera_operators.Delete4DCamera,
+
+    # Operators from the main operator.py (now cleaner)
     operator.Copy3D,
     operator.Sync3D,
     operator.AddSummaryTask,
@@ -56,7 +63,6 @@ classes = (
     operator.CopyTaskCustomcolortypeGroup,
     operator.CopyWorkSchedule,
     operator.CreateBaseline,
-    operator.ResetCameraSettings,
     operator.ANIM_OT_group_stack_add,
     operator.ANIM_OT_group_stack_remove,
     operator.ANIM_OT_group_stack_move,
@@ -97,7 +103,7 @@ classes = (
     operator.GuessDateRange,
     operator.GoToTask,
     operator.ImportWorkScheduleCSV,
-    operator.SortWorkScheduleByIdAsc,  # added
+    operator.SortWorkScheduleByIdAsc,
     operator.ImportP6XER,
     operator.ImportPP,
     operator.LoadAnimationColorScheme,
@@ -132,19 +138,12 @@ classes = (
     operator.UnassignRecurrencePattern,
     operator.UnassignSuccessor,
     operator.UnassignWorkSchedule,
-    # operator.VisualiseWorkScheduleDate,  # removed
     operator.SnapshotWithcolortypes,
-
-    # === NEW OPERATORS FOR SNAPSHOT ===
     operator.AddSnapshotCamera,
     operator.AlignSnapshotCameraToView,
     operator.SnapshotWithcolortypesFixed,
-
     operator.VisualiseWorkScheduleDateRange,
-    operator.Align4DCameraToView,
-    
     operator.DebugViewportInfo,
-    operator.Delete4DCamera,
     operator.EnableStatusFilters,
     operator.DisableStatusFilters,
     operator.ActivateStatusFilters,
@@ -160,37 +159,26 @@ classes = (
     operator.ExportAnimationColorSchemesSetToFile,
     operator.ImportAnimationColorSchemesSetFromFile,
     operator.CleanupTaskcolortypeMappings,
-
-        operator.SetupTextHUD,
+    operator.SetupTextHUD,
     operator.ClearTextHUD,
     operator.UpdateTextHUDPositions,
     operator.UpdateTextHUDScale,
     operator.ToggleTextHUD,
     operator.Fix3DTextAlignment,
     operator.ArrangeScheduleTexts,
-    # HUD Operators with GPU (NEW)
     operator.EnableScheduleHUD,
     operator.DisableScheduleHUD,
     operator.ToggleScheduleHUD,
     operator.RefreshScheduleHUD,
     operator.DebugScheduleHUD,
-
-    # Legend HUD colortype Navigation Operators
     operator.LegendHudcolortypeScrollUp,
     operator.LegendHudcolortypeScrollDown,
     operator.LegendHudTogglecolortypeVisibility,
-    
-    # 3D Legend HUD Operators
     operator.Setup3DLegendHUD,
     operator.Clear3DLegendHUD,
     operator.Update3DLegendHUD,
     operator.Toggle3DLegendHUD,
-    
-    # Variance Color Mode Operators
     operator.DeactivateVarianceColorMode,
-
-
-    # --- Filter Set Operators (Saved/Load/Import/Export) ---
     operator.AddTaskFilter,
     operator.RemoveTaskFilter,
     operator.ApplyTaskFilters,
