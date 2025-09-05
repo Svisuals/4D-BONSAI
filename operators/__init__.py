@@ -5,6 +5,7 @@ import bpy
 from . import operator
 from . import camera_operators
 from . import io_operators
+from . import animation_operators
 
 # A single tuple containing all operator classes to be registered
 
@@ -179,12 +180,16 @@ classes = (
     operator.UpdateSavedFilterSet,
     operator.ExportFilterSet,
     operator.ImportFilterSet,
-    operator.AddAnimationCamera,
-    operator.AddAnimationTaskType,
+    
+    # from animation_operators.py
+    animation_operators.CreateAnimation,
+    animation_operators.ClearAnimation,
+    animation_operators.AddAnimationTaskType,
+    animation_operators.RemoveAnimationTaskType,
+    animation_operators.AddAnimationCamera,
+    
     operator.BIM_OT_fix_colortype_hide_at_end_immediate,
     operator.BIM_OT_verify_colortype_json,
-    operator.ClearAnimation,
-    operator.CreateAnimation,
     operator.DebugHUDCalculations,
     operator.DebugHUDSynchronization,
     operator.DebugLegendData,
@@ -195,7 +200,6 @@ classes = (
     operator.NavigateColumnsLeft,
     operator.NavigateColumnsRight,
     operator.RefreshSnapshotTexts,
-    operator.RemoveAnimationTaskType,
     operator.SetupDefaultcolortypes,
     operator.TestHUDDateRangeLogic,
     operator.TestHUDDualLogic,
