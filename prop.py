@@ -3934,8 +3934,10 @@ def update_date_source(self, context):
             return None
         bpy.app.timers.register(reapply_filter, first_interval=0.05)
     
+    # --- Tu lógica original para re-bake ---
     anim_props = tool.Sequence.get_animation_props()
     if getattr(anim_props, 'auto_update_on_date_source_change', False):
+<<<<<<< HEAD
 
         if getattr(anim_props, 'is_animation_created', False):
 
@@ -3949,6 +3951,84 @@ def update_date_source(self, context):
                 return None
         
 
+=======
+        def re_bake_animation():
+            try:
+                # MODIFICADO: Ahora llamamos a CreateAnimation directamente
+                # para poder pasarle el nuevo parámetro que evita el reinicio del fotograma.
+                bpy.ops.bim.create_animation(preserve_current_frame=True)
+            except Exception as e:
+                print(f"❌ Error re-baking animation automatically: {e}")
+            return None
+        bpy.app.timers.register(re_bake_animation, first_interval=0.2)
+   
+
+
+def update_date_source(self, context):
+    """
+    Callback when the date source changes. It updates the visualization dates,
+    re-applies any active Lookahead filter, and syncs the timeline by date if requested.
+    """
+    import bpy # Es una buena práctica importar bpy dentro de las funciones de callback
+
+    # --- NUEVO: Guardamos el estado ANTES de cualquier cambio ---
+    previous_start = self.visualisation_start
+    previous_finish = self.visualisation_finish
+    # -----------------------------------------------------------
+    
+    props = tool.Sequence.get_work_schedule_props()
+    current_lookahead = getattr(props, 'last_lookahead_window', '')
+
+    # --- Tu lógica original para Lookahead ---
+    if not current_lookahead:
+        try:
+            def guess_and_update_dates():
+                work_schedule = tool.Sequence.get_active_work_schedule()
+                if work_schedule:
+                    start_date, finish_date = tool.Sequence.guess_date_range(work_schedule)
+                    tool.Sequence.update_visualisation_date(start_date, finish_date)
+                    print(f"📅 Updated visualization range (no Lookahead): {start_date} to {finish_date}")
+                
+                # --- NUEVO: Disparamos la sincronización DESPUÉS de actualizar las fechas ---
+                if previous_start and previous_finish and "-" not in (previous_start, previous_finish):
+                    bpy.ops.bim.sync_animation_by_date(
+                        'INVOKE_DEFAULT',
+                        previous_start_date=previous_start,
+                        previous_finish_date=previous_finish
+                    )
+                return None
+            bpy.app.timers.register(guess_and_update_dates)
+        except Exception as e:
+            print(f"Bonsai WARNING: Failed to schedule date range update: {e}")
+
+    if current_lookahead:
+        def reapply_filter():
+            try:
+                bpy.ops.bim.apply_lookahead_filter(time_window=current_lookahead)
+                # --- NUEVO: Disparamos la sincronización DESPUÉS de actualizar las fechas ---
+                if previous_start and previous_finish and "-" not in (previous_start, previous_finish):
+                    bpy.ops.bim.sync_animation_by_date(
+                        'INVOKE_DEFAULT',
+                        previous_start_date=previous_start,
+                        previous_finish_date=previous_finish
+                    )
+            except Exception as e:
+                print(f"❌ Error re-applying lookahead filter: {e}")
+            return None
+        bpy.app.timers.register(reapply_filter, first_interval=0.05)
+    
+    # --- Tu lógica original para re-bake ---
+    anim_props = tool.Sequence.get_animation_props()
+    if getattr(anim_props, 'auto_update_on_date_source_change', False):
+        def re_bake_animation():
+            try:
+                # MODIFICADO: Ahora llamamos a CreateAnimation directamente
+                # para poder pasarle el nuevo parámetro que evita el reinicio del fotograma.
+                bpy.ops.bim.create_animation(preserve_current_frame=True)
+            except Exception as e:
+                print(f"❌ Error re-baking animation automatically: {e}")
+            return None
+>>>>>>> 315c24fd3d3e09e4de3cfbcb36c9d95a73ed715f
         bpy.app.timers.register(re_bake_animation, first_interval=0.2)
 
 
