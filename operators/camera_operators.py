@@ -85,17 +85,52 @@ class ResetCameraSettings(bpy.types.Operator):
 class Align4DCameraToView(bpy.types.Operator):
     bl_idname = "bim.align_4d_camera_to_view"
     bl_label = "Align Active Camera to View"
-    # ... (el resto de esta clase no cambia) ...
+    bl_description = "Aligns the active 4D camera to the current 3D view and sets it to static"
+    bl_options = {'REGISTER', 'UNDO'}
+    
     @classmethod
     def poll(cls, context):
-        if not context.scene or not context.scene.camera: return False
+        if not context.scene or not context.scene.camera:
+            return False
         for area in context.screen.areas:
-            if area.type == 'VIEW_3D': return True
+            if area.type == 'VIEW_3D':
+                return True
         return False
+
     def execute(self, context):
         try:
+            cam_obj = context.scene.camera
+            if not cam_obj:
+                self.report({'ERROR'}, "No active camera in scene.")
+                return {'CANCELLED'}
+
+            rv3d = None
+            for area in context.screen.areas:
+                if area.type == 'VIEW_3D':
+                    rv3d = area.spaces.active.region_3d
+                    break
+            
+            if not rv3d:
+                self.report({'ERROR'}, "No active 3D viewport found.")
+                return {'CANCELLED'}
+
+            cam_obj.matrix_world = rv3d.view_matrix.inverted()
+
+            tool.Sequence.clear_camera_animation(cam_obj)
+            
+            anim_props = tool.Sequence.get_animation_props()
+            camera_props = anim_props.camera_orbit
+            camera_props.orbit_mode = 'NONE'
+
+            if getattr(camera_props, 'enable_text_hud', False):
+                try:
+                    bpy.ops.bim.refresh_schedule_hud()
+                except Exception as e:
+                    print(f"HUD refresh after align failed: {e}")
+            
             self.report({'INFO'}, "Camera aligned to view and set to static.")
             return {'FINISHED'}
+
         except Exception as e:
             self.report({'ERROR'}, f"Failed to align camera: {str(e)}")
             return {'CANCELLED'}

@@ -46,6 +46,29 @@ from bpy.props import (
 from typing import TYPE_CHECKING, Literal, get_args, Optional, Dict, List, Set
 
 
+def update_date_source_type(self, context):
+    """
+    Esta función se ejecuta cada vez que el usuario cambia el tipo de cronograma.
+    Actualiza el rango de fechas y, si la sincronización está activa,
+    llama al operador para sincronizar la línea de tiempo por fecha.
+    """
+    # Guardamos las fechas ANTES de que se recalculen
+    previous_start = self.visualisation_start
+    previous_finish = self.visualisation_finish
+
+    # 1. Siempre actualizamos el rango de fechas en la UI
+    bpy.ops.bim.guess_date_range('INVOKE_DEFAULT', work_schedule=self.active_work_schedule_id)
+    
+    # 2. Llamamos al operador de sincronización, pasándole las fechas anteriores
+    # El operador internamente decidirá si debe ejecutarse o no.
+    bpy.ops.bim.sync_animation_by_date(
+        'INVOKE_DEFAULT',
+        previous_start_date=previous_start,
+        previous_finish_date=previous_finish
+    )
+
+
+
 def update_schedule_display_parent_constraint(context):
     """
     Finds the 'Schedule_Display_Parent' empty and updates its rotation and location constraints.
@@ -3832,17 +3855,20 @@ class BIMStatusProperties(PropertyGroup):
 
 def update_date_source(self, context):
     """
-    Callback when the date source changes. It updates the visualization dates
-    and automatically re-applies any active Lookahead filter.
+    Callback when the date source changes. It updates the visualization dates,
+    re-applies any active Lookahead filter, and syncs the timeline by date if requested.
     """
+    import bpy # Importante dentro de la función
+
+    # --- NUEVO: Guardamos el estado ANTES de cualquier cambio ---
+    previous_start = self.visualisation_start
+    previous_finish = self.visualisation_finish
+    # -----------------------------------------------------------
+    
     props = tool.Sequence.get_work_schedule_props()
     current_lookahead = getattr(props, 'last_lookahead_window', '')
 
-    # --- HUD JUMP FIX ---
-    # If a lookahead filter is active, do NOT update the date range.
-    # The lookahead filter will handle the range update to avoid visual jumping.
     if not current_lookahead:
-        # 1. Update the main visualization date range only if no Lookahead filter
         try:
             def guess_and_update_dates():
                 work_schedule = tool.Sequence.get_active_work_schedule()
@@ -3850,37 +3876,47 @@ def update_date_source(self, context):
                     start_date, finish_date = tool.Sequence.guess_date_range(work_schedule)
                     tool.Sequence.update_visualisation_date(start_date, finish_date)
                     print(f"📅 Updated visualization range (no Lookahead): {start_date} to {finish_date}")
+                
+                # --- NUEVO: Disparamos la sincronización DESPUÉS de actualizar las fechas ---
+                if previous_start and previous_finish and "-" not in (previous_start, previous_finish):
+                    bpy.ops.bim.sync_animation_by_date(
+                        'INVOKE_DEFAULT',
+                        previous_start_date=previous_start,
+                        previous_finish_date=previous_finish
+                    )
                 return None
             bpy.app.timers.register(guess_and_update_dates)
         except Exception as e:
             print(f"Bonsai WARNING: Failed to schedule date range update: {e}")
-    # 2. Re-apply the Lookahead filter if it is currently active.
+
     if current_lookahead:
         def reapply_filter():
             try:
                 bpy.ops.bim.apply_lookahead_filter(time_window=current_lookahead)
+                # --- NUEVO: Disparamos la sincronización DESPUÉS de actualizar las fechas ---
+                if previous_start and previous_finish and "-" not in (previous_start, previous_finish):
+                    bpy.ops.bim.sync_animation_by_date(
+                        'INVOKE_DEFAULT',
+                        previous_start_date=previous_start,
+                        previous_finish_date=previous_finish
+                    )
             except Exception as e:
                 print(f"❌ Error re-applying lookahead filter: {e}")
             return None
         bpy.app.timers.register(reapply_filter, first_interval=0.05)
-
-    # --- START OF MODIFICATION ---
-    # 3. Auto-update the animation if the user has enabled it
+    
     anim_props = tool.Sequence.get_animation_props()
     if getattr(anim_props, 'auto_update_on_date_source_change', False):
         def re_bake_animation():
             try:
-                # We need the active work schedule ID to pass to the operator
-                active_ws_id = getattr(self, 'active_work_schedule_id', 0)
-                if active_ws_id > 0:
-                    # Call the operator that creates the animation, without showing the camera dialog
-                    bpy.ops.bim.visualise_work_schedule_date_range(work_schedule=active_ws_id, camera_action='UPDATE')
+                # MODIFICADO: Ahora llamamos a CreateAnimation directamente
+                # para poder pasarle el nuevo parámetro que evita el reinicio.
+                bpy.ops.bim.create_animation(preserve_current_frame=True)
             except Exception as e:
                 print(f"❌ Error re-baking animation automatically: {e}")
             return None
-        # Use a slightly longer delay to ensure other updates have finished
         bpy.app.timers.register(re_bake_animation, first_interval=0.2)
-    # --- END OF MODIFICATION ---
+
 
     # Variance will only update when manually changing variance_source_a/variance_source_b
     # Not automatically when changing main date source

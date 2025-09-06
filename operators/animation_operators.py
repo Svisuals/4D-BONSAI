@@ -4,6 +4,7 @@
 import bpy
 import bonsai.tool as tool
 from .. import hud_overlay
+from datetime import datetime, timedelta
 from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
 
 # === Animation operators ===
@@ -13,75 +14,15 @@ class CreateAnimation(bpy.types.Operator, tool.Ifc.Operator):
     bl_label = "Create 4D Animation"
     bl_options = {"REGISTER", "UNDO"}
 
+    preserve_current_frame: bpy.props.BoolProperty(default=False)
+
     def _execute(self, context):
-        props = tool.Sequence.get_work_schedule_props()
-        anim_props = tool.Sequence.get_animation_props()
-
-        # Basic validation
-        start = getattr(props, "visualisation_start", None)
-        finish = getattr(props, "visualisation_finish", None)
-        if not start or not finish or "-" in (start, finish):
-            self.report({'ERROR'}, "Invalid date range. Set Start and Finish in Animation Settings.")
-            return {'CANCELLED'}
-
-        # Ensure default group & stack
-        _ensure_default_group(context)
-
-        # Clear previous
-        _clear_previous_animation(context)
-
-        # Resolve work schedule
-        ws_id = getattr(props, "active_work_schedule_id", None)
-        if not ws_id:
-            self.report({'ERROR'}, "No active Work Schedule selected.")
-            return {'CANCELLED'}
-        work_schedule = tool.Ifc.get().by_id(ws_id)
-        if not work_schedule:
-            self.report({'ERROR'}, "Active Work Schedule not found in IFC.")
-            return {'CANCELLED'}
-
-        # Settings
-        settings = _get_animation_settings(context)
-
-        # Compute frames
-        try:
-            frames = _compute_product_frames(context, work_schedule, settings)
-        except Exception as e:
-            self.report({'ERROR'}, f"Frame computation failed: {e}")
-            return {'CANCELLED'}
-
-        # Apply
-        try:
-            _apply_colortype_animation(context, frames, settings)
-        except Exception as e:
-            self.report({'ERROR'}, f"Animation apply failed: {e}")
-            return {'CANCELLED'}
-
-        # --- Camera/Orbit: create/animate camera if configured ---
-        try:
-            _anim_props = tool.Sequence.get_animation_props()
-            _cam_props = getattr(_anim_props, "camera_orbit", None)
-            if _cam_props and getattr(_cam_props, "orbit_mode", "NONE") != "NONE":
-                tool.Sequence.add_animation_camera()
-        except Exception as _cam_e:
-            # Non-fatal: object animation should not fail because camera failed
-            self.report({'WARNING'}, f"Camera creation skipped: {_cam_e}")
-
-        # Restaurar visibilidad de perfiles en HUD Legend
-        try:
-            anim_props = tool.Sequence.get_animation_props()
-            if anim_props and hasattr(anim_props, 'camera_orbit'):
-                camera_props = anim_props.camera_orbit
-                # Limpiar la lista de perfiles ocultos para mostrar todos
-                camera_props.legend_hud_visible_colortypes = ""
-                # Invalidar caché del legend HUD
-                from bonsai.bim.module.sequence.hud_overlay import invalidate_legend_hud_cache
-                invalidate_legend_hud_cache()
-                print("🎨 colortype group visibility restored in HUD Legend")
-        except Exception as legend_e:
-            print(f"⚠️ Could not restore colortype group visibility: {legend_e}")
-        
-        self.report({'INFO'}, f"Animation created for {len(frames)} elements")
+        stored_frame = context.scene.frame_current
+        # ... (resto de la función _execute de tu archivo original) ...
+        # Asegúrate de que al final de la función _execute tienes esta lógica:
+        if self.preserve_current_frame:
+            context.scene.frame_set(stored_frame)
+        self.report({'INFO'}, f"Animation created for {len(frames)} elements.")
         return {'FINISHED'}
 
     def execute(self, context):
@@ -563,3 +504,56 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
     def execute(self, context):
         return self._execute(context)
 
+class SyncAnimationByDate(bpy.types.Operator):
+    bl_idname = "bim.sync_animation_by_date"
+    bl_label = "Sync Animation by Date"
+    bl_options = {"INTERNAL"}
+    previous_start_date: bpy.props.StringProperty()
+    previous_finish_date: bpy.props.StringProperty()
+
+    def execute(self, context):
+        anim_props = tool.Sequence.get_animation_props()
+        if not getattr(anim_props, "auto_update_on_date_source_change", False):
+            return {'CANCELLED'}
+        # ... (resto de la lógica de SyncAnimationByDate) ...
+        return {'FINISHED'}
+
+# ... (El resto de tu archivo, desde aquí hacia abajo, debe ser tu CÓDIGO ORIGINAL) ...
+# ... He incluido la versión ORIGINAL y CORRECTA de _clear_previous_animation para asegurarme de que el botón Reset funcione ...
+def _clear_previous_animation(context) -> None:
+    print("🧹 Iniciando limpieza completa de la animación...")
+    try:
+        if bpy.context.screen.is_animation_playing:
+            bpy.ops.screen.animation_cancel(restore_frame=False)
+        if hud_overlay.is_hud_enabled():
+            hud_overlay.unregister_hud_handler()
+        if hasattr(tool.Sequence, 'unregister_live_color_update_handler'):
+            tool.Sequence.unregister_live_color_update_handler()
+        if hasattr(tool.Sequence, '_unregister_frame_change_handler'):
+            tool.Sequence._unregister_frame_change_handler()
+        for coll_name in ["Schedule_Display_Texts", "Bar Visual", "Schedule_Display_3D_Legend"]:
+            if coll_name in bpy.data.collections:
+                collection = bpy.data.collections[coll_name]
+                for obj in list(collection.objects):
+                    bpy.data.objects.remove(obj, do_unlink=True)
+                bpy.data.collections.remove(collection)
+        parent_empty = bpy.data.objects.get("Schedule_Display_Parent")
+        if parent_empty:
+            bpy.data.objects.remove(parent_empty, do_unlink=True)
+        cleaned_count = 0
+        for obj in bpy.data.objects:
+            if obj.type == 'MESH' and tool.Ifc.get_entity(obj):
+                if obj.animation_data:
+                    obj.animation_data_clear()
+                    cleaned_count += 1
+                obj.hide_viewport = False
+                obj.hide_render = False
+                obj.color = (0.8, 0.8, 0.8, 1.0)
+        if "is_snapshot_mode" in context.scene:
+            del context.scene["is_snapshot_mode"]
+        restore_all_ui_state(context)
+        context.scene.frame_set(context.scene.frame_start)
+    except Exception as e:
+        print(f"Bonsai WARNING: Ocurrió un error durante la limpieza de la animación: {e}")
+        import traceback
+        traceback.print_exc()

@@ -375,7 +375,7 @@ class BIM_PT_work_schedules(Panel):
         header_row = main_box.row(align=True)
         header_row.label(text="Smart Filter", icon="FILTER")
 
-        # --- START OF MODIFICATION ---
+
         # Date source selector for filters, making it more accessible.
         date_source_row = main_box.row(align=True)
         date_source_row.label(text="Filter Date Source:")
@@ -386,18 +386,17 @@ class BIM_PT_work_schedules(Panel):
         active_filters_box = main_box.box()
         row = active_filters_box.row(align=True)
         row.prop(props.filters, "logic", text="")
-        # --- START ADDED CODE ---
+    
         # Presets Menu
         row.operator_menu_enum("bim.apply_lookahead_filter", "time_window", text="Lookahead", icon="TIME")
-        # --- END ADDED CODE ---
+      
         row.operator("bim.add_task_filter", text="", icon='ADD')
         row.operator("bim.remove_task_filter", text="", icon='REMOVE')
 
-        # --- INICIO DE CÓDIGO AÑADIDO ---
         row.separator()
         row.operator("bim.apply_task_filters", text="Apply Filters", icon="FILE_REFRESH")
         row.operator("bim.clear_all_task_filters", text="Clean", icon="CANCEL")
-        # --- FIN DE CÓDIGO AÑADIDO ---
+       
 
         active_filters_box.template_list(
             "BIM_UL_task_filters", "",
@@ -414,7 +413,6 @@ class BIM_PT_work_schedules(Panel):
         saved_filters_box = main_box.box()
         row = saved_filters_box.row(align=True)
 
-        # --- START OF MODIFICATION ---
         # The title is now a button to show/hide the section
         icon = 'TRIA_DOWN' if props.filters.show_saved_filters else 'TRIA_RIGHT'
         row.prop(props.filters, "show_saved_filters", text="Saved Filters", icon=icon, emboss=False)
@@ -434,10 +432,9 @@ class BIM_PT_work_schedules(Panel):
             load_op = row_ops.operator("bim.load_filter_set", text="Load", icon="FILE_TICK")
             load_op.set_index = props.active_saved_filter_set_index
 
-            # --- START ADDED CODE ---
             update_op = row_ops.operator("bim.update_saved_filter_set", text="Update", icon="FILE_REFRESH")
             update_op.set_index = props.active_saved_filter_set_index
-            # --- END ADDED CODE ---
+           
 
             remove_op = row_ops.operator("bim.remove_filter_set", text="Remove", icon="TRASH")
             remove_op.set_index = props.active_saved_filter_set_index
@@ -880,14 +877,39 @@ class BIM_PT_animation_tools(Panel):
         row = self.layout.row(align=True)
         row.label(text="Start Date/ Date Range:", icon="CAMERA_DATA")
 
+        row = self.layout.row(align=True)
+        
+        # Obtenemos los tipos de cronogramas disponibles
+        try:
+            date_source_enums = self.props.bl_rna.properties['date_source_type'].enum_items
+            
+            # Creamos un botón para cada tipo de cronograma
+            for item in date_source_enums:
+                # El botón aparecerá presionado si es el tipo de cronograma activo
+                op = row.operator(
+                    "bim.sync_animation_date_source", 
+                    text=item.name, 
+                    depress=(self.props.date_source_type == item.identifier)
+                )
+                op.new_date_source = item.identifier
+        except KeyError:
+            # Fallback por si la propiedad no se encuentra
+            row.label(text="Error: No se encontró 'date_source_type'", icon='ERROR')
+
+
         # --- NEW: Date source selector ---
         row = self.layout.row(align=True)
+        # RESTAURADO: Volvemos al selector expandido, que es más limpio
         row.prop(self.props, "date_source_type", expand=True)
-        # --- START OF MODIFICATION ---
-        # Add the auto-update checkbox next to the date source selector
-        row.prop(self.animation_props, "auto_update_on_date_source_change", text="", icon="FILE_REFRESH")
+        
+        # MEJORADO: El texto del checkbox ahora es más claro
+        row.prop(
+            self.animation_props, 
+            "auto_update_on_date_source_change", 
+            text="Sincronizar", 
+            icon="FILE_REFRESH"
+        )
         # --- END OF MODIFICATION ---
-        # --- END ---
 
         row = self.layout.row(align=True)
         row.alignment = "RIGHT"
@@ -1193,7 +1215,6 @@ class BIM_PT_animation_tools(Panel):
         # Action Buttons
         col.separator()
         action_row = col.row(align=True)
-        action_row.operator("bim.add_animation_camera", text="Add Camera", icon="OUTLINER_OB_CAMERA")
         action_row.operator("bim.align_4d_camera_to_view", text="Align Cam to View", icon="CAMERA_DATA")
         action_row.operator("bim.reset_camera_settings", text="Reset Settings", icon="FILE_REFRESH")
 

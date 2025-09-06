@@ -181,6 +181,10 @@ class RemoveTaskFilter(bpy.types.Operator):
             props.filters.rules.remove(index)
             props.filters.active_rule_index = min(max(0, index - 1), len(props.filters.rules) - 1)
             
+            # BUGFIX: If no filters remain, clear Look Ahead memory
+            if len(props.filters.rules) == 0:
+                props.last_lookahead_window = ""
+            
             # Ahora, refresca la lista de tareas aplicando el nuevo conjunto de filtros.
             # Esta lógica es la misma que en ApplyTaskFilters.
             try:
@@ -216,6 +220,9 @@ class ClearAllTaskFilters(bpy.types.Operator):
         # Clear all filter rules
         props.filters.rules.clear()
         props.filters.active_rule_index = 0
+        
+        # BUGFIX: Clear the Look Ahead memory to prevent auto-reactivation
+        props.last_lookahead_window = ""
         
         # Apply the changes (reload task tree with no filters)
         try:

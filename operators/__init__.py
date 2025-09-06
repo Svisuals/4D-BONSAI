@@ -18,6 +18,7 @@ from . import schedule_sequence_operators
 from . import schedule_operators
 from . import work_plan_operators
 from . import color_scheme_operators
+from .animation_operators import CreateAnimation, ClearAnimation, AddAnimationTaskType, RemoveAnimationTaskType, AddAnimationCamera, ClearPreviousAnimation, ClearPreviousSnapshot, SyncAnimationByDate
 
 # A single tuple containing all operator classes to be registered
 
@@ -221,6 +222,7 @@ classes = (
     animation_operators.AddAnimationCamera,
     animation_operators.ClearPreviousAnimation,
     animation_operators.ClearPreviousSnapshot,
+    animation_operators.SyncAnimationByDate, 
     
     # from navigation_operators.py
     navigation_operators.NavigateColumnsLeft,
