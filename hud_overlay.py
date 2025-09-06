@@ -121,9 +121,22 @@ class ScheduleHUD:
             work_props = tool.Sequence.get_work_schedule_props()
             anim_props = tool.Sequence.get_animation_props()
 
+            # CRITICAL: Check if synchronization mode is enabled
+            sync_enabled = getattr(anim_props, "auto_update_on_date_source_change", False)
+            print(f"🔗 HUD: Synchronization mode {'ENABLED' if sync_enabled else 'DISABLED'}")
+            
             # Fechas de visualización (rango seleccionado)
-            viz_start = tool.Sequence.get_start_date()
-            viz_finish = tool.Sequence.get_finish_date()
+            if sync_enabled:
+                # In synchronized mode, use the same unified range for visualization
+                # This will be set after we calculate the unified range
+                viz_start = None  # Will be set to unified range
+                viz_finish = None  # Will be set to unified range
+                print("🔗 HUD: Will use unified range for visualization dates")
+            else:
+                # In independent mode, use the current schedule type's range
+                viz_start = tool.Sequence.get_start_date()
+                viz_finish = tool.Sequence.get_finish_date()
+                print(f"📅 HUD: Using independent visualization range: {viz_start} to {viz_finish}")
             
             # NEW: Get dates from the full active schedule
             full_schedule_start, full_schedule_end = None, None
@@ -134,8 +147,23 @@ class ScheduleHUD:
                 
                 if active_schedule:
                     print(f"🔍 Intentando obtener fechas del cronograma '{active_schedule.Name}'...")
-                    full_schedule_start, full_schedule_end = tool.Sequence.get_schedule_date_range()
+                    
+                    # CRITICAL: Use unified range if synchronization is enabled
+                    if sync_enabled:
+                        print("🔗 HUD: Getting UNIFIED date range (all 4 schedule types)")
+                        full_schedule_start, full_schedule_end = self.get_unified_schedule_range(active_schedule)
+                        print(f"🔗 HUD: Unified range: {full_schedule_start} to {full_schedule_end}")
+                    else:
+                        print("📅 HUD: Getting independent range for current schedule type")
+                        full_schedule_start, full_schedule_end = tool.Sequence.get_schedule_date_range()
+                    
                     print(f"🔍 Resultado: start={full_schedule_start}, end={full_schedule_end}")
+                    
+                    # CRITICAL: Set visualization dates to unified range if synchronization is enabled
+                    if sync_enabled and full_schedule_start and full_schedule_end:
+                        viz_start = full_schedule_start
+                        viz_finish = full_schedule_end
+                        print(f"🔗 HUD: Set visualization dates to unified range: {viz_start.strftime('%Y-%m-%d')} to {viz_finish.strftime('%Y-%m-%d')}")
                     
                     if full_schedule_start and full_schedule_end:
                         print(f"📊 Cronograma completo: {full_schedule_start.strftime('%Y-%m-%d')} → {full_schedule_end.strftime('%Y-%m-%d')}")
@@ -393,6 +421,61 @@ class ScheduleHUD:
             return None
 
 
+
+    def get_unified_schedule_range(self, work_schedule):
+        """
+        Calculate the unified date range by analyzing ALL 4 schedule types
+        Returns the earliest start and latest finish across all types
+        Used for Timeline HUD when synchronization is enabled
+        """
+        from datetime import datetime
+        import ifcopenshell.util.sequence
+        
+        if not work_schedule:
+            return None, None
+        
+        all_starts = []
+        all_finishes = []
+        
+        # Check all schedule types: SCHEDULE, ACTUAL, EARLY, LATE
+        for schedule_type in ["SCHEDULE", "ACTUAL", "EARLY", "LATE"]:
+            start_attr = f"{schedule_type.capitalize()}Start"
+            finish_attr = f"{schedule_type.capitalize()}Finish"
+            
+            print(f"🔍 UNIFIED HUD: Analyzing {schedule_type} -> {start_attr}/{finish_attr}")
+            
+            # Get all tasks from schedule
+            root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
+            
+            def get_all_tasks_recursive(tasks):
+                result = []
+                for task in tasks:
+                    result.append(task)
+                    nested = ifcopenshell.util.sequence.get_nested_tasks(task)
+                    if nested:
+                        result.extend(get_all_tasks_recursive(nested))
+                return result
+            
+            all_tasks = get_all_tasks_recursive(root_tasks)
+            
+            for task in all_tasks:
+                start_date = ifcopenshell.util.sequence.derive_date(task, start_attr, is_earliest=True)
+                if start_date:
+                    all_starts.append(start_date)
+                
+                finish_date = ifcopenshell.util.sequence.derive_date(task, finish_attr, is_latest=True)
+                if finish_date:
+                    all_finishes.append(finish_date)
+        
+        if not all_starts or not all_finishes:
+            print("❌ UNIFIED HUD: No valid dates found across all schedule types")
+            return None, None
+        
+        unified_start = min(all_starts)
+        unified_finish = max(all_finishes)
+        
+        print(f"✅ UNIFIED HUD: Timeline range spans {unified_start.strftime('%Y-%m-%d')} to {unified_finish.strftime('%Y-%m-%d')}")
+        return unified_start, unified_finish
 
     def get_hud_settings(self):
         """Gets complete HUD configuration from properties"""

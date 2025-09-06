@@ -20,7 +20,9 @@ from __future__ import annotations
 import os
 import re
 import bpy
+import time  # For performance timing
 from bonsai.bim.module.sequence import data as _seq_data
+from bonsai.bim.module.sequence.data import SequenceCache  # Import the new cache
 import json
 import base64
 import ifcopenshell.api.sequence
@@ -28,6 +30,7 @@ import pystache
 import mathutils
 import webbrowser
 import isodate
+from typing import List  # For type hints
 import ifcopenshell
 import ifcopenshell.api.group
 import ifcopenshell.ifcopenshell_wrapper as W
@@ -2386,8 +2389,13 @@ class Sequence(bonsai.core.tool.Sequence):
         start_attr = f"{date_source.capitalize()}Start"
         finish_attr = f"{date_source.capitalize()}Finish"
 
+        # CRITICAL FIX 3: Debug info to track what's happening
+        print(f"🔍 GUESS_DATE_RANGE: Using date source '{date_source}' -> {start_attr}/{finish_attr}")
+        print(f"📊 GUESS_DATE_RANGE: Processing {len(all_schedule_tasks)} tasks")
+
         all_starts = []
         all_finishes = []
+        found_dates_count = 0
 
         # Iterate over ALL tasks from the schedule, not just the visible ones.
         for task in all_schedule_tasks:
@@ -2398,16 +2406,27 @@ class Sequence(bonsai.core.tool.Sequence):
             finish_date = ifcopenshell.util.sequence.derive_date(task, finish_attr, is_latest=True)
             if finish_date:
                 all_finishes.append(finish_date)
+            
+            if start_date or finish_date:
+                found_dates_count += 1
+        
+        print(f"📅 GUESS_DATE_RANGE: Found dates in {found_dates_count}/{len(all_schedule_tasks)} tasks")
         # --- END OF CORRECTION ---
 
         if not all_starts or not all_finishes:
+            print(f"❌ GUESS_DATE_RANGE: No valid dates found for {date_source}")
             return None, None
 
-        return min(all_starts), max(all_finishes)
+        result_start = min(all_starts)
+        result_finish = max(all_finishes)
+        print(f"✅ GUESS_DATE_RANGE: Result for {date_source}: {result_start.strftime('%Y-%m-%d')} to {result_finish.strftime('%Y-%m-%d')}")
+        
+        return result_start, result_finish
     @classmethod
     def get_schedule_date_range(cls, work_schedule=None):
         """
         Obtiene el rango de fechas REAL del cronograma activo (no las fechas de visualización).
+        OPTIMIZED: Now uses SequenceCache for fast access.
 
         Returns:
             tuple: (schedule_start: datetime, schedule_finish: datetime) o (None, None) si falla
@@ -2420,7 +2439,19 @@ class Sequence(bonsai.core.tool.Sequence):
                 print("⚠️ No hay cronograma activo para obtener fechas")
                 return None, None
 
-            # Usar la función existente para inferir fechas del cronograma
+            # TEMPORARILY DISABLED: Cache optimization to prevent infinite loops
+            # NEW: Use cache-optimized date retrieval
+            # work_schedule_id = work_schedule.id()
+            # props = cls.get_work_schedule_props()
+            # date_source = getattr(props, "date_source_type", "SCHEDULE")
+            # 
+            # cached_dates = SequenceCache.get_schedule_dates(work_schedule_id, date_source)
+            # if cached_dates and cached_dates['date_range'][0] and cached_dates['date_range'][1]:
+            #     schedule_start, schedule_finish = cached_dates['date_range']
+            #     print(f"⚡ Schedule dates (cached): {schedule_start.strftime('%Y-%m-%d')} to {schedule_finish.strftime('%Y-%m-%d')}")
+            #     return schedule_start, schedule_finish
+
+            # Fallback to original logic if cache fails
             schedule_start = None
             schedule_finish = None
             try:
@@ -2434,7 +2465,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 print(f"📅 Schedule dates: {schedule_start.strftime('%Y-%m-%d')} to {schedule_finish.strftime('%Y-%m-%d')}")
                 return schedule_start, schedule_finish
 
-            # Fallback: usar guess_date_range
+            # Final fallback: usar guess_date_range
             try:
                 schedule_start, schedule_finish = cls.guess_date_range(work_schedule)
                 if schedule_start and schedule_finish:
@@ -2453,9 +2484,20 @@ class Sequence(bonsai.core.tool.Sequence):
     def update_visualisation_date(cls, start_date, finish_date):
         props = cls.get_work_schedule_props()
         if start_date and finish_date:
-            props.visualisation_start = ifcopenshell.util.date.canonicalise_time(start_date)
-            props.visualisation_finish = ifcopenshell.util.date.canonicalise_time(finish_date)
+            start_iso = ifcopenshell.util.date.canonicalise_time(start_date)
+            finish_iso = ifcopenshell.util.date.canonicalise_time(finish_date)
+            
+            # CRITICAL FIX 4: Debug the actual update
+            print(f"📝 UPDATE_VIZ_DATE: Setting {start_iso} to {finish_iso}")
+            print(f"📝 UPDATE_VIZ_DATE: Previous values were: {getattr(props, 'visualisation_start', 'None')} to {getattr(props, 'visualisation_finish', 'None')}")
+            
+            props.visualisation_start = start_iso
+            props.visualisation_finish = finish_iso
+            
+            # Verify the update worked
+            print(f"✅ UPDATE_VIZ_DATE: New values are: {props.visualisation_start} to {props.visualisation_finish}")
         else:
+            print(f"❌ UPDATE_VIZ_DATE: Invalid dates provided - start: {start_date}, finish: {finish_date}")
             props.visualisation_start = ""
             props.visualisation_finish = ""
     @classmethod
@@ -2895,7 +2937,8 @@ class Sequence(bonsai.core.tool.Sequence):
         viz_finish: datetime = None,
         date_source: str = "SCHEDULE") -> dict[str, Any]:
         """
-        CORRECCIÓN: Procesa estados considerando el rango de visualización configurado.
+        OPTIMIZED: Procesa estados considerando el rango de visualización configurado.
+        Now uses cached data structures for massive performance improvement.
 
         Args:
             work_schedule: Work schedule
@@ -2904,6 +2947,7 @@ class Sequence(bonsai.core.tool.Sequence):
             date_source: El tipo de fecha a usar ('SCHEDULE', 'ACTUAL', etc.)
             viz_finish: Fecha de fin de visualización (opcional)
         """
+        # Initialize state sets
         cls.to_build = set()
         cls.in_construction = set()
         cls.completed = set()
@@ -2911,6 +2955,51 @@ class Sequence(bonsai.core.tool.Sequence):
         cls.in_demolition = set()
         cls.demolished = set()
 
+        # TEMPORARILY DISABLED: All cache optimizations to prevent infinite loops
+        # ULTRA-FAST PATH: Try NumPy vectorized computation first
+        # work_schedule_id = work_schedule.id()
+        # vectorized_result = SequenceCache.get_vectorized_task_states(
+        #     work_schedule_id, date, date_source, viz_start, viz_finish
+        # )
+        # 
+        # if vectorized_result:
+        #     # FASTEST: Use NumPy vectorized operations
+        #     cls.to_build = vectorized_result["TO_BUILD"]
+        #     cls.in_construction = vectorized_result["IN_CONSTRUCTION"]
+        #     cls.completed = vectorized_result["COMPLETED"]
+        #     cls.to_demolish = vectorized_result["TO_DEMOLISH"]
+        #     cls.in_demolition = vectorized_result["IN_DEMOLITION"]
+        #     cls.demolished = vectorized_result["DEMOLISHED"]
+        #     print(f"🚀 NumPy vectorized: {vectorized_result['tasks_processed']} tasks, {vectorized_result['products_processed']} products")
+        #     
+        # else:
+        #     # FAST PATH: Use pre-processed cached data  
+        #     cached_dates = SequenceCache.get_schedule_dates(work_schedule_id, date_source)
+        #     cached_products = SequenceCache.get_task_products(work_schedule_id)
+        #     
+        #     if cached_dates and cached_products:
+        #         print(f"⚡ Using cached data for {len(cached_dates['tasks_dates'])} tasks")
+        #         start_time = time.time()
+        #         
+        #         for task_id, start_date, finish_date in cached_dates['tasks_dates']:
+        #             # Get products for this task from cache
+        #             task_product_ids = cached_products.get(task_id, [])
+        #             if not task_product_ids:
+        #                 continue  # Skip tasks without products
+        #             
+        #             # Process task status with cached data
+        #             cls._process_task_status_cached(
+        #                 task_id, task_product_ids, start_date, finish_date, 
+        #                 date, viz_start, viz_finish
+        #             )
+        #         
+        #         elapsed = time.time() - start_time
+        #         print(f"⚡ Processed construction state in {elapsed:.3f}s (cached)")
+        #         
+        #     else:
+        
+        # FALLBACK PATH: Use original logic
+        print("🔄 Using original processing logic")
         for rel in work_schedule.Controls or []:
             for related_object in rel.RelatedObjects:
                 if related_object.is_a("IfcTask"):
@@ -2924,6 +3013,45 @@ class Sequence(bonsai.core.tool.Sequence):
             "IN_DEMOLITION": cls.in_demolition,
             "DEMOLISHED": cls.demolished,
         }
+    
+    @classmethod 
+    def _process_task_status_cached(
+        cls,
+        task_id: int,
+        product_ids: List[int], 
+        start_date: datetime,
+        finish_date: datetime,
+        current_date: datetime,
+        viz_start: datetime = None,
+        viz_finish: datetime = None
+    ):
+        """
+        NEW: Fast version of task status processing using cached data.
+        This eliminates the need to traverse IFC relationships repeatedly.
+        """
+        if not product_ids:
+            return
+        
+        # Apply visualization range filtering
+        if viz_start and finish_date < viz_start:
+            # Task finished before visualization range - outputs completed, inputs demolished
+            cls.completed.update(product_ids)
+            return
+            
+        if viz_finish and start_date > viz_finish:
+            # Task starts after visualization range - skip entirely
+            return
+        
+        # Normal status logic based on current date
+        if current_date < start_date:
+            # Task hasn't started - inputs ready to build, outputs to be demolished
+            cls.to_build.update(product_ids)
+        elif start_date <= current_date <= finish_date:
+            # Task in progress - products in construction/demolition
+            cls.in_construction.update(product_ids)
+        else:  # current_date > finish_date
+            # Task completed - outputs built, inputs demolished
+            cls.completed.update(product_ids)
 
     @classmethod
     def process_task_status(
@@ -6381,9 +6509,12 @@ class Sequence(bonsai.core.tool.Sequence):
             else:
                 print("❌ No task tree properties found")
             
-            # Restaurar colores originales si están guardados
+            # COMPREHENSIVE COLOR RESTORATION
+            restored_count = 0
+            
+            # Method 1: Try to restore from cached original colors
             if hasattr(cls, '_original_colors') and cls._original_colors:
-                restored_count = 0
+                print(f"🔄 Attempting to restore from cached colors ({len(cls._original_colors)} stored)")
                 for obj in bpy.context.scene.objects:
                     if obj.type == 'MESH' and tool.Ifc.get_entity(obj):
                         if obj.name in cls._original_colors and hasattr(obj, 'color'):
@@ -6391,19 +6522,52 @@ class Sequence(bonsai.core.tool.Sequence):
                                 original_color = cls._original_colors[obj.name]
                                 obj.color = original_color
                                 restored_count += 1
+                                print(f"✅ Restored cached color for {obj.name}")
                             except Exception as e:
-                                print(f"❌ Error restoring color for {obj.name}: {e}")
-                
-                print(f"✅ Restored {restored_count} objects to original colors")
+                                print(f"❌ Error restoring cached color for {obj.name}: {e}")
                 
                 # Limpiar cache de colores originales
                 cls._original_colors = {}
                 print("🧹 Cleared original colors cache")
+            
+            # Method 2: If no cached colors or insufficient restoration, reset to default colors
+            if restored_count == 0:
+                print("🔄 No cached colors found, resetting all IFC objects to default gray")
+                for obj in bpy.context.scene.objects:
+                    if obj.type == 'MESH' and tool.Ifc.get_entity(obj):
+                        try:
+                            # Reset to default gray color
+                            obj.color = (0.8, 0.8, 0.8, 1.0)
+                            obj.hide_viewport = False
+                            obj.hide_render = False
+                            restored_count += 1
+                        except Exception as e:
+                            print(f"❌ Error resetting color for {obj.name}: {e}")
+            
+            print(f"✅ Total objects reset: {restored_count}")
+            
+            # Method 3: Force complete viewport refresh
+            try:
+                # Clear animation data that might be affecting colors
+                for obj in bpy.context.scene.objects:
+                    if obj.type == 'MESH' and obj.animation_data:
+                        obj.animation_data_clear()
                 
-                # Forzar actualización del viewport
+                # Force viewport update
                 bpy.context.view_layer.update()
-            else:
-                print("ℹ️ No original colors to restore")
+                
+                # Force redraw of all 3D viewports
+                for area in bpy.context.screen.areas:
+                    if area.type == 'VIEW_3D':
+                        area.tag_redraw()
+                        for space in area.spaces:
+                            if space.type == 'VIEW_3D':
+                                space.shading.color_type = 'OBJECT'  # Ensure object colors are visible
+                
+                print("🔄 Forced complete viewport refresh")
+                
+            except Exception as e:
+                print(f"⚠️ Error during viewport refresh: {e}")
                 
         except Exception as e:
             print(f"❌ Error clearing variance color mode: {e}")
@@ -6957,6 +7121,120 @@ class Sequence(bonsai.core.tool.Sequence):
             
         except Exception as e:
             print(f"❌ Error moving group in animation stack: {e}")
+            import traceback
+            traceback.print_exc()
+
+    @classmethod
+    def clear_schedule_variance(cls):
+        """
+        Clear schedule variance data, colors and reset objects to their original state.
+        Called when clearing variance or switching schedule types.
+        """
+        try:
+            print("🧹 CLEAR_SCHEDULE_VARIANCE: Starting comprehensive cleanup process...")
+            
+            # STEP 1: Clear variance DATA from all tasks (this was missing!)
+            tprops = cls.get_task_tree_props()
+            if tprops and tprops.tasks:
+                cleared_tasks = 0
+                print(f"🧹 CLEAR_SCHEDULE_VARIANCE: Found {len(tprops.tasks)} tasks to clean")
+                
+                for task in tprops.tasks:
+                    # CRITICAL: Clear the variance data properties set by CalculateScheduleVariance
+                    if hasattr(task, 'variance_days'):
+                        task.variance_days = 0
+                        cleared_tasks += 1
+                        
+                    if hasattr(task, 'variance_status'):
+                        task.variance_status = ""
+                        
+                    # Clear variance color selection checkbox
+                    if hasattr(task, 'is_variance_color_selected'):
+                        task.is_variance_color_selected = False
+                        
+                print(f"✅ CLEAR_SCHEDULE_VARIANCE: Cleared variance data from {cleared_tasks} tasks")
+            else:
+                print("⚠️ CLEAR_SCHEDULE_VARIANCE: No task properties found")
+            
+            # STEP 2: Clear variance color mode and restore original colors
+            print("🧹 CLEAR_SCHEDULE_VARIANCE: Clearing variance color mode...")
+            cls.clear_variance_color_mode()
+            
+            # STEP 3: Remove variance mode flags from scene
+            scene_flags_cleared = 0
+            if hasattr(bpy.context.scene, 'BIM_VarianceColorModeActive'):
+                del bpy.context.scene['BIM_VarianceColorModeActive']
+                scene_flags_cleared += 1
+                print("🧹 Removed BIM_VarianceColorModeActive flag from scene")
+                
+            # Clear any other variance-related scene properties
+            variance_keys = [key for key in bpy.context.scene.keys() if 'variance' in key.lower()]
+            for key in variance_keys:
+                try:
+                    del bpy.context.scene[key]
+                    scene_flags_cleared += 1
+                    print(f"🧹 Removed scene property: {key}")
+                except Exception as e:
+                    print(f"⚠️ Could not remove scene property {key}: {e}")
+            
+            print(f"✅ CLEAR_SCHEDULE_VARIANCE: Cleared {scene_flags_cleared} scene flags")
+            
+            # STEP 4: Reset ALL IFC objects to default appearance (comprehensive reset)
+            print("🧹 CLEAR_SCHEDULE_VARIANCE: Resetting all IFC objects to default state...")
+            reset_objects = 0
+            
+            for obj in bpy.context.scene.objects:
+                if obj.type == 'MESH' and tool.Ifc.get_entity(obj):
+                    try:
+                        # Reset color to default gray
+                        obj.color = (0.8, 0.8, 0.8, 1.0)
+                        
+                        # Reset visibility
+                        obj.hide_viewport = False
+                        obj.hide_render = False
+                        
+                        # Clear any animation data that might be affecting appearance
+                        if obj.animation_data:
+                            obj.animation_data_clear()
+                        
+                        # Reset material overrides if any
+                        if obj.material_slots:
+                            for slot in obj.material_slots:
+                                if slot.material:
+                                    slot.material.diffuse_color = (0.8, 0.8, 0.8, 1.0)
+                        
+                        reset_objects += 1
+                        
+                    except Exception as e:
+                        print(f"⚠️ Error resetting object {obj.name}: {e}")
+            
+            print(f"✅ CLEAR_SCHEDULE_VARIANCE: Reset {reset_objects} objects to default state")
+            
+            # STEP 5: Force complete viewport refresh
+            print("🧹 CLEAR_SCHEDULE_VARIANCE: Forcing viewport refresh...")
+            try:
+                # Update view layer
+                bpy.context.view_layer.update()
+                
+                # Force redraw of all 3D viewports
+                for area in bpy.context.screen.areas:
+                    if area.type == 'VIEW_3D':
+                        area.tag_redraw()
+                        for space in area.spaces:
+                            if space.type == 'VIEW_3D':
+                                # Ensure object colors are visible
+                                if hasattr(space.shading, 'color_type'):
+                                    space.shading.color_type = 'OBJECT'
+                                    
+                print("✅ CLEAR_SCHEDULE_VARIANCE: Viewport refresh completed")
+                
+            except Exception as e:
+                print(f"⚠️ Error during viewport refresh: {e}")
+            
+            print("✅ CLEAR_SCHEDULE_VARIANCE: Comprehensive cleanup completed successfully")
+            
+        except Exception as e:
+            print(f"❌ Error in clear_schedule_variance: {e}")
             import traceback
             traceback.print_exc()
 

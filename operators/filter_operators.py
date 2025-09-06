@@ -34,7 +34,7 @@ except Exception:
         # Fallback for safe assignment function
         class PropFallback:
             @staticmethod
-            def safe_set_selected_colortype_in_active_group(task_obj, value):
+            def safe_set_selected_colortype_in_active_group(task_obj, value, skip_validation=False):
                 try:
                     setattr(task_obj, "selected_colortype_in_active_group", value)
                 except Exception as e:
