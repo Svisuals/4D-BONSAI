@@ -32,7 +32,6 @@ class CreateAnimation(bpy.types.Operator, tool.Ifc.Operator):
             self.report({'ERROR'}, f"Unexpected error: {e}")
             return {'CANCELLED'}
 
-
 class ClearAnimation(bpy.types.Operator, tool.Ifc.Operator):
     bl_idname = "bim.clear_animation"
     bl_label = "Clear 4D Animation"
