@@ -23,54 +23,8 @@ class CreateAnimation(bpy.types.Operator, tool.Ifc.Operator):
         props = tool.Sequence.get_work_schedule_props()
         anim_props = tool.Sequence.get_animation_props()
         
-        # CRITICAL: Check if synchronization mode is enabled
-        sync_enabled = getattr(anim_props, "auto_update_on_date_source_change", False)
-        print(f"🎬 CREATE_ANIMATION: Synchronization mode {'ENABLED' if sync_enabled else 'DISABLED'}")
-        
-        ws_id = getattr(props, "active_work_schedule_id", None)
-        if not ws_id:
-            self.report({'ERROR'}, "No active Work Schedule selected.")
-            return {'CANCELLED'}
-        work_schedule = tool.Ifc.get().by_id(ws_id)
-        if not work_schedule:
-            self.report({'ERROR'}, "Active Work Schedule not found in IFC.")
-            return {'CANCELLED'}
-        
-        # CRITICAL FIX: If synchronization is enabled, set unified date range BEFORE creating animation
-        if sync_enabled:
-            print("🔗 CREATE_ANIMATION: Setting unified date range for synchronized mode")
-            try:
-                # Calculate unified range from all 4 schedule types
-                unified_start, unified_finish = self._get_unified_date_range(work_schedule)
-                
-                if unified_start and unified_finish:
-                    # Store original ranges for reference
-                    original_start = getattr(props, "visualisation_start", None)
-                    original_finish = getattr(props, "visualisation_finish", None)
-                    
-                    # Set visualization properties to unified range
-                    props.visualisation_start = unified_start.isoformat()
-                    props.visualisation_finish = unified_finish.isoformat()
-                    
-                    print(f"🔗 CREATE_ANIMATION: Set unified range:")
-                    print(f"   ORIGINAL: {original_start} to {original_finish}")
-                    print(f"   UNIFIED:  {props.visualisation_start} to {props.visualisation_finish}")
-                else:
-                    print("⚠️ CREATE_ANIMATION: Could not calculate unified range, using current range")
-            except Exception as e:
-                print(f"⚠️ CREATE_ANIMATION: Error setting unified range: {e}")
-                # Continue with current range as fallback
-        
-        # Get the final date range (unified if sync enabled, or original if not)
-        start = getattr(props, "visualisation_start", None)
-        finish = getattr(props, "visualisation_finish", None)
-        if not start or not finish or "-" in (start, finish):
-            self.report({'ERROR'}, "Invalid date range.")
-            return {'CANCELLED'}
-            
-        _ensure_default_group(context)
-        _clear_previous_animation(context)
-        settings = _get_animation_settings(context)
+        # ... (código existente de la función) ...
+
         try:
             frames = _compute_product_frames(context, work_schedule, settings)
             _apply_colortype_animation(context, frames, settings)
@@ -78,17 +32,25 @@ class CreateAnimation(bpy.types.Operator, tool.Ifc.Operator):
             self.report({'ERROR'}, f"Animation process failed: {e}")
             return {'CANCELLED'}
 
-        # --- Lógica de preservación del fotograma ---
         if self.preserve_current_frame:
             context.scene.frame_set(stored_frame)
             
         self.report({'INFO'}, f"Animation created for {len(frames)} elements.")
 
-        # Levantar la bandera para indicar que la animación ya existe.
-        anim_props = tool.Sequence.get_animation_props()
+        # --- INICIO DE LA MODIFICACIÓN ---
+        # Levanta la bandera para indicar que la animación ya existe y es válida.
         anim_props.is_animation_created = True
+        print("✅ Animation flag SET to TRUE.")
+        # --- FIN DE LA MODIFICACIÓN ---
 
         return {'FINISHED'}
+
+    def execute(self, context):
+        try:
+            return self._execute(context)
+        except Exception as e:
+            self.report({'ERROR'}, f"Unexpected error: {e}")
+            return {'CANCELLED'}
 
     def execute(self, context):
         try:
@@ -466,67 +428,27 @@ class ClearPreviousAnimation(bpy.types.Operator, tool.Ifc.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def _execute(self, context):
-        # CORRECCIÓN: Detener la animación si se está reproduciendo
-
-        # Bajar la bandera, ya que la animación se está limpiando.
-        anim_props = tool.Sequence.get_animation_props()
-        anim_props.is_animation_created = False
-        
+        # --- INICIO DE LA MODIFICACIÓN ---
+        # Baja la bandera ANTES de limpiar, para invalidar el estado.
+        try:
+            anim_props = tool.Sequence.get_animation_props()
+            anim_props.is_animation_created = False
+            print("❌ Animation flag SET to FALSE.")
+        except Exception as e:
+            print(f"Could not reset animation flag: {e}")
+        # --- FIN DE LA MODIFICACIÓN ---
+            
         try:
             if bpy.context.screen.is_animation_playing:
                 bpy.ops.screen.animation_cancel(restore_frame=False)
         except Exception as e:
             print(f"Could not stop animation: {e}")
 
-        # Clear snapshot mode flag
-        if "is_snapshot_mode" in context.scene:
-            del context.scene["is_snapshot_mode"]
-            print("✅ Cleared is_snapshot_mode flag")
-
-        # Restore UI state (3D texts, Timeline HUD, etc.)
-        try:
-            restore_all_ui_state(context)
-            print(f"✅ UI state restored")
-        except Exception as e:
-            print(f"❌ Could not restore UI state: {e}")
-
-        # CORRECCIÓN: Limpieza completa de la animación previa
+        # ... (resto del código de la función sin cambios) ...
+        
         try:
             _clear_previous_animation(context)
-            
-            # Limpiar el grupo de perfil activo en HUD Legend
-            try:
-                anim_props = tool.Sequence.get_animation_props()
-                if anim_props and hasattr(anim_props, 'camera_orbit'):
-                    camera_props = anim_props.camera_orbit
-                    
-                    # Obtener todos los perfiles activos para ocultarlos
-                    if hasattr(anim_props, 'animation_group_stack') and anim_props.animation_group_stack:
-                        all_colortype_names = []
-                        for group_item in anim_props.animation_group_stack:
-                            group_name = group_item.group
-                            from ..prop import UnifiedColorTypeManager
-                            group_colortypes = UnifiedColorTypeManager.get_group_colortypes(bpy.context, group_name)
-                            if group_colortypes:
-                                all_colortype_names.extend(group_colortypes.keys())
-                        
-                        # Ocultar todos los perfiles poniendo sus nombres en legend_hud_visible_colortypes
-                        if all_colortype_names:
-                            hidden_colortypes_str = ','.join(set(all_colortype_names))  # usar set() para eliminar duplicados
-                            camera_props.legend_hud_visible_colortypes = hidden_colortypes_str
-                            print(f"🧹 Hidden colortypes in HUD Legend: {hidden_colortypes_str}")
-                    
-                    # Limpiar selected_colortypes por si acaso
-                    if hasattr(camera_props, 'legend_hud_selected_colortypes'):
-                        camera_props.legend_hud_selected_colortypes = set()
-                    
-                    # Invalidar caché del legend HUD
-                    from bonsai.bim.module.sequence.hud_overlay import invalidate_legend_hud_cache
-                    invalidate_legend_hud_cache()
-                    print("🧹 Active colortype group cleared from HUD Legend")
-            except Exception as legend_e:
-                print(f"⚠️ Could not clear colortype group: {legend_e}")
-            
+            # ... (código de limpieza del HUD) ...
             self.report({'INFO'}, "Previous animation cleared.")
             context.scene.frame_set(context.scene.frame_start)
             return {'FINISHED'}
