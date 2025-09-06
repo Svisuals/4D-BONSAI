@@ -897,16 +897,14 @@ class BIM_PT_animation_tools(Panel):
             row.label(text="Error: No se encontró 'date_source_type'", icon='ERROR')
 
 
-        # --- NEW: Date source selector ---
-        row = self.layout.row(align=True)
-        # RESTAURADO: Volvemos al selector expandido, que es más limpio
-        row.prop(self.props, "date_source_type", expand=True)
+        # --- REMOVED: Duplicated date source selector ---
+        # Note: Using custom buttons above instead of expand=True to avoid duplication
         
-        # MEJORADO: El texto del checkbox ahora es más claro
+        # MEJORADO: El texto del checkbox ahora es más claro - usar la misma fila
         row.prop(
             self.animation_props, 
             "auto_update_on_date_source_change", 
-            text="Sincronizar", 
+            text="Sync Auto", 
             icon="FILE_REFRESH"
         )
         # --- END OF MODIFICATION ---
