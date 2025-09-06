@@ -7371,3 +7371,48 @@ class ShowCustomColorTypeGroupInfo(bpy.types.Operator):
             self.report({'INFO'}, "No custom ColorType group selected")
 
         return {'FINISHED'}
+    
+def get_unified_date_range(self, work_schedule):
+    """
+    Calcula el rango de fechas unificado analizando TODOS los 4 tipos de cronograma.
+    Devuelve el inicio más temprano y el fin más tardío de todos ellos.
+    """
+    if not work_schedule:
+        return None, None
+
+    all_starts = []
+    all_finishes = []
+
+    for schedule_type in ["SCHEDULE", "ACTUAL", "EARLY", "LATE"]:
+        start_attr = f"{schedule_type.capitalize()}Start"
+        finish_attr = f"{schedule_type.capitalize()}Finish"
+
+        root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
+
+        def get_all_tasks_recursive(tasks):
+            result = []
+            for task in tasks:
+                result.append(task)
+                nested = ifcopenshell.util.sequence.get_nested_tasks(task)
+                if nested:
+                    result.extend(get_all_tasks_recursive(nested))
+            return result
+
+        all_tasks = get_all_tasks_recursive(root_tasks)
+
+        for task in all_tasks:
+            start_date = ifcopenshell.util.sequence.derive_date(task, start_attr, is_earliest=True)
+            if start_date:
+                all_starts.append(start_date)
+
+            finish_date = ifcopenshell.util.sequence.derive_date(task, finish_attr, is_latest=True)
+            if finish_date:
+                all_finishes.append(finish_date)
+
+    if not all_starts or not all_finishes:
+        return None, None
+
+    unified_start = min(all_starts)
+    unified_finish = max(all_finishes)
+
+    return unified_start, unified_finish

@@ -46,6 +46,35 @@ from bpy.props import (
 from typing import TYPE_CHECKING, Literal, get_args, Optional, Dict, List, Set
 
 
+def update_sync_auto_mode(self, context):
+    """
+    Callback que se ejecuta al cambiar el estado de 'Sync Auto'.
+    Bloquea o desbloquea el rango de fechas a una vista unificada.
+    """
+    props = tool.Sequence.get_work_schedule_props()
+    work_schedule = tool.Sequence.get_active_work_schedule()
+
+    if not work_schedule:
+        return
+
+    if self.auto_update_on_date_source_change:
+        # Sync Auto ACTIVADO: Calcula y fija el rango de fechas unificado.
+        print("🔒 Sync Auto activado. Calculando y bloqueando el rango de fechas unificado.")
+        # Asumiendo que get_unified_date_range está en tool.Sequence
+        unified_start, unified_finish = tool.Sequence.get_unified_date_range(work_schedule)
+        if unified_start and unified_finish:
+            props.visualisation_start = unified_start.isoformat()
+            props.visualisation_finish = unified_finish.isoformat()
+    else:
+        # Sync Auto DESACTIVADO: Vuelve al rango de fechas del cronograma actual.
+        print("🔓 Sync Auto desactivado. Volviendo al rango de fechas individual.")
+        start_date, finish_date = tool.Sequence.guess_date_range(work_schedule)
+        if start_date and finish_date:
+            props.visualisation_start = start_date.isoformat()
+            props.visualisation_finish = finish_date.isoformat()
+
+
+
 def update_date_source_type(self, context):
     """
     CRITICAL: This function is called automatically when the user changes schedule type.
@@ -3883,56 +3912,41 @@ class BIMStatusProperties(PropertyGroup):
 
 def update_date_source(self, context):
     """
-    Callback when the date source changes. It updates the visualization dates,
-    re-applies any active Lookahead filter, and syncs the timeline by date if requested.
+    Callback que se ejecuta cuando cambia la fuente de datos (tipo de cronograma).
+    - Si Sync Auto está APAGADO, actualiza las fechas de visualización.
+    - Si Sync Auto está ENCENDIDO y la animación ya existe, re-crea la animación.
     """
     import bpy
-    
-    previous_start = self.visualisation_start
-    previous_finish = self.visualisation_finish
-    
-    props = tool.Sequence.get_work_schedule_props()
     anim_props = tool.Sequence.get_animation_props()
-    
-    # --- INICIO DE LA MODIFICACIÓN 2: LÓGICA CONDICIONAL ---
-    # Verifica si Sync Auto está activo y, MÁS IMPORTANTE,
-    # si la animación ya fue creada explícitamente.
     sync_enabled = getattr(anim_props, 'auto_update_on_date_source_change', False)
     animation_exists = getattr(anim_props, 'is_animation_created', False)
 
-    if sync_enabled and animation_exists:
-        print("🚀 Sync Auto: Re-baking animation because it already exists.")
-        def re_bake_animation():
-            try:
-                bpy.ops.bim.create_animation(preserve_current_frame=True)
-            except Exception as e:
-                print(f"❌ Error re-baking animation automatically: {e}")
-            return None
-        bpy.app.timers.register(re_bake_animation, first_interval=0.1)
-    else:
-        print("ℹ️ Sync Auto: Skipping re-bake. Animation not created yet or Sync is off.")
-        # Aquí se mantiene la lógica original para actualizar las fechas sin
-        # re-crear la animación 3D.
-        current_lookahead = getattr(props, 'last_lookahead_window', '')
-        if not current_lookahead:
-            try:
-                def guess_and_update_dates():
-                    # ... (el resto de esta lógica se mantiene igual)
-                    work_schedule = tool.Sequence.get_active_work_schedule()
-                    if work_schedule:
-                        start_date, finish_date = tool.Sequence.guess_date_range(work_schedule)
-                        tool.Sequence.update_visualisation_date(start_date, finish_date)
-                    if previous_start and previous_finish and "-" not in (previous_start, previous_finish):
-                        bpy.ops.bim.sync_animation_by_date(
-                            'INVOKE_DEFAULT',
-                            previous_start_date=previous_start,
-                            previous_finish_date=previous_finish
-                        )
-                    return None
-                bpy.app.timers.register(guess_and_update_dates)
-            except Exception as e:
-                print(f"Bonsai WARNING: Failed to schedule date range update: {e}")
+    if sync_enabled:
+        # Si sync está activado, las fechas ya están bloqueadas.
+        # Solo debemos manejar la re-creación si la animación ya existe.
+        if animation_exists:
+            print("🚀 Sync Auto: Re-creando animación por cambio de tipo de cronograma.")
+            def re_bake_animation():
+                try:
+                    bpy.ops.bim.create_animation(preserve_current_frame=True)
+                except Exception as e:
+                    print(f"❌ Error re-creando la animación automáticamente: {e}")
                 return None
+            bpy.app.timers.register(re_bake_animation, first_interval=0.1)
+    else:
+        # Si sync está apagado, volvemos al comportamiento de adivinar el rango de fechas
+        # para el nuevo tipo de cronograma seleccionado.
+        print("📅 Sync Auto apagado: Adivinando rango de fechas para el tipo de cronograma seleccionado.")
+        try:
+            def guess_dates():
+                work_schedule = tool.Sequence.get_active_work_schedule()
+                if work_schedule:
+                    start, finish = tool.Sequence.guess_date_range(work_schedule)
+                    tool.Sequence.update_visualisation_date(start, finish)
+                return None
+            bpy.app.timers.register(guess_dates)
+        except Exception as e:
+            print(f"Bonsai WARNING: Falló la actualización del rango de fechas: {e}")
         
 
         bpy.app.timers.register(re_bake_animation, first_interval=0.2)
@@ -4524,6 +4538,7 @@ class BIMAnimationProperties(PropertyGroup):
         name="Auto-update Animation",
         description="Automatically update the 3D animation when the Date Source changes. May be slow on large models.",
         default=False
+        
     )
     
     # Task bar colors
