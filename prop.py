@@ -48,24 +48,51 @@ from typing import TYPE_CHECKING, Literal, get_args, Optional, Dict, List, Set
 
 def update_date_source_type(self, context):
     """
-    Esta función se ejecuta cada vez que el usuario cambia el tipo de cronograma.
-    Actualiza el rango de fechas y, si la sincronización está activa,
-    llama al operador para sincronizar la línea de tiempo por fecha.
+    CRITICAL: This function is called automatically when the user changes schedule type.
+    We need to prevent interference with our custom sync operator.
     """
-    # Guardamos las fechas ANTES de que se recalculen
-    previous_start = self.visualisation_start
-    previous_finish = self.visualisation_finish
+    try:
+        # Check if this is being triggered by our custom sync operator
+        if getattr(context.scene, '_synch_in_progress', False):
+            print("🔄 update_date_source_type: Skipping - custom sync in progress")
+            return
+        
+        # Check which synchronization approach to use
+        import bonsai.tool as tool
+        anim_props = tool.Sequence.get_animation_props()
+        sync_enabled = getattr(anim_props, "auto_update_on_date_source_change", False)
+        
+        print(f"🔄 update_date_source_type: sync_enabled={sync_enabled}, new_type={self.date_source_type}")
+        
+        if sync_enabled:
+            # SYNCHRONIZED MODE: Do nothing here - let our custom operator handle it
+            print("🔗 update_date_source_type: Synchronized mode - skipping automatic updates")
+            return
+        else:
+            # INDEPENDENT MODE: Use the old behavior for backwards compatibility
+            print("📅 update_date_source_type: Independent mode - updating date range")
+            
+            # Store previous dates
+            previous_start = self.visualisation_start
+            previous_finish = self.visualisation_finish
 
-    # 1. Siempre actualizamos el rango de fechas en la UI
-    bpy.ops.bim.guess_date_range('INVOKE_DEFAULT', work_schedule=self.active_work_schedule_id)
-    
-    # 2. Llamamos al operador de sincronización, pasándole las fechas anteriores
-    # El operador internamente decidirá si debe ejecutarse o no.
-    bpy.ops.bim.sync_animation_by_date(
-        'INVOKE_DEFAULT',
-        previous_start_date=previous_start,
-        previous_finish_date=previous_finish
-    )
+            # Update date range for the new schedule type
+            bpy.ops.bim.guess_date_range('INVOKE_DEFAULT', work_schedule=self.active_work_schedule_id)
+            
+            # Only call legacy sync if it exists and we're not in synchronized mode
+            try:
+                bpy.ops.bim.sync_animation_by_date(
+                    'INVOKE_DEFAULT',
+                    previous_start_date=previous_start,
+                    previous_finish_date=previous_finish
+                )
+            except Exception as e:
+                print(f"⚠️ update_date_source_type: Legacy sync failed: {e}")
+                
+    except Exception as e:
+        print(f"❌ update_date_source_type: Error: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 
@@ -1120,7 +1147,7 @@ def update_active_work_schedule_id(self, context):
             return  # No hay cambio real
             
         # Import the necessary functions from operator.py
-        from bonsai.bim.module.sequence.operator import snapshot_all_ui_state
+        from .operators.schedule_task_operators import snapshot_all_ui_state
         
         # 1. Save profiles from the previous schedule (if there was one)
         if previous_ws_id != 0:
@@ -3858,7 +3885,7 @@ def update_date_source(self, context):
     Callback when the date source changes. It updates the visualization dates,
     re-applies any active Lookahead filter, and syncs the timeline by date if requested.
     """
-    import bpy # Importante dentro de la función
+    import bpy # Es una buena práctica importar bpy dentro de las funciones de callback
 
     # --- NUEVO: Guardamos el estado ANTES de cualquier cambio ---
     previous_start = self.visualisation_start
@@ -3868,6 +3895,7 @@ def update_date_source(self, context):
     props = tool.Sequence.get_work_schedule_props()
     current_lookahead = getattr(props, 'last_lookahead_window', '')
 
+    # --- Tu lógica original para Lookahead ---
     if not current_lookahead:
         try:
             def guess_and_update_dates():
@@ -3905,12 +3933,81 @@ def update_date_source(self, context):
             return None
         bpy.app.timers.register(reapply_filter, first_interval=0.05)
     
+    # --- Tu lógica original para re-bake ---
     anim_props = tool.Sequence.get_animation_props()
     if getattr(anim_props, 'auto_update_on_date_source_change', False):
         def re_bake_animation():
             try:
                 # MODIFICADO: Ahora llamamos a CreateAnimation directamente
-                # para poder pasarle el nuevo parámetro que evita el reinicio.
+                # para poder pasarle el nuevo parámetro que evita el reinicio del fotograma.
+                bpy.ops.bim.create_animation(preserve_current_frame=True)
+            except Exception as e:
+                print(f"❌ Error re-baking animation automatically: {e}")
+            return None
+        bpy.app.timers.register(re_bake_animation, first_interval=0.2)
+   
+
+
+def update_date_source(self, context):
+    """
+    Callback when the date source changes. It updates the visualization dates,
+    re-applies any active Lookahead filter, and syncs the timeline by date if requested.
+    """
+    import bpy # Es una buena práctica importar bpy dentro de las funciones de callback
+
+    # --- NUEVO: Guardamos el estado ANTES de cualquier cambio ---
+    previous_start = self.visualisation_start
+    previous_finish = self.visualisation_finish
+    # -----------------------------------------------------------
+    
+    props = tool.Sequence.get_work_schedule_props()
+    current_lookahead = getattr(props, 'last_lookahead_window', '')
+
+    # --- Tu lógica original para Lookahead ---
+    if not current_lookahead:
+        try:
+            def guess_and_update_dates():
+                work_schedule = tool.Sequence.get_active_work_schedule()
+                if work_schedule:
+                    start_date, finish_date = tool.Sequence.guess_date_range(work_schedule)
+                    tool.Sequence.update_visualisation_date(start_date, finish_date)
+                    print(f"📅 Updated visualization range (no Lookahead): {start_date} to {finish_date}")
+                
+                # --- NUEVO: Disparamos la sincronización DESPUÉS de actualizar las fechas ---
+                if previous_start and previous_finish and "-" not in (previous_start, previous_finish):
+                    bpy.ops.bim.sync_animation_by_date(
+                        'INVOKE_DEFAULT',
+                        previous_start_date=previous_start,
+                        previous_finish_date=previous_finish
+                    )
+                return None
+            bpy.app.timers.register(guess_and_update_dates)
+        except Exception as e:
+            print(f"Bonsai WARNING: Failed to schedule date range update: {e}")
+
+    if current_lookahead:
+        def reapply_filter():
+            try:
+                bpy.ops.bim.apply_lookahead_filter(time_window=current_lookahead)
+                # --- NUEVO: Disparamos la sincronización DESPUÉS de actualizar las fechas ---
+                if previous_start and previous_finish and "-" not in (previous_start, previous_finish):
+                    bpy.ops.bim.sync_animation_by_date(
+                        'INVOKE_DEFAULT',
+                        previous_start_date=previous_start,
+                        previous_finish_date=previous_finish
+                    )
+            except Exception as e:
+                print(f"❌ Error re-applying lookahead filter: {e}")
+            return None
+        bpy.app.timers.register(reapply_filter, first_interval=0.05)
+    
+    # --- Tu lógica original para re-bake ---
+    anim_props = tool.Sequence.get_animation_props()
+    if getattr(anim_props, 'auto_update_on_date_source_change', False):
+        def re_bake_animation():
+            try:
+                # MODIFICADO: Ahora llamamos a CreateAnimation directamente
+                # para poder pasarle el nuevo parámetro que evita el reinicio del fotograma.
                 bpy.ops.bim.create_animation(preserve_current_frame=True)
             except Exception as e:
                 print(f"❌ Error re-baking animation automatically: {e}")
@@ -4363,7 +4460,7 @@ def update_legend_hud_on_group_change(self, context):
         # Cuando se activa/desactiva un grupo, es crucial actualizar el snapshot
         # del estado de la UI. El modo "Live Color Updates" depende de este
         # snapshot para saber qué perfiles aplicar.
-        from bonsai.bim.module.sequence.operator import snapshot_all_ui_state
+        from .operators.schedule_task_operators import snapshot_all_ui_state
         snapshot_all_ui_state(context)
         # --- FIN DE LA CORRECCIÓN ---
 
