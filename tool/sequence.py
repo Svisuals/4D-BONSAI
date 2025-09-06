@@ -306,11 +306,21 @@ class Sequence(bonsai.core.tool.Sequence):
         """Create a camera using Animation Settings (Camera/Orbit) and optionally animate it."""
         import bpy, math, mathutils
         from mathutils import Vector
+        import traceback
 
+        print("🎥 === ADD_ANIMATION_CAMERA CALLED ===")
+        print(f"🎥 Call stack: {traceback.format_stack()[-3:-1]}")  # Show who called this function
+        
         # Props - CORREGIDO: usar la nueva estructura
         anim = cls.get_animation_props()
         camera_props = anim.camera_orbit  # NUEVO: acceso a propiedades de cámara
         ws_props = cls.get_work_schedule_props()
+        
+        current_orbit_mode = getattr(camera_props, 'orbit_mode', 'NONE')
+        existing_camera = bpy.context.scene.camera
+        
+        print(f"🎥 Current orbit_mode: {current_orbit_mode}")
+        print(f"🎥 Existing scene camera: {existing_camera.name if existing_camera else 'None'}")
 
         print("🎥 Creating 4D Animation Camera...")
 
@@ -382,10 +392,29 @@ class Sequence(bonsai.core.tool.Sequence):
 
         # VERIFICAR: Orbit animation
         mode = camera_props.orbit_mode
+        print(f"🎥 Checking orbit mode: {mode}")
+        
         if mode == "NONE":
-            print("🚫 Static camera only")
-            bpy.context.scene.camera = cam_obj
-            return cam_obj
+            print("🚫 Static camera mode - checking for existing aligned camera")
+            
+            # Si ya hay una cámara activa en la escena, usarla en lugar de la recién creada
+            existing_camera = bpy.context.scene.camera
+            print(f"🎥 Existing camera: {existing_camera.name if existing_camera else 'None'}")
+            print(f"🎥 New camera: {cam_obj.name}")
+            
+            if existing_camera and existing_camera != cam_obj:
+                print(f"📍 PRESERVING existing aligned camera: {existing_camera.name}")
+                # Remover la cámara recién creada ya que no la necesitamos
+                print(f"🗑️ DELETING newly created camera: {cam_obj.name}")
+                bpy.data.objects.remove(cam_obj, do_unlink=True)
+                # Usar la cámara existente
+                bpy.context.scene.camera = existing_camera
+                print(f"✅ Scene camera set to: {existing_camera.name}")
+                return existing_camera
+            else:
+                print("📍 Using newly created static camera (no existing camera found)")
+                bpy.context.scene.camera = cam_obj
+                return cam_obj
 
         # CORRECTED: Determine timeline
         try:
@@ -592,24 +621,32 @@ class Sequence(bonsai.core.tool.Sequence):
         cam_data.clip_start = camera_props.camera_clip_start
         cam_data.clip_end = max(camera_props.camera_clip_end, max(dims.x, dims.y, dims.z) * 5.0)
 
-        # Recalculate position
-        if camera_props.orbit_radius_mode == "AUTO":
-            r = max(dims.x, dims.y) * 1.5 if max(dims.x, dims.y) > 0 else 15.0
+        # Check if we're in static mode BEFORE repositioning the camera
+        mode = camera_props.orbit_mode
+        
+        if mode == "NONE":
+            print(f"🔒 Static mode detected - PRESERVING camera position for '{cam_obj.name}'")
+            # In static mode, do NOT reposition the camera or add tracking constraints
+            # Keep the manually aligned position intact
         else:
-            r = max(0.01, camera_props.orbit_radius)
+            print(f"🔄 Orbit mode detected - repositioning camera for '{cam_obj.name}'")
+            # Recalculate position only for non-static modes
+            if camera_props.orbit_radius_mode == "AUTO":
+                r = max(dims.x, dims.y) * 1.5 if max(dims.x, dims.y) > 0 else 15.0
+            else:
+                r = max(0.01, camera_props.orbit_radius)
 
-        z = center.z + camera_props.orbit_height
-        angle0 = math.radians(camera_props.orbit_start_angle_deg)
-        cam_obj.location = Vector((center.x + r * math.cos(angle0), center.y + r * math.sin(angle0), z))
+            z = center.z + camera_props.orbit_height
+            angle0 = math.radians(camera_props.orbit_start_angle_deg)
+            cam_obj.location = Vector((center.x + r * math.cos(angle0), center.y + r * math.sin(angle0), z))
 
-        # Re-create tracking constraint
-        tcon = cam_obj.constraints.new(type='TRACK_TO')
-        tcon.target = target
-        tcon.track_axis = 'TRACK_NEGATIVE_Z'
-        tcon.up_axis = 'UP_Y'
+            # Re-create tracking constraint only for non-static modes
+            tcon = cam_obj.constraints.new(type='TRACK_TO')
+            tcon.target = target
+            tcon.track_axis = 'TRACK_NEGATIVE_Z'
+            tcon.up_axis = 'UP_Y'
 
         # Re-create orbit animation if configured
-        mode = camera_props.orbit_mode
         if mode != "NONE":
             settings = cls.get_animation_settings()
             start_frame = settings["start_frame"]

@@ -1193,7 +1193,6 @@ class BIM_PT_animation_tools(Panel):
         # Action Buttons
         col.separator()
         action_row = col.row(align=True)
-        action_row.operator("bim.add_animation_camera", text="Add Camera", icon="OUTLINER_OB_CAMERA")
         action_row.operator("bim.align_4d_camera_to_view", text="Align Cam to View", icon="CAMERA_DATA")
         action_row.operator("bim.reset_camera_settings", text="Reset Settings", icon="FILE_REFRESH")
 

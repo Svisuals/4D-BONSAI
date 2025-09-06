@@ -61,8 +61,37 @@ class CreateAnimation(bpy.types.Operator, tool.Ifc.Operator):
         try:
             _anim_props = tool.Sequence.get_animation_props()
             _cam_props = getattr(_anim_props, "camera_orbit", None)
-            if _cam_props and getattr(_cam_props, "orbit_mode", "NONE") != "NONE":
+            orbit_mode = getattr(_cam_props, "orbit_mode", "NONE") if _cam_props else "NONE"
+            
+            print(f"🚀 CreateAnimation: orbit_mode = {orbit_mode}")
+            
+            if orbit_mode != "NONE":
+                print("🚀 CreateAnimation: Creating/animating camera (non-static mode)")
+                # Only create/animate camera if NOT in static mode
                 tool.Sequence.add_animation_camera()
+            else:
+                print("🚀 CreateAnimation: Static mode detected - preserving existing camera")
+                # Static mode: ensure current camera remains active and positioned
+                current_camera = context.scene.camera
+                if current_camera:
+                    print(f"🚀 CreateAnimation: Found existing camera: {current_camera.name}")
+                    # Make sure the current camera is set as the active scene camera
+                    context.scene.camera = current_camera
+                    
+                    # Force viewport update to use the aligned camera position
+                    for area in context.screen.areas:
+                        if area.type == 'VIEW_3D':
+                            for space in area.spaces:
+                                if space.type == 'VIEW_3D':
+                                    # Force camera view update
+                                    space.region_3d.view_perspective = 'CAMERA'
+                                    break
+                            area.tag_redraw()
+                    
+                    self.report({'INFO'}, f"Using static camera mode - preserving '{current_camera.name}' setup")
+                else:
+                    print("🚀 CreateAnimation: WARNING - No existing camera found")
+                    self.report({'WARNING'}, "Static camera mode enabled but no active camera found in scene")
         except Exception as _cam_e:
             # Non-fatal: object animation should not fail because camera failed
             self.report({'WARNING'}, f"Camera creation skipped: {_cam_e}")
