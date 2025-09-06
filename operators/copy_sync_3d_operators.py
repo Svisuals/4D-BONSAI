@@ -117,49 +117,6 @@ class Sync3D(bpy.types.Operator):
             restore_all_ui_state(context)
         return {'FINISHED'}
 
-# ============================================================================
-# SNAPSHOT CAMERA & SNAPSHOT CREATION OPERATORS
-# ============================================================================
-
-class AddSnapshotCamera(bpy.types.Operator):
-    """Add a static camera for snapshot viewing"""
-    bl_idname = "bim.add_snapshot_camera"
-    bl_label = "Add Snapshot Camera"
-    bl_description = "Create a new static camera positioned for snapshot viewing"
-    bl_options = {"REGISTER", "UNDO"}
-
-    def execute(self, context):
-        try:
-            cam_obj = tool.Sequence.add_snapshot_camera()
-            self.report({'INFO'}, f"Snapshot camera '{cam_obj.name}' created and set as active")
-            return {'FINISHED'}
-        except Exception as e:
-            self.report({'ERROR'}, f"Failed to create snapshot camera: {str(e)}")
-            return {'CANCELLED'}
-
-class AlignSnapshotCameraToView(bpy.types.Operator):
-    """Align snapshot camera to current 3D viewport view"""
-    bl_idname = "bim.align_snapshot_camera_to_view"
-    bl_label = "Align Snapshot Camera to View"
-    bl_description = "Align the snapshot camera to match the current 3D viewport view"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    @classmethod
-    def poll(cls, context):
-        if not getattr(context.scene, "camera", None): return False
-        for area in context.screen.areas:
-            if area.type == 'VIEW_3D': return True
-        return False
-
-    def execute(self, context):
-        try:
-            tool.Sequence.align_snapshot_camera_to_view()
-            self.report({'INFO'}, f"Snapshot camera aligned to current view")
-            return {'FINISHED'}
-        except Exception as e:
-            self.report({'ERROR'}, f"Failed to align snapshot camera: {str(e)}")
-            return {'CANCELLED'}
-
 class SnapshotWithcolortypes(tool.Ifc.Operator, bpy.types.Operator):
     bl_idname = "bim.snapshot_with_colortypes"
     bl_label = "Snapshot (colortypes)"

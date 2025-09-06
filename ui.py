@@ -1112,7 +1112,7 @@ class BIM_PT_animation_tools(Panel):
             row = col.row(align=True)
 
             delete_col = row.split(factor=0.5, align=True)
-            delete_col.operator("bim.delete_4d_camera", text="Delete Snapshot Camera", icon="TRASH")
+            delete_col.operator("bim.delete_snapshot_camera", text="Delete Snapshot Camera", icon="TRASH")
 
             row.prop(camera_props, "active_snapshot_camera", text="")
             row.prop(camera_props, "hide_all_snapshot_cameras", text="", icon='HIDE_ON' if camera_props.hide_all_snapshot_cameras else 'HIDE_OFF')
@@ -1208,7 +1208,7 @@ class BIM_PT_animation_tools(Panel):
         delete_col = row.split(factor=0.5, align=True)
         
         # Column 1: Delete button
-        delete_col.operator("bim.delete_4d_camera", text="Delete Animation Camera", icon="TRASH")
+        delete_col.operator("bim.delete_animation_camera", text="Delete Animation Camera", icon="TRASH")
         
         # El selector ahora ocupa la mayor parte del espacio restante, empujando el botón de ocultar a la derecha.
         # Seleccionar una cámara del desplegable ahora la convertirá automáticamente en la cámara activa de la escena.

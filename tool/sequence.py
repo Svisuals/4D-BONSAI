@@ -116,52 +116,43 @@ class Sequence(bonsai.core.tool.Sequence):
 
         except Exception as e:
             print(f"Error applying selection from checkboxes: {e}")
-    # === END OF ADDED CODE ===
+   
 
     @classmethod
     def is_bonsai_camera(cls, obj):
-        """Checks if an object is a camera managed by Bonsai's 4D/Snapshot tools."""
+        """Verifica si un objeto es una cámara gestionada por las herramientas 4D/Snapshot de Bonsai."""
         if not obj or obj.type != 'CAMERA':
             return False
-        # Check for custom property first (most reliable)
-        if obj.get('is_4d_camera'):
+        # La forma más fiable es verificar la propiedad personalizada.
+        if obj.get('camera_context') in ['animation', 'snapshot']:
             return True
-        # Fallback to name conventions
+        # Fallback a convenciones de nombre por compatibilidad.
         if '4D_Animation_Camera' in obj.name or 'Snapshot_Camera' in obj.name:
             return True
         return False
 
     @classmethod
     def is_bonsai_animation_camera(cls, obj):
-        """Checks if an object is a camera specifically for Animation Settings."""
+        """Verifica si un objeto es una cámara específica para los Ajustes de Animación."""
         if not obj or obj.type != 'CAMERA':
             return False
-        # Check for animation-specific custom property
-        if obj.get('is_animation_camera'):
-            return True
-        # Check for animation context marker
+        # La identificación principal es a través de la propiedad personalizada.
         if obj.get('camera_context') == 'animation':
             return True
-        # Fallback to name conventions for animation cameras
+        # Fallback a convención de nombre (asegurándose de que no sea una de snapshot).
         if '4D_Animation_Camera' in obj.name and 'Snapshot' not in obj.name:
-            return True
-        # Legacy support: if it's a bonsai camera but no specific context, allow it for animation
-        if obj.get('is_4d_camera') and not obj.get('camera_context'):
             return True
         return False
 
-    @classmethod  
+    @classmethod
     def is_bonsai_snapshot_camera(cls, obj):
-        """Checks if an object is a camera specifically for Snapshot Settings."""
+        """Verifica si un objeto es una cámara específica para los Ajustes de Snapshot."""
         if not obj or obj.type != 'CAMERA':
             return False
-        # Check for snapshot-specific custom property
-        if obj.get('is_snapshot_camera'):
-            return True
-        # Check for snapshot context marker
+        # La identificación principal es a través de la propiedad personalizada.
         if obj.get('camera_context') == 'snapshot':
             return True
-        # Fallback to name conventions for snapshot cameras
+        # Fallback a convención de nombre.
         if 'Snapshot_Camera' in obj.name:
             return True
         return False
@@ -484,6 +475,74 @@ class Sequence(bonsai.core.tool.Sequence):
         bpy.context.scene.camera = cam_obj
         print(f"✅ Snapshot Camera created successfully: {cam_obj.name}")
         return cam_obj
+
+    @classmethod
+    def align_snapshot_camera_to_view(cls):
+        """Aligns the active snapshot camera to the current 3D view."""
+        import bpy
+
+        # 1. Encontrar la ventana 3D activa
+        area = next((a for a in bpy.context.screen.areas if a.type == 'VIEW_3D'), None)
+        if not area:
+            raise Exception("No 3D viewport found.")
+
+        space = next((s for s in area.spaces if s.type == 'VIEW_3D'), None)
+        if not space:
+            raise Exception("No 3D space data found.")
+
+        # 2. Obtener la cámara activa de la escena
+        cam_obj = bpy.context.scene.camera
+        if not cam_obj:
+            raise Exception("No active camera in the scene.")
+
+        # 3. (Opcional) Verificar que es una cámara de snapshot
+        if not cls.is_bonsai_snapshot_camera(cam_obj):
+            print(f"Warning: Active camera '{cam_obj.name}' is not a designated snapshot camera, but aligning anyway.")
+
+        # 4. Obtener la matriz de la vista y aplicarla a la cámara
+        # La matriz de la vista nos da la transformación desde la perspectiva de la vista.
+        # Necesitamos su inversa para posicionar la cámara correctamente en el mundo.
+        region_3d = space.region_3d
+        if region_3d:
+            cam_obj.matrix_world = region_3d.view_matrix.inverted()
+        else:
+            raise Exception("Could not get 3D view region data.")
+        
+
+    @classmethod
+    def align_animation_camera_to_view(cls):
+        """
+        Alinea la cámara de animación activa a la vista 3D y la convierte en estática.
+        """
+        import bpy
+
+        area = next((a for a in bpy.context.screen.areas if a.type == 'VIEW_3D'), None)
+        space = next((s for s in area.spaces if s.type == 'VIEW_3D'), None) if area else None
+        cam_obj = bpy.context.scene.camera
+
+        if not all([area, space, cam_obj]):
+            raise Exception("No se encontró la cámara o la vista 3D.")
+
+        # Limpiar la animación y restricciones de la cámara para detener la órbita
+        if cam_obj.animation_data:
+            cam_obj.animation_data_clear()
+        for c in list(cam_obj.constraints):
+            cam_obj.constraints.remove(c)
+
+        # Mover la cámara a la posición de la vista
+        region_3d = space.region_3d
+        if region_3d:
+            cam_obj.matrix_world = region_3d.view_matrix.inverted()
+        else:
+            raise Exception("No se pudieron obtener los datos de la región 3D.")
+
+        # (Paso Clave) Actualizar la UI para que el modo de órbita sea "Static"
+        try:
+            anim_props = cls.get_animation_props()
+            camera_props = anim_props.camera_orbit
+            camera_props.orbit_mode = 'NONE' # 'NONE' se muestra como "Static" en la UI
+        except Exception as e:
+            print(f"No se pudo actualizar la UI del modo de órbita: {e}")
 
     @classmethod
     def update_animation_camera(cls, cam_obj):
@@ -1019,6 +1078,34 @@ class Sequence(bonsai.core.tool.Sequence):
         cls.create_bars(tasks)
         print(f"✅ Created bars for {len(tasks)} tasks")
 
+
+    @classmethod
+    def clear_task_bars(cls) -> None:
+        """
+        Limpia y elimina todas las barras de tareas 3D y resetea el estado en la UI.
+        """
+        import bpy
+
+        # 1. Limpiar la lista de tareas marcadas para tener barras.
+        props = cls.get_work_schedule_props()
+        props.task_bars = "[]"  # Resetear a una lista JSON vacía.
+
+        # 2. Desmarcar todos los checkboxes en la interfaz de usuario.
+        tprops = cls.get_task_tree_props()
+        for task in getattr(tprops, "tasks", []):
+            if getattr(task, "has_bar_visual", False):
+                task.has_bar_visual = False
+
+        # 3. Eliminar la colección de objetos 3D de las barras.
+        collection_name = "Bar Visual"
+        if collection_name in bpy.data.collections:
+            collection = bpy.data.collections[collection_name]
+            # Eliminar todos los objetos dentro de la colección.
+            for obj in list(collection.objects):
+                bpy.data.objects.remove(obj, do_unlink=True)
+            # Eliminar la colección vacía.
+            bpy.data.collections.remove(collection)
+            print("✅ Barras de tareas y su colección eliminadas.")
 
 
     @classmethod

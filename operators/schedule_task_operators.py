@@ -8,6 +8,13 @@ import bonsai.tool as tool
 import bonsai.core.sequence as core
 
 try:
+    from ..prop import safe_set_selected_colortype_in_active_group
+    # ... otras importaciones de ..prop
+except (ImportError, ValueError):
+    # Fallback si la estructura cambia
+    from bonsai.bim.module.sequence.prop import safe_set_selected_colortype_in_active_group
+
+try:
     from .prop import update_filter_column
     from . import prop
     from .ui import calculate_visible_columns_count

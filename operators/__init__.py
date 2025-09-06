@@ -25,10 +25,11 @@ classes = (
     # from camera_operators.py
     camera_operators.ResetCameraSettings,
     camera_operators.Align4DCameraToView,
-    camera_operators.Delete4DCamera,
     camera_operators.AddSnapshotCamera,
     camera_operators.AlignSnapshotCameraToView,
     camera_operators.AddAnimationCamera,
+    camera_operators.DeleteAnimationCamera,
+    camera_operators.DeleteSnapshotCamera,
 
     # from io_operators.py
     io_operators.ImportWorkScheduleCSV,
@@ -154,8 +155,6 @@ classes = (
     # from copy_sync_3d_operators.py
     copy_sync_3d_operators.Copy3D,
     copy_sync_3d_operators.Sync3D,
-    copy_sync_3d_operators.AddSnapshotCamera,
-    copy_sync_3d_operators.AlignSnapshotCameraToView,
     copy_sync_3d_operators.SnapshotWithcolortypesFixed,
     copy_sync_3d_operators.SnapshotWithcolortypes,
 

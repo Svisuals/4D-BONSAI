@@ -3438,13 +3438,13 @@ class BIMCameraOrbitProperties(PropertyGroup):
     active_animation_camera: PointerProperty(
         name="Active Animation Camera",
         type=bpy.types.Object,
-        description="Select an existing 4D camera for Animation Settings",
-        poll=lambda self, obj: obj and obj.type == 'CAMERA' and ('4D_Animation_Camera' in obj.name or obj.get('is_4d_camera') or obj.get('is_animation_camera')),
+        description="Selecciona una cámara 4D existente para los Ajustes de Animación",
+        poll=lambda self, obj: tool.Sequence.is_bonsai_animation_camera(obj), # <-- LÓGICA DE FILTRADO
         update=update_active_animation_camera,
     )
     hide_all_animation_cameras: BoolProperty(
         name="Hide All Animation Cameras",
-        description="Toggle visibility of all 4D animation cameras in the viewport",
+        description="Alterna la visibilidad de todas las cámaras de animación 4D en la vista",
         default=False,
         update=update_animation_camera_visibility,
     )
@@ -3455,13 +3455,13 @@ class BIMCameraOrbitProperties(PropertyGroup):
     active_snapshot_camera: PointerProperty(
         name="Active Snapshot Camera",
         type=bpy.types.Object,
-        description="Select an existing 4D camera for Snapshot Settings",
-        poll=lambda self, obj: obj and obj.type == 'CAMERA' and ('Snapshot_Camera' in obj.name or obj.get('is_snapshot_camera')),
+        description="Selecciona una cámara 4D existente para los Ajustes de Snapshot",
+        poll=lambda self, obj: tool.Sequence.is_bonsai_snapshot_camera(obj), # <-- LÓGICA DE FILTRADO
         update=update_active_snapshot_camera,
     )
     hide_all_snapshot_cameras: BoolProperty(
         name="Hide All Snapshot Cameras",
-        description="Toggle visibility of all 4D snapshot cameras in the viewport",
+        description="Alterna la visibilidad de todas las cámaras de snapshot 4D en la vista",
         default=False,
         update=update_snapshot_camera_visibility,
     )
