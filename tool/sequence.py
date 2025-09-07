@@ -3814,9 +3814,15 @@ class Sequence(bonsai.core.tool.Sequence):
                 obj.hide_render = True
                 continue
 
+            # CORRECCIÓN PRINCIPAL: Para objetos que SÍ van a ser animados, 
+            # los ocultamos inmediatamente y establecemos keyframes en frame 0
+            obj.hide_viewport = True
+            obj.hide_render = True
+            obj.keyframe_insert(data_path="hide_viewport", frame=0)
+            obj.keyframe_insert(data_path="hide_render", frame=0)
+
             if animation_props.enable_live_color_updates:
-                obj.hide_viewport = False
-                obj.hide_render = False
+                # No hacer los objetos visibles aquí - la visibilidad se controlará por apply_ColorType_animation
                 live_update_props["original_colors"][str(element.id())] = original_colors.get(obj.name, [1.0, 1.0, 1.0, 1.0])
             else: # Baking mode
                 original_color = original_colors.get(obj.name, [1.0, 1.0, 1.0, 1.0])
@@ -3875,6 +3881,8 @@ class Sequence(bonsai.core.tool.Sequence):
     @classmethod
     def apply_visibility_animation(cls, obj, frame_data, ColorType):
         """Applies only the visibility (hide/show) keyframes for live update mode."""
+        # Nota: Los keyframes en frame 0 ya se establecieron en animate_objects_with_ColorTypes
+        
         for state_name, (start_f, end_f) in frame_data["states"].items():
             if end_f < start_f:
                 continue
@@ -3923,26 +3931,30 @@ class Sequence(bonsai.core.tool.Sequence):
         is_construction = frame_data.get("relationship") == "output"
         should_be_hidden_at_start = is_construction and not getattr(ColorType, 'consider_start', False)
 
-        if should_be_hidden_at_start:
-            # OCULTAR: Si es construcción y el perfil no considera el inicio, debe estar oculto.
-            obj.hide_viewport = True
-            obj.hide_render = True
-        else:
-            # VISIBLE: Si es demolición o si el perfil considera el inicio, debe ser visible.
-            obj.hide_viewport = False
-            obj.hide_render = False
-
-            # Aplicar color y transparencia del estado "start".
+        # CORRECCIÓN: NO cambiar la visibilidad del objeto inmediatamente.
+        # El objeto ya está oculto desde animate_objects_with_ColorTypes.
+        # Solo preparar los valores para los keyframes.
+        
+        start_visibility = not should_be_hidden_at_start
+        
+        # Preparar color para keyframes (solo si será visible)
+        if not should_be_hidden_at_start:
             use_original = getattr(ColorType, 'use_start_original_color', False)
             color = original_color if use_original else list(ColorType.start_color)
             alpha = 1.0 - getattr(ColorType, 'start_transparency', 0.0)
-            obj.color = (color[0], color[1], color[2], alpha)
+            start_color = (color[0], color[1], color[2], alpha)
 
         # Insertar keyframes para el estado inicial completo.
         if end_f >= start_f:
+            # Establecer visibilidad para keyframes sin cambiar el estado actual
+            current_hide_state = obj.hide_viewport
+            obj.hide_viewport = not start_visibility
+            obj.hide_render = not start_visibility
             obj.keyframe_insert(data_path="hide_viewport", frame=start_f)
             obj.keyframe_insert(data_path="hide_render", frame=start_f)
+            
             if not should_be_hidden_at_start:
+                obj.color = start_color
                 obj.keyframe_insert(data_path="color", frame=start_f)
 
             # Keyframe al final de la fase para mantener el estado.
@@ -3950,18 +3962,17 @@ class Sequence(bonsai.core.tool.Sequence):
             obj.keyframe_insert(data_path="hide_render", frame=end_f)
             if not should_be_hidden_at_start:
                 obj.keyframe_insert(data_path="color", frame=end_f)
+                
+            # CRÍTICO: Restaurar el estado oculto para que no sea visible antes de la animación
+            obj.hide_viewport = True
+            obj.hide_render = True
 
         # --- LÓGICA DE ESTADO "ACTIVE" (DURANTE LA TAREA) ---
         active_state_frames = frame_data["states"]["active"]
         start_f, end_f = active_state_frames
 
         if end_f >= start_f and getattr(ColorType, 'consider_active', True):
-            # Siempre es visible durante la fase activa.
-            obj.hide_viewport = False
-            obj.hide_render = False
-            obj.keyframe_insert(data_path="hide_viewport", frame=start_f)
-            obj.keyframe_insert(data_path="hide_render", frame=start_f)
-
+            # CORRECCIÓN: Preparar keyframes sin cambiar estado actual
             # Aplicar color y transparencia del estado "active".
             use_original = getattr(ColorType, 'use_active_original_color', False)
             color = original_color if use_original else list(ColorType.in_progress_color)
@@ -3969,6 +3980,12 @@ class Sequence(bonsai.core.tool.Sequence):
             # Interpolar transparencia
             alpha_start = 1.0 - getattr(ColorType, 'active_start_transparency', 0.0)
             alpha_end = 1.0 - getattr(ColorType, 'active_finish_transparency', 0.0)
+
+            # Establecer keyframes de visibilidad (visible durante fase activa)
+            obj.hide_viewport = False
+            obj.hide_render = False
+            obj.keyframe_insert(data_path="hide_viewport", frame=start_f)
+            obj.keyframe_insert(data_path="hide_render", frame=start_f)
 
             # Keyframe inicial del estado activo
             obj.color = (color[0], color[1], color[2], alpha_start)
@@ -3978,6 +3995,10 @@ class Sequence(bonsai.core.tool.Sequence):
             if end_f > start_f:
                 obj.color = (color[0], color[1], color[2], alpha_end)
                 obj.keyframe_insert(data_path="color", frame=end_f)
+                
+            # CRÍTICO: Restaurar el estado oculto para que no sea visible antes de la animación
+            obj.hide_viewport = True
+            obj.hide_render = True
 
         # --- LÓGICA DE ESTADO "END" (DESPUÉS DE QUE LA TAREA TERMINA) ---
         end_state_frames = frame_data["states"]["after_end"]
@@ -3987,24 +4008,29 @@ class Sequence(bonsai.core.tool.Sequence):
             # Determinar si el objeto debe ocultarse al final.
             should_hide_at_end = getattr(ColorType, 'hide_at_end', False)
 
-            if should_hide_at_end:
-                obj.hide_viewport = True
-                obj.hide_render = True
-            else:
-                obj.hide_viewport = False
-                obj.hide_render = False
-
-                # Aplicar color y transparencia del estado "end".
+            # CORRECCIÓN: Preparar keyframes sin cambiar estado actual
+            end_visibility = not should_hide_at_end
+            
+            # Preparar color para keyframes (solo si será visible)
+            if not should_hide_at_end:
                 use_original = getattr(ColorType, 'use_end_original_color', True)
                 color = original_color if use_original else list(ColorType.end_color)
                 alpha = 1.0 - getattr(ColorType, 'end_transparency', 0.0)
-                obj.color = (color[0], color[1], color[2], alpha)
+                end_color = (color[0], color[1], color[2], alpha)
 
-            # Insertar keyframes para el estado final.
+            # Establecer keyframes de visibilidad
+            obj.hide_viewport = not end_visibility
+            obj.hide_render = not end_visibility
             obj.keyframe_insert(data_path="hide_viewport", frame=start_f)
             obj.keyframe_insert(data_path="hide_render", frame=start_f)
+            
             if not should_hide_at_end:
+                obj.color = end_color
                 obj.keyframe_insert(data_path="color", frame=start_f)
+                
+            # CRÍTICO: Restaurar el estado oculto para que no sea visible antes de la animación
+            obj.hide_viewport = True
+            obj.hide_render = True
 
     @classmethod
     def get_product_frames_with_ColorTypes(cls, work_schedule, settings):
