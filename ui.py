@@ -879,35 +879,13 @@ class BIM_PT_animation_tools(Panel):
 
         row = self.layout.row(align=True)
         
-        # Obtenemos los tipos de cronogramas disponibles
-        try:
-            date_source_enums = self.props.bl_rna.properties['date_source_type'].enum_items
-            
-            # Creamos un botón para cada tipo de cronograma
-            for item in date_source_enums:
-                # El botón aparecerá presionado si es el tipo de cronograma activo
-                op = row.operator(
-                    "bim.sync_animation_date_source", 
-                    text=item.name, 
-                    depress=(self.props.date_source_type == item.identifier)
-                )
-                op.new_date_source = item.identifier
-        except KeyError:
-            # Fallback por si la propiedad no se encuentra
-            row.label(text="Error: No se encontró 'date_source_type'", icon='ERROR')
+        # Display schedule type selection without sync auto functionality
+        row.prop(self.props, "date_source_type", expand=True)
 
 
         # --- REMOVED: Duplicated date source selector ---
         # Note: Using custom buttons above instead of expand=True to avoid duplication
         
-        # MEJORADO: El texto del checkbox ahora es más claro - usar la misma fila
-        row.prop(
-            self.animation_props, 
-            "auto_update_on_date_source_change", 
-            text="Sync Auto", 
-            icon="FILE_REFRESH"
-        )
-        # --- END OF MODIFICATION ---
 
         row = self.layout.row(align=True)
         row.alignment = "RIGHT"

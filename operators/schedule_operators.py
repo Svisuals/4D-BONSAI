@@ -245,10 +245,59 @@ class GuessDateRange(bpy.types.Operator, tool.Ifc.Operator):
 
     def _execute(self, context):
         work_schedule = tool.Ifc.get().by_id(self.work_schedule)
-        start_date, finish_date = tool.Sequence.guess_date_range(work_schedule)
-        tool.Sequence.update_visualisation_date(start_date, finish_date)
-        if not (start_date and finish_date):
-            props = tool.Sequence.get_work_schedule_props()
-            date_source = getattr(props, "date_source_type", "SCHEDULE")
-            self.report({'WARNING'}, f"No '{date_source.capitalize()}' dates found to guess a range.")
+        
+        # NEW: Calculate unified date range across all schedule types for HUD timeline
+        unified_start_date, unified_finish_date = self._calculate_unified_range(work_schedule)
+        
+        if unified_start_date and unified_finish_date:
+            tool.Sequence.update_visualisation_date(unified_start_date, unified_finish_date)
+            self.report({'INFO'}, f"Unified timeline set: {unified_start_date.strftime('%Y-%m-%d')} to {unified_finish_date.strftime('%Y-%m-%d')}")
+        else:
+            self.report({'WARNING'}, "No dates found across any schedule types to create unified range.")
         return {"FINISHED"}
+    
+    def _calculate_unified_range(self, work_schedule):
+        """Calculate unified date range across all schedule types"""
+        import ifcopenshell.util.sequence
+        
+        if not work_schedule:
+            return None, None
+            
+        # Get all tasks from schedule
+        root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
+        if not root_tasks:
+            return None, None
+            
+        def get_all_tasks(tasks):
+            all_tasks = []
+            for task in tasks:
+                all_tasks.append(task)
+                nested = ifcopenshell.util.sequence.get_nested_tasks(task)
+                if nested:
+                    all_tasks.extend(get_all_tasks(nested))
+            return all_tasks
+        
+        all_tasks = get_all_tasks(root_tasks)
+        schedule_types = ['SCHEDULE', 'ACTUAL', 'EARLY', 'LATE']
+        
+        all_start_dates = []
+        all_finish_dates = []
+        
+        # Collect dates from all schedule types
+        for schedule_type in schedule_types:
+            start_attr = f"{schedule_type.capitalize()}Start"
+            finish_attr = f"{schedule_type.capitalize()}Finish"
+            
+            for task in all_tasks:
+                start_date = ifcopenshell.util.sequence.derive_date(task, start_attr, is_earliest=True)
+                if start_date:
+                    all_start_dates.append(start_date)
+                    
+                finish_date = ifcopenshell.util.sequence.derive_date(task, finish_attr, is_latest=True)
+                if finish_date:
+                    all_finish_dates.append(finish_date)
+        
+        if not all_start_dates or not all_finish_dates:
+            return None, None
+            
+        return min(all_start_dates), max(all_finish_dates)

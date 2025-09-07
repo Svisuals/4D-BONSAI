@@ -18,7 +18,7 @@ from . import schedule_sequence_operators
 from . import schedule_operators
 from . import work_plan_operators
 from . import color_scheme_operators
-from .animation_operators import CreateAnimation, ClearAnimation, AddAnimationTaskType, RemoveAnimationTaskType, AddAnimationCamera, ClearPreviousAnimation, ClearPreviousSnapshot, SyncAnimationByDate, SyncAnimationDateSource
+from .animation_operators import CreateAnimation, ClearAnimation, AddAnimationTaskType, RemoveAnimationTaskType, AddAnimationCamera, ClearPreviousAnimation, ClearPreviousSnapshot, SyncAnimationByDate
 
 # A single tuple containing all operator classes to be registered
 
@@ -223,7 +223,6 @@ classes = (
     animation_operators.ClearPreviousAnimation,
     animation_operators.ClearPreviousSnapshot,
     animation_operators.SyncAnimationByDate,
-    animation_operators.SyncAnimationDateSource,
     
     # from navigation_operators.py
     navigation_operators.NavigateColumnsLeft,
@@ -239,6 +238,8 @@ classes = (
     config_operators.BIM_OT_verify_colortype_json,
     config_operators.BIM_OT_fix_colortype_hide_at_end_immediate,
     config_operators.RefreshSnapshotTexts,
+    config_operators.BIM_OT_show_performance_stats,
+    config_operators.BIM_OT_clear_performance_cache,
 )
 
 def register():

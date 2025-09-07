@@ -46,77 +46,30 @@ from bpy.props import (
 from typing import TYPE_CHECKING, Literal, get_args, Optional, Dict, List, Set
 
 
-def update_sync_auto_mode(self, context):
-    """
-    Callback que se ejecuta al cambiar el estado de 'Sync Auto'.
-    Bloquea o desbloquea el rango de fechas a una vista unificada.
-    """
-    props = tool.Sequence.get_work_schedule_props()
-    work_schedule = tool.Sequence.get_active_work_schedule()
-
-    if not work_schedule:
-        return
-
-    if self.auto_update_on_date_source_change:
-        # Sync Auto ACTIVADO: Calcula y fija el rango de fechas unificado.
-        print("🔒 Sync Auto activado. Calculando y bloqueando el rango de fechas unificado.")
-        # Asumiendo que get_unified_date_range está en tool.Sequence
-        unified_start, unified_finish = tool.Sequence.get_unified_date_range(work_schedule)
-        if unified_start and unified_finish:
-            props.visualisation_start = unified_start.isoformat()
-            props.visualisation_finish = unified_finish.isoformat()
-    else:
-        # Sync Auto DESACTIVADO: Vuelve al rango de fechas del cronograma actual.
-        print("🔓 Sync Auto desactivado. Volviendo al rango de fechas individual.")
-        start_date, finish_date = tool.Sequence.guess_date_range(work_schedule)
-        if start_date and finish_date:
-            props.visualisation_start = start_date.isoformat()
-            props.visualisation_finish = finish_date.isoformat()
-
-
-
 def update_date_source_type(self, context):
     """
-    CRITICAL: This function is called automatically when the user changes schedule type.
-    We need to prevent interference with our custom sync operator.
+    Simple callback when the user changes schedule type.
+    Only updates date range using Guess functionality.
     """
     try:
-        # Check if this is being triggered by our custom sync operator
-        if getattr(context.scene, '_synch_in_progress', False):
-            print("🔄 update_date_source_type: Skipping - custom sync in progress")
-            return
+        print(f"📅 Date source changed to: {self.date_source_type}")
         
-        # Check which synchronization approach to use
-        import bonsai.tool as tool
-        anim_props = tool.Sequence.get_animation_props()
-        sync_enabled = getattr(anim_props, "auto_update_on_date_source_change", False)
-        
-        print(f"🔄 update_date_source_type: sync_enabled={sync_enabled}, new_type={self.date_source_type}")
-        
-        if sync_enabled:
-            # SYNCHRONIZED MODE: Do nothing here - let our custom operator handle it
-            print("🔗 update_date_source_type: Synchronized mode - skipping automatic updates")
-            return
-        else:
-            # INDEPENDENT MODE: Use the old behavior for backwards compatibility
-            print("📅 update_date_source_type: Independent mode - updating date range")
-            
-            # Store previous dates
-            previous_start = self.visualisation_start
-            previous_finish = self.visualisation_finish
+        # Store previous dates for sync animation
+        previous_start = self.visualisation_start
+        previous_finish = self.visualisation_finish
 
-            # Update date range for the new schedule type
-            bpy.ops.bim.guess_date_range('INVOKE_DEFAULT', work_schedule=self.active_work_schedule_id)
-            
-            # Only call legacy sync if it exists and we're not in synchronized mode
-            try:
-                bpy.ops.bim.sync_animation_by_date(
-                    'INVOKE_DEFAULT',
-                    previous_start_date=previous_start,
-                    previous_finish_date=previous_finish
-                )
-            except Exception as e:
-                print(f"⚠️ update_date_source_type: Legacy sync failed: {e}")
+        # Update date range for the new schedule type using Guess
+        bpy.ops.bim.guess_date_range('INVOKE_DEFAULT', work_schedule=self.active_work_schedule_id)
+        
+        # Call sync animation if it exists
+        try:
+            bpy.ops.bim.sync_animation_by_date(
+                'INVOKE_DEFAULT',
+                previous_start_date=previous_start,
+                previous_finish_date=previous_finish
+            )
+        except Exception as e:
+            print(f"⚠️ Animation sync failed: {e}")
                 
     except Exception as e:
         print(f"❌ update_date_source_type: Error: {e}")
@@ -3910,46 +3863,6 @@ class BIMStatusProperties(PropertyGroup):
         statuses: bpy.types.bpy_prop_collection_idprop[IFCStatus]
 
 
-def update_date_source(self, context):
-    """
-    Callback que se ejecuta cuando cambia la fuente de datos (tipo de cronograma).
-    - Si Sync Auto está APAGADO, actualiza las fechas de visualización.
-    - Si Sync Auto está ENCENDIDO y la animación ya existe, re-crea la animación.
-    """
-    import bpy
-    anim_props = tool.Sequence.get_animation_props()
-    sync_enabled = getattr(anim_props, 'auto_update_on_date_source_change', False)
-    animation_exists = getattr(anim_props, 'is_animation_created', False)
-
-    if sync_enabled:
-        # Si sync está activado, las fechas ya están bloqueadas.
-        # Solo debemos manejar la re-creación si la animación ya existe.
-        if animation_exists:
-            print("🚀 Sync Auto: Re-creando animación por cambio de tipo de cronograma.")
-            def re_bake_animation():
-                try:
-                    bpy.ops.bim.create_animation(preserve_current_frame=True)
-                except Exception as e:
-                    print(f"❌ Error re-creando la animación automáticamente: {e}")
-                return None
-            bpy.app.timers.register(re_bake_animation, first_interval=0.1)
-    else:
-        # Si sync está apagado, volvemos al comportamiento de adivinar el rango de fechas
-        # para el nuevo tipo de cronograma seleccionado.
-        print("📅 Sync Auto apagado: Adivinando rango de fechas para el tipo de cronograma seleccionado.")
-        try:
-            def guess_dates():
-                work_schedule = tool.Sequence.get_active_work_schedule()
-                if work_schedule:
-                    start, finish = tool.Sequence.guess_date_range(work_schedule)
-                    tool.Sequence.update_visualisation_date(start, finish)
-                return None
-            bpy.app.timers.register(guess_dates)
-        except Exception as e:
-            print(f"Bonsai WARNING: Falló la actualización del rango de fechas: {e}")
-        
-
-        bpy.app.timers.register(re_bake_animation, first_interval=0.2)
 
 
     # Variance will only update when manually changing variance_source_a/variance_source_b
@@ -4011,8 +3924,7 @@ class BIMWorkScheduleProperties(PropertyGroup):
             ('EARLY', "Early", "Use EarlyStart and EarlyFinish dates"),
             ('LATE', "Late", "Use LateStart and LateFinish dates"),
         ],
-        default='SCHEDULE',
-        update=update_date_source
+        default='SCHEDULE'
     )
     last_lookahead_window: StringProperty(
         name="Last Lookahead Window",
@@ -4534,12 +4446,6 @@ class BIMAnimationProperties(PropertyGroup):
         update=toggle_live_color_updates
     )
     
-    auto_update_on_date_source_change: BoolProperty(
-        name="Auto-update Animation",
-        description="Automatically update the 3D animation when the Date Source changes. May be slow on large models.",
-        default=False
-        
-    )
     
     # Task bar colors
     color_full: FloatVectorProperty(

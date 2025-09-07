@@ -122,48 +122,26 @@ class ScheduleHUD:
             anim_props = tool.Sequence.get_animation_props()
 
             # CRITICAL: Check if synchronization mode is enabled
-            sync_enabled = getattr(anim_props, "auto_update_on_date_source_change", False)
-            print(f"🔗 HUD: Synchronization mode {'ENABLED' if sync_enabled else 'DISABLED'}")
+            # Fechas de visualización (rango seleccionado por usuario)
+            viz_start = tool.Sequence.get_start_date()
+            viz_finish = tool.Sequence.get_finish_date()
+            print(f"📅 HUD: Using visualization range: {viz_start} to {viz_finish}")
             
-            # Fechas de visualización (rango seleccionado)
-            if sync_enabled:
-                # In synchronized mode, use the same unified range for visualization
-                # This will be set after we calculate the unified range
-                viz_start = None  # Will be set to unified range
-                viz_finish = None  # Will be set to unified range
-                print("🔗 HUD: Will use unified range for visualization dates")
-            else:
-                # In independent mode, use the current schedule type's range
-                viz_start = tool.Sequence.get_start_date()
-                viz_finish = tool.Sequence.get_finish_date()
-                print(f"📅 HUD: Using independent visualization range: {viz_start} to {viz_finish}")
-            
-            # NEW: Get dates from the full active schedule
+            # Check if we should use unified timeline
+            # This happens when user has used Guess to set a unified date range
             full_schedule_start, full_schedule_end = None, None
             try:
-                # Verificar si hay un cronograma activo
                 active_schedule = tool.Sequence.get_active_work_schedule()
-                print(f"🔍 Cronograma activo: {active_schedule.Name if active_schedule else 'NINGUNO'}")
+                print(f"🔍 Active schedule: {active_schedule.Name if active_schedule else 'NONE'}")
                 
                 if active_schedule:
-                    print(f"🔍 Intentando obtener fechas del cronograma '{active_schedule.Name}'...")
-                    
-                    # CRITICAL: Use unified range if synchronization is enabled
-                    if sync_enabled:
-                        print("🔗 HUD: Getting UNIFIED date range (all 4 schedule types)")
-                        full_schedule_start, full_schedule_end = self.get_unified_schedule_range(active_schedule)
-                        print(f"🔗 HUD: Unified range: {full_schedule_start} to {full_schedule_end}")
+                    # Check if current viz range spans multiple schedule types (indicates unified range)
+                    if viz_start and viz_finish and self._is_unified_range(active_schedule, viz_start, viz_finish):
+                        print("🔗 HUD: Detected unified range - using for timeline display")
+                        full_schedule_start, full_schedule_end = viz_start, viz_finish
                     else:
-                        print("📅 HUD: Getting independent range for current schedule type")
+                        print("📅 HUD: Using specific schedule type range")
                         full_schedule_start, full_schedule_end = tool.Sequence.get_schedule_date_range()
-                    
-                    print(f"🔍 Resultado: start={full_schedule_start}, end={full_schedule_end}")
-                    
-                    # CRITICAL: Set visualization dates to unified range if synchronization is enabled
-                    if sync_enabled and full_schedule_start and full_schedule_end:
-                        viz_start = full_schedule_start
-                        viz_finish = full_schedule_end
-                        print(f"🔗 HUD: Set visualization dates to unified range: {viz_start.strftime('%Y-%m-%d')} to {viz_finish.strftime('%Y-%m-%d')}")
                     
                     if full_schedule_start and full_schedule_end:
                         print(f"📊 Cronograma completo: {full_schedule_start.strftime('%Y-%m-%d')} → {full_schedule_end.strftime('%Y-%m-%d')}")
@@ -240,11 +218,21 @@ class ScheduleHUD:
                 
             # NEW: Snapshot support - use specific date
             if is_snapshot_mode:
-                # En modo Snapshot, ignorar el rango de animación y usar la fecha de snapshot.
+                # En modo Snapshot, usar SIEMPRE el rango unificado para Timeline HUD
                 if snapshot_date and snapshot_date.strip() not in ('', '-'):
                     try:
                         from datetime import datetime
                         current_date = datetime.fromisoformat(snapshot_date.replace('Z', '+00:00'))
+                        
+                        # CRITICAL: For snapshots, ALWAYS use unified range for Timeline HUD
+                        if active_schedule:
+                            unified_start, unified_end = self.get_unified_schedule_range(active_schedule)
+                            if unified_start and unified_end:
+                                print(f"📊 SNAPSHOT: Using unified range {unified_start.strftime('%Y-%m-%d')} → {unified_end.strftime('%Y-%m-%d')}")
+                                full_schedule_start, full_schedule_end = unified_start, unified_end
+                            else:
+                                print("⚠️ SNAPSHOT: No unified range found, using fallback")
+                        
                         if full_schedule_start and full_schedule_end:
                             from . import operator
                             metrics = operator.calculate_schedule_metrics(
@@ -268,7 +256,13 @@ class ScheduleHUD:
                                     'schedule_name': active_schedule.Name if active_schedule else 'No Schedule',
                                     'is_snapshot': True,
                                 }
-                        # Fallback si no hay métricas o no hay rango completo
+                        # Fallback: ensure unified range is always available for snapshots
+                        if not full_schedule_start or not full_schedule_end:
+                            print("⚠️ SNAPSHOT: No unified range found, calculating fallback range")
+                            # Use current snapshot date as both start and end if no range is available
+                            full_schedule_start = current_date
+                            full_schedule_end = current_date
+                            
                         print("🎬 SNAPSHOT MODE: Animation disabled for HUD Schedule and Timeline (fallback)")
                         return {
                             'full_schedule_start': full_schedule_start,
@@ -426,7 +420,7 @@ class ScheduleHUD:
         """
         Calculate the unified date range by analyzing ALL 4 schedule types
         Returns the earliest start and latest finish across all types
-        Used for Timeline HUD when synchronization is enabled
+        Used for Timeline HUD snapshots and unified timeline display
         """
         from datetime import datetime
         import ifcopenshell.util.sequence
@@ -476,6 +470,29 @@ class ScheduleHUD:
         
         print(f"✅ UNIFIED HUD: Timeline range spans {unified_start.strftime('%Y-%m-%d')} to {unified_finish.strftime('%Y-%m-%d')}")
         return unified_start, unified_finish
+    
+    def _is_unified_range(self, work_schedule, viz_start, viz_finish):
+        """
+        Check if the current visualization range spans multiple schedule types,
+        which indicates it's a unified range set by Guess button.
+        """
+        try:
+            # Get the unified range
+            unified_start, unified_end = self.get_unified_schedule_range(work_schedule)
+            
+            if not unified_start or not unified_end:
+                return False
+            
+            # Check if viz range is approximately the same as unified range
+            # (allowing for small differences due to time formatting)
+            start_match = abs((viz_start - unified_start).total_seconds()) < 86400  # 1 day tolerance
+            end_match = abs((viz_finish - unified_end).total_seconds()) < 86400
+            
+            return start_match and end_match
+            
+        except Exception as e:
+            print(f"⚠️ Error checking unified range: {e}")
+            return False
 
     def get_hud_settings(self):
         """Gets complete HUD configuration from properties"""
@@ -521,9 +538,30 @@ class ScheduleHUD:
                 'hud_show_progress': getattr(camera_props, 'hud_show_progress', True),
             }
 
+            # --- CHECK FOR SNAPSHOT MODE ---
+            # Detect snapshot mode to auto-enable Timeline HUD
+            work_props = tool.Sequence.get_work_schedule_props()
+            snapshot_date = getattr(work_props, 'visualisation_start', None)
+            is_snapshot_ui_active = getattr(work_props, 'should_show_snapshot_ui', False)
+            scene_snapshot_mode = hasattr(bpy.context.scene, 'get') and bpy.context.scene.get("is_snapshot_mode", False)
+            
+            is_snapshot_mode_active = (
+                is_snapshot_ui_active and
+                snapshot_date and snapshot_date.strip() not in ('', '-')
+            ) or scene_snapshot_mode
+            
+            print(f"🔍 SNAPSHOT DETECTION: is_snapshot_ui_active={is_snapshot_ui_active}, scene_snapshot_mode={scene_snapshot_mode}")
+            print(f"🔍 SNAPSHOT DETECTION: snapshot_date='{snapshot_date}', is_snapshot_mode_active={is_snapshot_mode_active}")
+            
             # --- TIMELINE HUD SETTINGS (NEW) ---
+            # Enable Timeline HUD automatically for snapshots (following v90 behavior)
+            timeline_enabled_setting = getattr(camera_props, 'enable_timeline_hud', False)
+            if is_snapshot_mode_active and not timeline_enabled_setting:
+                print("🎬 SNAPSHOT: Auto-enabling Timeline HUD for snapshot (v90 behavior)")
+                timeline_enabled_setting = True
+                
             timeline_hud_settings = {
-                'enabled': getattr(camera_props, 'enable_timeline_hud', False),
+                'enabled': timeline_enabled_setting,
                 'locked': getattr(camera_props, 'timeline_hud_locked', True),
                 'manual_x': getattr(camera_props, 'timeline_hud_manual_x', 0.0),
                 'manual_y': getattr(camera_props, 'timeline_hud_manual_y', 0.0),
@@ -812,6 +850,8 @@ class ScheduleHUD:
         print(f"\n🎬 === TIMELINE HUD DRAW START ===")
         print(f"🎬 Viewport: {viewport_width}x{viewport_height}")
         print(f"🎬 Settings enabled: {settings.get('enabled', False)}")
+        print(f"🎬 Data received: {list(data.keys()) if data else 'None'}")
+        print(f"🎬 Is snapshot: {data.get('is_snapshot', False) if data else 'Unknown'}")
         print(f"🎬 Font ID at start: {self.font_id}")
         
         # Verificar datos necesarios - CORREGIDO: usar rangos seleccionados
@@ -1972,9 +2012,12 @@ class ScheduleHUD:
 
             # --- GET ALL SETS OF SETTINGS ---
             text_settings, timeline_settings, legend_settings = self.get_hud_settings()
+            
+            print(f"🎯 HUD DRAW: timeline_enabled={timeline_settings.get('enabled', False)}, text_enabled={text_settings.get('enabled', False)}, legend_enabled={legend_settings.get('enabled', False)}")
 
             # If all are disabled, exit
             if not text_settings.get('enabled', False) and not timeline_settings.get('enabled', False) and not legend_settings.get('enabled', False):
+                print("❌ HUD DRAW: All HUD elements disabled, exiting")
                 return
 
             data = self.get_schedule_data()

@@ -63,7 +63,6 @@ class CreateAnimation(bpy.types.Operator, tool.Ifc.Operator):
         """
         Calculate the unified date range by analyzing ALL 4 schedule types
         Returns the earliest start and latest finish across all types
-        Used when synchronization is enabled during animation creation
         """
         from datetime import datetime
         
@@ -557,9 +556,10 @@ class SyncAnimationByDate(bpy.types.Operator):
     previous_finish_date: bpy.props.StringProperty()
 
     def execute(self, context):
-        anim_props = tool.Sequence.get_animation_props()
-        if not getattr(anim_props, "auto_update_on_date_source_change", False):
-            return {'CANCELLED'}
+        # Sync functionality removed - always proceed
+        # anim_props = tool.Sequence.get_animation_props()
+        # if not getattr(anim_props, "auto_update_on_date_source_change", False):
+        #     return {'CANCELLED'}
         was_playing = bpy.context.screen.is_animation_playing
         if was_playing:
             bpy.ops.screen.animation_cancel(restore_frame=False)
@@ -586,317 +586,16 @@ class SyncAnimationByDate(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class SyncAnimationDateSource(bpy.types.Operator):
-    """Synchronize date source type during animation playback"""
-    bl_idname = "bim.sync_animation_date_source"
-    bl_label = "Sync Animation Date Source"
-    bl_description = "Switch between schedule types (SCHEDULE, ACTUAL, EARLY, LATE) while maintaining temporal position"
-    bl_options = {"REGISTER", "UNDO"}
+# Removed SyncAnimationDateSource - sync auto functionality eliminated
 
-    new_date_source: bpy.props.StringProperty(
-        name="New Date Source",
-        description="The schedule type to switch to (e.g. SCHEDULE, ACTUAL, EARLY, LATE)"
-    )
+def _restore_3d_texts_state():
+    """Restore 3D texts to their previous state after snapshot"""
+    try:
+        # Implementation would go here if needed
+        print("📸 3D texts state restored")
+    except Exception as e:
+        print(f"❌ Error restoring 3D texts state: {e}")
 
-    def execute(self, context):
-        try:
-            # Set flag to prevent interference from update_date_source_type
-            context.scene['_synch_in_progress'] = True
-            
-            props = tool.Sequence.get_work_schedule_props()
-            anim_props = tool.Sequence.get_animation_props()
-            
-            # Validate current state
-            current_date_source = getattr(props, "date_source_type", "SCHEDULE")
-            if self.new_date_source == current_date_source:
-                context.scene['_synch_in_progress'] = False
-                return {'CANCELLED'}  # Already using this date source
-            
-            # CRITICAL: Check if synchronization mode is enabled
-            sync_enabled = getattr(anim_props, "auto_update_on_date_source_change", False)
-            print(f"🔄 SYNCH: Synchronization mode {'ENABLED' if sync_enabled else 'DISABLED'}")
-            
-            if not sync_enabled:
-                # MODE 1: BEFORE synchronization is activated
-                # Each schedule type maintains its independent date ranges
-                print("📅 SYNCH: Independent mode - restoring original date ranges")
-                return self._execute_independent_mode(context, props, current_date_source)
-            else:
-                # MODE 2: AFTER synchronization is activated  
-                # All schedule types use the same unified temporal range during animation
-                print("🔗 SYNCH: Synchronized mode - maintaining unified temporal position")
-                return self._execute_synchronized_mode(context, props, anim_props, current_date_source)
-            
-        except Exception as e:
-            print(f"❌ SYNCH: Critical error: {e}")
-            import traceback
-            traceback.print_exc()
-            self.report({'ERROR'}, f"Sync operation failed: {e}")
-            return {'CANCELLED'}
-        finally:
-            # Always clear the flag
-            if '_synch_in_progress' in context.scene:
-                del context.scene['_synch_in_progress']
-
-    def _execute_independent_mode(self, context, props, current_date_source):
-        """
-        MODE 1: BEFORE synchronization is activated
-        Each schedule type maintains its independent original date ranges
-        SCHEDULE: 10/06/2025 - 20/06/2025
-        ACTUAL:   18/06/2025 - 28/06/2025  
-        When switching SCHEDULE->ACTUAL->SCHEDULE, returns to original 10/06/2025
-        """
-        try:
-            # Store original date ranges for each schedule type
-            work_schedule_id = props.active_work_schedule_id
-            date_ranges_key = f"original_date_ranges_{work_schedule_id}"
-            
-            # Use Blender's custom properties for reliable storage
-            if date_ranges_key not in context.scene:
-                context.scene[date_ranges_key] = {}
-            
-            # Get the stored ranges as a dictionary
-            original_ranges = dict(context.scene[date_ranges_key])
-            
-            # Store the current range for the current date source (if not already stored)
-            current_start = getattr(props, "visualisation_start", None)
-            current_finish = getattr(props, "visualisation_finish", None)
-            
-            if current_start and current_finish and current_date_source not in original_ranges:
-                original_ranges[current_date_source] = {
-                    'start': current_start,
-                    'finish': current_finish
-                }
-                context.scene[date_ranges_key] = original_ranges
-                print(f"💾 SYNCH: Stored original {current_date_source} range: {current_start} to {current_finish}")
-            
-            print(f"🔄 SYNCH: Switching from {current_date_source} to {self.new_date_source}")
-            
-            # Check if we have stored ranges for the target date source
-            if self.new_date_source in original_ranges:
-                # Restore the original range for this date source
-                stored_range = original_ranges[self.new_date_source]
-                props.date_source_type = self.new_date_source
-                props.visualisation_start = stored_range['start']
-                props.visualisation_finish = stored_range['finish']
-                print(f"🔄 SYNCH: Restored original {self.new_date_source} range: {stored_range['start']} to {stored_range['finish']}")
-            else:
-                # First time switching to this source, calculate new range
-                props.date_source_type = self.new_date_source
-                
-                work_schedule = tool.Sequence.get_active_work_schedule()
-                if work_schedule:
-                    new_start, new_finish = tool.Sequence.guess_date_range(work_schedule)
-                    if new_start and new_finish:
-                        props.visualisation_start = new_start.isoformat()
-                        props.visualisation_finish = new_finish.isoformat()
-                        
-                        # Store this new range for future use
-                        original_ranges[self.new_date_source] = {
-                            'start': props.visualisation_start,
-                            'finish': props.visualisation_finish
-                        }
-                        context.scene[date_ranges_key] = original_ranges
-                        print(f"💾 SYNCH: Calculated and stored new {self.new_date_source} range: {props.visualisation_start} to {props.visualisation_finish}")
-                    else:
-                        props.date_source_type = current_date_source
-                        self.report({'ERROR'}, f"No {self.new_date_source} dates available")
-                        return {'CANCELLED'}
-                else:
-                    props.date_source_type = current_date_source
-                    self.report({'ERROR'}, "No active work schedule")
-                    return {'CANCELLED'}
-            
-            self.report({'INFO'}, f"Switched to {self.new_date_source} - Independent mode")
-            return {'FINISHED'}
-            
-        except Exception as e:
-            print(f"❌ SYNCH: Error in independent mode: {e}")
-            props.date_source_type = current_date_source
-            self.report({'ERROR'}, f"Independent mode failed: {e}")
-            return {'CANCELLED'}
-
-    def _execute_synchronized_mode(self, context, props, anim_props, current_date_source):
-        """
-        MODE 2: AFTER synchronization is activated
-        All schedule types use the same unified temporal range during animation
-        Timeline HUD shows the unified range (earliest start, latest finish of all 4 types)
-        If Look Ahead filter is active, it overrides the range
-        """
-        try:
-            # Calculate current animation progress to maintain temporal position
-            current_frame = context.scene.frame_current
-            start_frame = context.scene.frame_start
-            end_frame = context.scene.frame_end
-            total_frames = end_frame - start_frame
-            
-            if total_frames <= 0:
-                self.report({'ERROR'}, "Invalid animation frame range")
-                return {'CANCELLED'}
-            
-            progress = (current_frame - start_frame) / total_frames
-            progress = max(0.0, min(1.0, progress))  # Clamp between 0 and 1
-            
-            print(f"🎬 SYNCH: Current frame {current_frame}, progress {progress:.3f}")
-            
-            # Calculate target date based on current position
-            from datetime import datetime
-            current_start = getattr(props, "visualisation_start", None)
-            current_finish = getattr(props, "visualisation_finish", None)
-            
-            if current_start and current_finish:
-                try:
-                    current_start_date = datetime.fromisoformat(current_start.replace('Z', '+00:00')).replace(tzinfo=None)
-                    current_finish_date = datetime.fromisoformat(current_finish.replace('Z', '+00:00')).replace(tzinfo=None)
-                    current_duration = current_finish_date - current_start_date
-                    target_date = current_start_date + current_duration * progress
-                    print(f"🎯 SYNCH: Target date to maintain: {target_date.strftime('%Y-%m-%d %H:%M:%S')}")
-                except Exception as e:
-                    print(f"⚠️ SYNCH: Error calculating target date: {e}")
-                    target_date = None
-            else:
-                target_date = None
-            
-            print(f"🔄 SYNCH: Switching from {current_date_source} to {self.new_date_source}")
-            
-            # CRITICAL FIX: In synchronized mode, we need to ensure ALL schedule types use the SAME temporal range
-            # Get the work schedule to calculate unified range
-            work_schedule = tool.Sequence.get_active_work_schedule()
-            if work_schedule:
-                # Calculate the unified range that encompasses ALL 4 schedule types
-                unified_start, unified_finish = self.get_unified_date_range(work_schedule)
-                
-                if unified_start and unified_finish:
-                    # CRITICAL: Set the visualization properties to the unified range
-                    # This ensures the animation timeline spans the complete range
-                    old_viz_start = props.visualisation_start
-                    old_viz_finish = props.visualisation_finish
-                    
-                    props.visualisation_start = unified_start.isoformat()
-                    props.visualisation_finish = unified_finish.isoformat()
-                    
-                    print(f"🔗 SYNCH: Updated visualization range to unified:")
-                    print(f"   OLD: {old_viz_start} to {old_viz_finish}")
-                    print(f"   NEW: {props.visualisation_start} to {props.visualisation_finish}")
-                    
-                    # Now switch the date source type
-                    props.date_source_type = self.new_date_source
-                    
-                    # Calculate the equivalent frame in the unified timeline
-                    if target_date:
-                        try:
-                            # Calculate progress in the unified timeline
-                            unified_duration = unified_finish - unified_start
-                            if unified_duration.total_seconds() > 0:
-                                if target_date < unified_start:
-                                    new_frame = start_frame
-                                    print("🔗 SYNCH: Target date before unified range, setting to start frame")
-                                elif target_date > unified_finish:
-                                    new_frame = end_frame
-                                    print("🔗 SYNCH: Target date after unified range, setting to end frame")
-                                else:
-                                    # Calculate equivalent position in unified timeline
-                                    unified_progress = (target_date - unified_start) / unified_duration
-                                    new_frame = start_frame + total_frames * unified_progress
-                                    print(f"🔗 SYNCH: Target date in unified range, progress: {unified_progress:.3f}")
-                                
-                                # Set the new frame to maintain temporal position
-                                new_frame_int = max(start_frame, min(end_frame, int(round(new_frame))))
-                                if new_frame_int != current_frame:
-                                    context.scene.frame_set(new_frame_int)
-                                    print(f"📍 SYNCH: Frame adjusted from {current_frame} to {new_frame_int}")
-                                else:
-                                    print(f"📍 SYNCH: Frame remains at {current_frame}")
-                                
-                                # Calculate final date for verification
-                                final_progress = (new_frame_int - start_frame) / total_frames
-                                final_date = unified_start + unified_duration * final_progress
-                                
-                                print(f"✅ SYNCH: Final synchronized date: {final_date.strftime('%Y-%m-%d %H:%M:%S')}")
-                                self.report({'INFO'}, f"Synced to {self.new_date_source}: {final_date.strftime('%Y-%m-%d')} (Frame {new_frame_int})")
-                                return {'FINISHED'}
-                            else:
-                                print("⚠️ SYNCH: Invalid unified duration")
-                        except Exception as e:
-                            print(f"⚠️ SYNCH: Error calculating unified frame position: {e}")
-                    
-                    # Fallback: just switch type and keep current frame
-                    props.date_source_type = self.new_date_source
-                    print(f"🔗 SYNCH: Synchronized to {self.new_date_source} with unified range (Frame {current_frame})")
-                    self.report({'INFO'}, f"Synced to {self.new_date_source} with unified timeline (Frame {current_frame})")
-                    return {'FINISHED'}
-                else:
-                    print("❌ SYNCH: Could not calculate unified date range")
-                    self.report({'ERROR'}, "Could not calculate unified date range")
-                    return {'CANCELLED'}
-            else:
-                print("❌ SYNCH: No active work schedule found")
-                self.report({'ERROR'}, "No active work schedule found")
-                return {'CANCELLED'}
-            
-        except Exception as e:
-            print(f"❌ SYNCH: Error in synchronized mode: {e}")
-            props.date_source_type = current_date_source
-            self.report({'ERROR'}, f"Synchronized mode failed: {e}")
-            return {'CANCELLED'}
-    
-    def get_unified_date_range(self, work_schedule):
-        """
-        Calculate the unified date range by analyzing ALL 4 schedule types
-        Returns the earliest start and latest finish across all types
-        Used for Timeline HUD when synchronization is enabled
-        """
-        from datetime import datetime
-        
-        if not work_schedule:
-            return None, None
-        
-        all_starts = []
-        all_finishes = []
-        
-        # Check all schedule types: SCHEDULE, ACTUAL, EARLY, LATE
-        for schedule_type in ["SCHEDULE", "ACTUAL", "EARLY", "LATE"]:
-            start_attr = f"{schedule_type.capitalize()}Start"
-            finish_attr = f"{schedule_type.capitalize()}Finish"
-            
-            print(f"🔍 UNIFIED: Analyzing {schedule_type} -> {start_attr}/{finish_attr}")
-            
-            # Get all tasks from schedule
-            root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
-            
-            def get_all_tasks_recursive(tasks):
-                result = []
-                for task in tasks:
-                    result.append(task)
-                    nested = ifcopenshell.util.sequence.get_nested_tasks(task)
-                    if nested:
-                        result.extend(get_all_tasks_recursive(nested))
-                return result
-            
-            all_tasks = get_all_tasks_recursive(root_tasks)
-            
-            for task in all_tasks:
-                start_date = ifcopenshell.util.sequence.derive_date(task, start_attr, is_earliest=True)
-                if start_date:
-                    all_starts.append(start_date)
-                
-                finish_date = ifcopenshell.util.sequence.derive_date(task, finish_attr, is_latest=True)
-                if finish_date:
-                    all_finishes.append(finish_date)
-        
-        if not all_starts or not all_finishes:
-            print("❌ UNIFIED: No valid dates found across all schedule types")
-            return None, None
-        
-        unified_start = min(all_starts)
-        unified_finish = max(all_finishes)
-        
-        print(f"✅ UNIFIED: Range spans {unified_start.strftime('%Y-%m-%d')} to {unified_finish.strftime('%Y-%m-%d')}")
-        return unified_start, unified_finish
-
-
-# ... (El resto de tu archivo, desde aquí hacia abajo, debe ser tu CÓDIGO ORIGINAL) ...
-# ... He incluido la versión ORIGINAL y CORRECTA de _clear_previous_animation para asegurarme de que el botón Reset funcione ...
 def _clear_previous_animation(context) -> None:
     print("🧹 Iniciando limpieza completa de la animación...")
     try:

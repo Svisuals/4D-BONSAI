@@ -153,6 +153,18 @@ class SnapshotWithcolortypes(tool.Ifc.Operator, bpy.types.Operator):
             # Set snapshot mode flag for Timeline HUD
             context.scene["is_snapshot_mode"] = True
             print("✅ DEBUG: Set is_snapshot_mode flag")
+            
+            # CRITICAL: Register HUD handler for snapshots
+            from .. import hud_overlay
+            if not hud_overlay.is_hud_enabled():
+                print("🎬 SNAPSHOT: Registering HUD handler for Timeline display")
+                hud_overlay.register_hud_handler()
+            else:
+                print("✅ SNAPSHOT: HUD handler already active")
+            
+            # Force HUD refresh for snapshot mode
+            hud_overlay.refresh_hud()
+            print("🎬 SNAPSHOT: Forced HUD refresh")
 
             # Get snapshot date
             snapshot_date_str = getattr(ws_props, "visualisation_start", None)
@@ -225,6 +237,18 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
         print("✅ DEBUG: _save_3d_texts_state completed")
         context.scene["is_snapshot_mode"] = True
         print("✅ DEBUG: is_snapshot_mode set to True")
+        
+        # CRITICAL: Register HUD handler for snapshots
+        from .. import hud_overlay
+        if not hud_overlay.is_hud_enabled():
+            print("🎬 SNAPSHOT FIXED: Registering HUD handler for Timeline display")
+            hud_overlay.register_hud_handler()
+        else:
+            print("✅ SNAPSHOT FIXED: HUD handler already active")
+        
+        # Force HUD refresh for snapshot mode
+        hud_overlay.refresh_hud()
+        print("🎬 SNAPSHOT FIXED: Forced HUD refresh")
         
         try:
             tool.Sequence.sync_active_group_to_json()

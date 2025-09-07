@@ -2955,50 +2955,69 @@ class Sequence(bonsai.core.tool.Sequence):
         cls.in_demolition = set()
         cls.demolished = set()
 
-        # TEMPORARILY DISABLED: All cache optimizations to prevent infinite loops
-        # ULTRA-FAST PATH: Try NumPy vectorized computation first
-        # work_schedule_id = work_schedule.id()
-        # vectorized_result = SequenceCache.get_vectorized_task_states(
-        #     work_schedule_id, date, date_source, viz_start, viz_finish
-        # )
-        # 
-        # if vectorized_result:
-        #     # FASTEST: Use NumPy vectorized operations
-        #     cls.to_build = vectorized_result["TO_BUILD"]
-        #     cls.in_construction = vectorized_result["IN_CONSTRUCTION"]
-        #     cls.completed = vectorized_result["COMPLETED"]
-        #     cls.to_demolish = vectorized_result["TO_DEMOLISH"]
-        #     cls.in_demolition = vectorized_result["IN_DEMOLITION"]
-        #     cls.demolished = vectorized_result["DEMOLISHED"]
-        #     print(f"🚀 NumPy vectorized: {vectorized_result['tasks_processed']} tasks, {vectorized_result['products_processed']} products")
-        #     
-        # else:
-        #     # FAST PATH: Use pre-processed cached data  
-        #     cached_dates = SequenceCache.get_schedule_dates(work_schedule_id, date_source)
-        #     cached_products = SequenceCache.get_task_products(work_schedule_id)
-        #     
-        #     if cached_dates and cached_products:
-        #         print(f"⚡ Using cached data for {len(cached_dates['tasks_dates'])} tasks")
-        #         start_time = time.time()
-        #         
-        #         for task_id, start_date, finish_date in cached_dates['tasks_dates']:
-        #             # Get products for this task from cache
-        #             task_product_ids = cached_products.get(task_id, [])
-        #             if not task_product_ids:
-        #                 continue  # Skip tasks without products
-        #             
-        #             # Process task status with cached data
-        #             cls._process_task_status_cached(
-        #                 task_id, task_product_ids, start_date, finish_date, 
-        #                 date, viz_start, viz_finish
-        #             )
-        #         
-        #         elapsed = time.time() - start_time
-        #         print(f"⚡ Processed construction state in {elapsed:.3f}s (cached)")
-        #         
-        #     else:
+        # SAFE OPTIMIZATION: Try NumPy vectorized computation with robust fallbacks
+        work_schedule_id = work_schedule.id()
+        optimization_used = None
         
-        # FALLBACK PATH: Use original logic
+        try:
+            # ULTRA-FAST PATH: NumPy vectorized computation
+            vectorized_result = SequenceCache.get_vectorized_task_states(
+                work_schedule_id, date, date_source, viz_start, viz_finish
+            )
+            
+            if vectorized_result and vectorized_result.get('vectorized'):
+                # SUCCESS: Use NumPy vectorized operations
+                cls.to_build = vectorized_result["TO_BUILD"]
+                cls.in_construction = vectorized_result["IN_CONSTRUCTION"] 
+                cls.completed = vectorized_result["COMPLETED"]
+                cls.to_demolish = vectorized_result.get("TO_DEMOLISH", set())
+                cls.in_demolition = vectorized_result.get("IN_DEMOLITION", set())
+                cls.demolished = vectorized_result.get("DEMOLISHED", set())
+                optimization_used = f"NumPy vectorized: {vectorized_result['tasks_processed']} tasks, {vectorized_result['products_processed']} products"
+                print(f"🚀 {optimization_used}")
+                return  # Early return - optimization successful
+        except Exception as e:
+            print(f"⚠️ NumPy optimization failed (safe fallback): {e}")
+        
+        # FAST FALLBACK PATH: Use cached data if available
+        try:
+            cached_dates = SequenceCache.get_schedule_dates(work_schedule_id, date_source)
+            cached_products = SequenceCache.get_task_products(work_schedule_id)
+            
+            if cached_dates and cached_products:
+                # CACHED OPTIMIZATION: Process using cached data (faster than full iteration)
+                tasks_data = cached_dates.get('tasks_dates', [])
+                optimization_used = f"Cached data: {len(tasks_data)} tasks from cache"
+                print(f"⚡ {optimization_used}")
+                
+                # Process cached data efficiently
+                for task_id, start_date, finish_date in tasks_data:
+                    if not start_date or not finish_date:
+                        continue
+                        
+                    # Apply visualization range filtering first (if any)
+                    if viz_start and viz_finish:
+                        if finish_date < viz_start:
+                            # Task completed before visualization range
+                            cls.completed.update(cached_products.get(task_id, []))
+                            continue
+                        elif start_date > viz_finish:
+                            # Task starts after visualization range - skip
+                            continue
+                    
+                    # Normal date-based state determination
+                    if start_date > date:
+                        cls.to_build.update(cached_products.get(task_id, []))
+                    elif finish_date < date:
+                        cls.completed.update(cached_products.get(task_id, []))
+                    else:
+                        cls.in_construction.update(cached_products.get(task_id, []))
+                
+                return  # Early return - cached optimization successful
+        except Exception as e:
+            print(f"⚠️ Cache optimization failed (safe fallback): {e}")
+        
+        # TRADITIONAL FALLBACK PATH: Use original logic if optimizations fail
         print("🔄 Using original processing logic")
         for rel in work_schedule.Controls or []:
             for related_object in rel.RelatedObjects:

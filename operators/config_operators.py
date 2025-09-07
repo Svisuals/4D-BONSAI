@@ -468,3 +468,79 @@ class RefreshSnapshotTexts(bpy.types.Operator):
         except Exception as e:
             self.report({'ERROR'}, f"Unexpected error: {e}")
             return {'CANCELLED'}
+
+
+class BIM_OT_show_performance_stats(bpy.types.Operator):
+    """Display performance statistics for 4D optimizations"""
+    bl_idname = "bim.show_performance_stats"
+    bl_label = "Show Performance Stats"
+    bl_description = "Display detailed performance statistics for NumPy and cache optimizations"
+    bl_options = {'REGISTER'}
+
+    def execute(self, context):
+        try:
+            # Import the cache class
+            from bonsai.bim.module.sequence.data import SequenceCache
+            
+            # Get performance stats
+            stats = SequenceCache.get_performance_stats()
+            
+            if "message" in stats:
+                self.report({'INFO'}, stats["message"])
+                return {'FINISHED'}
+            
+            # Format and display stats
+            report_lines = [
+                "🚀 4D PERFORMANCE STATISTICS",
+                "=" * 50,
+                f"Total optimization calls: {stats['total_optimization_calls']}",
+                f"Total time saved: {stats['total_time_saved_seconds']}s",
+                f"NumPy available: {'✅' if stats['numpy_available'] else '❌'}",
+                ""
+            ]
+            
+            # Add individual optimization stats
+            for operation, data in stats['optimizations'].items():
+                report_lines.extend([
+                    f"📊 {operation.replace('_', ' ').title()}:",
+                    f"   Type: {data['optimization_type']}",
+                    f"   Calls: {data['calls']}",
+                    f"   Items processed: {data['items_processed']:,}",
+                    f"   Total time: {data['total_time']:.3f}s",
+                    f"   Average time: {data['average_time']:.3f}s",
+                    f"   Items per second: {data['items_per_second']:,.0f}",
+                    ""
+                ])
+            
+            # Print to console for detailed view
+            print("\n".join(report_lines))
+            
+            # Show summary in UI
+            summary = f"Optimization calls: {stats['total_optimization_calls']}, Time saved: {stats['total_time_saved_seconds']}s"
+            self.report({'INFO'}, summary)
+            
+            return {'FINISHED'}
+            
+        except Exception as e:
+            self.report({'ERROR'}, f"Error displaying performance stats: {e}")
+            return {'CANCELLED'}
+
+
+class BIM_OT_clear_performance_cache(bpy.types.Operator):
+    """Clear all performance cache and statistics"""
+    bl_idname = "bim.clear_performance_cache"
+    bl_label = "Clear Performance Cache"
+    bl_description = "Clear all cached data and performance statistics to force fresh calculations"
+    bl_options = {'REGISTER'}
+
+    def execute(self, context):
+        try:
+            from bonsai.bim.module.sequence.data import SequenceCache
+            
+            SequenceCache.clear()
+            self.report({'INFO'}, "Performance cache and statistics cleared")
+            return {'FINISHED'}
+            
+        except Exception as e:
+            self.report({'ERROR'}, f"Error clearing cache: {e}")
+            return {'CANCELLED'}
