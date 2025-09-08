@@ -452,19 +452,36 @@ class BIM_PT_work_schedules(Panel):
 
     def draw_editable_task_ui(self, work_schedule_id: int) -> None:
         assert self.layout
-        # --- DUPLICATE CODE REMOVED ---
+
         # The call to self.draw_filter_ui() was removed from here
         # as it is correctly called in draw_work_schedule_ui()
         
         row = self.layout.row(align=True)
         row.label(text="Task Tools")
+        
+
         row = self.layout.row(align=True)
-        row.alignment = "RIGHT"
-        # Refresh outputs counts
-        row.operator("bim.refresh_task_output_counts", text="", icon="FILE_REFRESH")
-        row.operator("bim.add_summary_task", text="Add Summary Task", icon="ADD").work_schedule = work_schedule_id
-        row.operator("bim.expand_all_tasks", text="Expand All")
-        row.operator("bim.contract_all_tasks", text="Contract All")
+        
+        # 1. Dividimos la fila. La primera columna (izquierda) será para el checkbox.
+        #    Usamos un factor pequeño para darle un espacio limitado.
+        split = row.split(factor=0.15)
+        
+        # 2. Colocamos el checkbox en la columna izquierda.
+        #    Ahora está contenido y no se puede estirar más allá de este 25%.
+        col_izquierda = split.column()
+        col_izquierda.prop(self.props, "should_select_3d_on_task_click", text="3D Task", icon="RESTRICT_SELECT_OFF")
+        
+        # 3. Usamos la segunda columna para los botones de la derecha.
+        col_derecha = split.column()
+        
+        # 4. Creamos una sub-fila DENTRO de la columna derecha para alinear los botones.
+        sub_fila_botones = col_derecha.row(align=True)
+        sub_fila_botones.alignment = 'RIGHT' # Esto los pega a la derecha de SU columna.
+        
+        sub_fila_botones.operator("bim.refresh_task_output_counts", text="", icon="FILE_REFRESH")
+        sub_fila_botones.operator("bim.add_summary_task", text="Add Summary Task", icon="ADD").work_schedule = work_schedule_id
+        sub_fila_botones.operator("bim.expand_all_tasks", text="Expand All")
+        sub_fila_botones.operator("bim.contract_all_tasks", text="Contract All")
         row = self.layout.row(align=True)
         self.draw_task_operators()
         BIM_UL_tasks.draw_header(self.layout)

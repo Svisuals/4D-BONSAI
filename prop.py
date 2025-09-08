@@ -375,17 +375,26 @@ def update_variance_calculation(self, context):
 
 def update_task_checkbox_selection(self, context):
     """
-    Callback que se ejecuta al marcar/desmarcar un checkbox.
-    Utiliza un temporizador para ejecutar la lógica de selección 3D de forma segura.
+    Callback that is executed when checking/unchecking a checkbox.
+    Uses a timer to execute the 3D selection logic safely.
     """
     def apply_selection():
         try:
-            tool.Sequence.apply_selection_from_checkboxes()
+            # --- START OF MODIFICATION ---
+            # Get the properties to check if 3D selection is active
+            props = tool.Sequence.get_work_schedule_props()
+            if props.should_select_3d_on_task_click:
+                tool.Sequence.apply_selection_from_checkboxes()
+            # If the main checkbox is off, do nothing.
+            # --- END OF MODIFICATION ---
         except Exception as e:
             print(f"Error in delayed checkbox selection update: {e}")
         return None  # The timer only runs once
 
-    bpy.app.timers.register(apply_selection, first_interval=0.01)
+    # Register the function with a timer to avoid context issues
+    import bpy
+    if not bpy.app.timers.is_registered(apply_selection):
+        bpy.app.timers.register(apply_selection, first_interval=0.01)
 
 
 def update_variance_color_mode(self, context):
@@ -1196,47 +1205,47 @@ def update_active_task_index(self, context):
     except Exception as e:
         print(f"[ERROR] Error syncing colortypes in update_active_task_index: {e}")
 
-    # --- START OF CORRECTED CODE ---
     # --- 3D SELECTION LOGIC FOR SINGLE CLICK ---
-    if not task_ifc:
+    props = tool.Sequence.get_work_schedule_props()
+    if props.should_select_3d_on_task_click:
+        if not task_ifc:
+            try:
+                bpy.ops.object.select_all(action='DESELECT')
+            except RuntimeError:
+                # Ocurre si no estamos en modo objeto, es seguro ignorarlo.
+                pass
+            # Salida temprana de la función de actualización - no continuar con la selección 3D
+            return
+
         try:
-            bpy.ops.object.select_all(action='DESELECT')
-        except RuntimeError:
-            # Ocurre si no estamos en modo objeto, es seguro ignorarlo.
-            pass
-        # Early exit for update function - don't continue with 3D selection
-        return
-
-    try:
-        outputs = tool.Sequence.get_task_outputs(task_ifc)
-        
-        # Deselect everything else first
-        if bpy.context.view_layer.objects.active:
-            bpy.ops.object.mode_set(mode='OBJECT')
-        bpy.ops.object.select_all(action='DESELECT')
-
-        if outputs:
-            objects_to_select = [tool.Ifc.get_object(p) for p in outputs if tool.Ifc.get_object(p)]
+            outputs = tool.Sequence.get_task_outputs(task_ifc)
             
-            if objects_to_select:
-                for obj in objects_to_select:
-                    # <-- STEP 1: Make sure the object is visible and selectable
-                    obj.hide_set(False)
-                    obj.hide_select = False
-                    
-                    # <-- STEP 2: Select the object
-                    obj.select_set(True)
-                
-                # <-- STEP 3: Set the first object as active
-                context.view_layer.objects.active = objects_to_select[0]
-                
-                # <-- STEP 4: Center the 3D view on the selected objects
-                bpy.ops.view3d.view_selected()
-                
-    except Exception as e:
-        print(f"Error selecting 3D objects for task: {e}")
-    # --- FIN DEL CÓDIGO CORREGIDO ---
+            # Deseleccionar todo lo demás primero
+            if bpy.context.view_layer.objects.active:
+                bpy.ops.object.mode_set(mode='OBJECT')
+            bpy.ops.object.select_all(action='DESELECT')
 
+            if outputs:
+                objects_to_select = [tool.Ifc.get_object(p) for p in outputs if tool.Ifc.get_object(p)]
+                
+                if objects_to_select:
+                    for obj in objects_to_select:
+                        # <-- PASO 1: Asegurarse de que el objeto sea visible y seleccionable
+                        obj.hide_set(False)
+                        obj.hide_select = False
+                        
+                        # <-- PASO 2: Seleccionar el objeto
+                        obj.select_set(True)
+                    
+                    # <-- PASO 3: Establecer el primer objeto como activo
+                    context.view_layer.objects.active = objects_to_select[0]
+                    
+                    # <-- PASO 4: Centrar la vista 3D en los objetos seleccionados
+                    bpy.ops.view3d.view_selected()
+                    
+        except Exception as e:
+            print(f"Error selecting 3D objects for task: {e}")
+    
 
 def get_task_colortype_items(self, context):
     """Enum items function for task colortypes - separated from update function"""
@@ -3967,6 +3976,11 @@ class BIMWorkScheduleProperties(PropertyGroup):
     enable_reorder: BoolProperty(name="Enable Reorder", default=False)
     show_task_operators: BoolProperty(name="Show Task Options", default=True)
     should_show_schedule_baseline_ui: BoolProperty(name="Baselines", default=False)
+    should_select_3d_on_task_click: BoolProperty(
+        name="Select 3D on Task Click",
+        description="Automatically select 3D elements when a task is selected in the list",
+        default=True
+    )
     filter_by_active_schedule: BoolProperty(
         name="Filter By Active Schedule", default=False, update=update_filter_by_active_schedule
     )

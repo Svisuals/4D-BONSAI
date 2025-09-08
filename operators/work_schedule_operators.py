@@ -21,6 +21,7 @@ import json
 import bonsai.tool as tool
 import bonsai.core.sequence as core
 
+
 try:
     from .prop import update_filter_column
     from . import prop
