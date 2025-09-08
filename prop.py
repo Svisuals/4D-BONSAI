@@ -2285,6 +2285,22 @@ def toggle_3d_text_visibility(self, context):
     should_hide = not self.show_3d_schedule_texts
     print(f"🔄 toggle_3d_text_visibility called: show_3d_schedule_texts={self.show_3d_schedule_texts}, should_hide={should_hide}")
     
+    # --- LÓGICA DE DESACTIVACIÓN AUTOMÁTICA ---
+    # Si 3D HUD Render se desactiva, desactivar automáticamente el 3D Legend HUD
+    try:
+        import bonsai.tool as tool
+        anim_props = tool.Sequence.get_animation_props()
+        camera_props = anim_props.camera_orbit
+        
+        if should_hide:  # Si se está desactivando el 3D HUD Render
+            current_legend_enabled = getattr(camera_props, "enable_3d_legend_hud", False)
+            if current_legend_enabled:
+                print("🔴 3D HUD Render disabled: Auto-disabling 3D Legend HUD checkbox")
+                camera_props.enable_3d_legend_hud = False
+                
+    except Exception as e:
+        print(f"⚠️ Error in auto-disable logic: {e}")
+    
     # Toggle visibility for "Schedule_Display_Texts"
     try:
         collection_texts = bpy.data.collections.get("Schedule_Display_Texts")

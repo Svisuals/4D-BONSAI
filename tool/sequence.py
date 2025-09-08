@@ -522,19 +522,24 @@ class Sequence(bonsai.core.tool.Sequence):
                     work_schedule = tool.Ifc.get().by_id(active_schedule_id)
                     schedule_name = work_schedule.Name if work_schedule and hasattr(work_schedule, 'Name') else 'No Schedule'
                     
-                    # Configuración mínima para los textos
-                    snapshot_settings = {
-                        'start': None,  # Se establecerá dinámicamente
-                        'finish': None, # Se establecerá dinámicamente
-                        'schedule_name': schedule_name,
-                        'start_frame': 1,
-                        'total_frames': 250,
-                        'speed': 1.0,
-                        'include_texts': True
-                    }
-                    
-                    # Crear los textos 3D usando la función existente
-                    cls.add_text_animation_handler(snapshot_settings)
+                    # --- USAR EL MISMO ENFOQUE QUE LA ANIMACIÓN PRINCIPAL ---
+                    # Obtener configuraciones completas de animación
+                    try:
+                        settings = cls.get_animation_settings()
+                        if settings and work_schedule:
+                            settings['schedule_name'] = schedule_name
+                            
+                            # Crear los textos 3D usando la función existente
+                            cls.add_text_animation_handler(settings)
+                            print("✅ 3D texts created using animation settings")
+                        else:
+                            # Fallback: crear manualmente si no hay settings
+                            raise Exception("No animation settings available, using manual creation")
+                            
+                    except Exception as settings_error:
+                        print(f"⚠️ Using fallback manual text creation: {settings_error}")
+                        # FALLBACK: Crear manualmente los textos básicos
+                        cls._create_basic_snapshot_texts(schedule_name)
                     
                     # --- APLICAR VISIBILIDAD SEGÚN CHECKBOX ---
                     anim_props = cls.get_animation_props()
@@ -565,7 +570,97 @@ class Sequence(bonsai.core.tool.Sequence):
         else:
             print("✅ 3D texts already exist, skipping creation")
         
+        # --- CREAR 3D LEGEND HUD SI NO EXISTE ---
+        # Verificar si ya existe el 3D Legend HUD
+        legend_hud_exists = any(obj.get("is_3d_legend_hud", False) for obj in bpy.data.objects)
+        if not legend_hud_exists:
+            print("📊 Creating 3D Legend HUD for snapshot display...")
+            try:
+                anim_props = cls.get_animation_props()
+                camera_props = anim_props.camera_orbit
+                
+                # Verificar si el 3D Legend HUD está habilitado
+                legend_hud_enabled = getattr(camera_props, "enable_3d_legend_hud", False)
+                show_3d_texts = getattr(camera_props, "show_3d_schedule_texts", False)
+                
+                if legend_hud_enabled and show_3d_texts:
+                    # Crear el 3D Legend HUD
+                    bpy.ops.bim.setup_3d_legend_hud()
+                    print("✅ 3D Legend HUD created and configured")
+                elif legend_hud_enabled and not show_3d_texts:
+                    # Crear pero mantener oculto porque 3D HUD Render está desactivado
+                    bpy.ops.bim.setup_3d_legend_hud()
+                    # Ocultar inmediatamente
+                    for obj in bpy.data.objects:
+                        if obj.get("is_3d_legend_hud", False):
+                            obj.hide_viewport = True
+                            obj.hide_render = True
+                    print("✅ 3D Legend HUD created but hidden (3D HUD Render disabled)")
+                else:
+                    print("📊 3D Legend HUD not enabled, skipping creation")
+                    
+            except Exception as e:
+                print(f"⚠️ Could not create 3D Legend HUD for snapshot camera: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print("✅ 3D Legend HUD already exists, skipping creation")
+        
         return cam_obj
+
+    @classmethod
+    def _create_basic_snapshot_texts(cls, schedule_name):
+        """Creates basic 3D texts manually when animation settings are not available."""
+        import bpy
+        
+        # Create or get collection
+        collection_name = "Schedule_Display_Texts"
+        if collection_name not in bpy.data.collections:
+            collection = bpy.data.collections.new(collection_name)
+            try:
+                bpy.context.scene.collection.children.link(collection)
+            except Exception:
+                pass
+        else:
+            collection = bpy.data.collections[collection_name]
+        
+        # Basic text configurations for snapshot
+        text_configs = [
+            {"name": "Schedule_Name", "position": (0, 10, 6), "content": f"Schedule: {schedule_name}", "type": "schedule_name"},
+            {"name": "Schedule_Date", "position": (0, 10, 5), "content": "Date: [Dynamic]", "type": "date"},
+            {"name": "Schedule_Week", "position": (0, 10, 4), "content": "Week: [Dynamic]", "type": "week"},
+            {"name": "Schedule_Day_Counter", "position": (0, 10, 3), "content": "Day: [Dynamic]", "type": "day_counter"},
+            {"name": "Schedule_Progress", "position": (0, 10, 2), "content": "Progress: [Dynamic]", "type": "progress"},
+        ]
+        
+        for config in text_configs:
+            try:
+                # Create text data
+                text_data = bpy.data.curves.new(name=config["name"], type='FONT')
+                text_obj = bpy.data.objects.new(name=config["name"], object_data=text_data)
+                
+                # Set content and properties
+                text_data.body = config["content"]
+                text_data['text_type'] = config["type"]
+                
+                # Set alignment for consistent positioning
+                if hasattr(text_data, 'align_x'):
+                    text_data.align_x = 'CENTER'
+                if hasattr(text_data, 'align_y'):
+                    text_data.align_y = 'BOTTOM_BASELINE'
+                
+                # Position the text
+                text_obj.location = config["position"]
+                
+                # Add to collection
+                collection.objects.link(text_obj)
+                
+                print(f"✅ Created basic text: {config['name']}")
+                
+            except Exception as e:
+                print(f"⚠️ Failed to create text {config['name']}: {e}")
+        
+        print("✅ Basic snapshot texts created manually")
 
     @classmethod
     def align_snapshot_camera_to_view(cls):

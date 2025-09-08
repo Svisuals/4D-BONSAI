@@ -1065,14 +1065,27 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
             try:
                 anim_props = tool.Sequence.get_animation_props()
                 camera_props = anim_props.camera_orbit
-                collection = bpy.data.collections.get("Schedule_Display_Texts")
+                should_hide = not getattr(camera_props, "show_3d_schedule_texts", False)
                 
+                # Aplicar lógica de desactivación automática si 3D HUD Render está desactivado
+                if should_hide:
+                    current_legend_enabled = getattr(camera_props, "enable_3d_legend_hud", False)
+                    if current_legend_enabled:
+                        print("🔴 ANIMATION: 3D HUD Render disabled, auto-disabling 3D Legend HUD")
+                        camera_props.enable_3d_legend_hud = False
+                
+                collection = bpy.data.collections.get("Schedule_Display_Texts")
                 if collection:
                     # Sincroniza la visibilidad de la colección con el estado del checkbox.
                     # Si show_3d_schedule_texts es False, hide_viewport debe ser True.
-                    should_hide = not getattr(camera_props, "show_3d_schedule_texts", False)
                     collection.hide_viewport = should_hide
                     collection.hide_render = should_hide
+                    
+                # También aplicar a 3D Legend HUD collection
+                legend_collection = bpy.data.collections.get("Schedule_Display_3D_Legend")
+                if legend_collection:
+                    legend_collection.hide_viewport = should_hide
+                    legend_collection.hide_render = should_hide
                     
                     # Forzar redibujado de la vista 3D para que el cambio sea inmediato.
                     for window in context.window_manager.windows:
