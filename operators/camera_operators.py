@@ -222,6 +222,19 @@ class AddSnapshotCamera(bpy.types.Operator):
     def execute(self, context):
         try:
             cam_obj = tool.Sequence.add_snapshot_camera()
+            
+            # --- INICIO DE LA MODIFICACIÓN ---
+            # Forzar la actualización del HUD para reflejar los datos en el texto 3D
+            try:
+                anim_props = tool.Sequence.get_animation_props()
+                camera_props = anim_props.camera_orbit
+                if getattr(camera_props, 'enable_text_hud', False):
+                    bpy.ops.bim.refresh_schedule_hud()
+                    print("Bonsai HUD: 3D Text refreshed after Snapshot Camera creation.")
+            except Exception as e:
+                print(f"Bonsai HUD: Could not refresh 3D Text after snapshot camera creation: {e}")
+            # --- FIN DE LA MODIFICACIÓN ---
+
             self.report({'INFO'}, f"Snapshot camera '{cam_obj.name}' created and set as active")
             return {'FINISHED'}
         except Exception as e:

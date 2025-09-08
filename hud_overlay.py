@@ -235,28 +235,49 @@ class ScheduleHUD:
                                 print("⚠️ SNAPSHOT: No unified range found, using fallback")
                         
                         if full_schedule_start and full_schedule_end:
-                            from . import operator
-                            metrics = operator.calculate_schedule_metrics(
-                                current_date, current_date, current_date,
-                                full_schedule_start, full_schedule_end
-                            )
-                            if metrics:
-                                print("🎬 SNAPSHOT MODE: Animation disabled for HUD Schedule and Timeline")
-                                return {
-                                    'full_schedule_start': full_schedule_start,
-                                    'full_schedule_end': full_schedule_end, 
-                                    'current_date': current_date,
-                                    'start_date': current_date,
-                                    'finish_date': current_date,
-                                    'current_frame': -1,  # FIXED: Disable frame animation for snapshots
-                                    'total_days': (full_schedule_end - full_schedule_start).days + 1,
-                                    'elapsed_days': metrics['day'],
-                                    'week_number': metrics['week'],
-                                    'progress_pct': metrics['progress'],
-                                    'day_of_week': current_date.strftime('%A'),
-                                    'schedule_name': active_schedule.Name if active_schedule else 'No Schedule',
-                                    'is_snapshot': True,
-                                }
+                
+                            # Convertir a fechas para cálculos precisos
+                            cd_d = current_date.date()
+                            fss_d = full_schedule_start.date()
+                            fse_d = full_schedule_end.date()
+
+                            delta_days = (cd_d - fss_d).days
+                            
+                            if cd_d < fss_d:
+                                day_from_schedule = 0
+                                week_number = 0
+                                progress_pct = 0
+                            else:
+                                day_from_schedule = max(1, delta_days + 1)
+                                week_number = max(1, (delta_days // 7) + 1)
+                                total_schedule_days = (fse_d - fss_d).days
+                                
+                                if delta_days <= 0:
+                                    progress_pct = 0
+                                elif cd_d >= fse_d or total_schedule_days <= 0:
+                                    progress_pct = 100
+                                else:
+                                    progress_pct = (delta_days / total_schedule_days) * 100
+                                    progress_pct = round(progress_pct)
+
+                            total_days_full_schedule = (fse_d - fss_d).days + 1
+
+                            print("🎬 SNAPSHOT MODE: Metrics calculated directly.")
+                            return {
+                                'full_schedule_start': full_schedule_start,
+                                'full_schedule_end': full_schedule_end,
+                                'current_date': current_date,
+                                'start_date': current_date,
+                                'finish_date': current_date,
+                                'current_frame': -1,
+                                'total_days': total_days_full_schedule,
+                                'elapsed_days': day_from_schedule,
+                                'week_number': int(max(0, week_number)),
+                                'progress_pct': progress_pct,
+                                'day_of_week': current_date.strftime('%A'),
+                                'schedule_name': active_schedule.Name if active_schedule else 'No Schedule',
+                                'is_snapshot': True,
+                            }
                         # Fallback: ensure unified range is always available for snapshots
                         if not full_schedule_start or not full_schedule_end:
                             print("⚠️ SNAPSHOT: No unified range found, calculating fallback range")
