@@ -432,18 +432,19 @@ class UnifiedColorTypeManager:
             if not user_groups:
                 default_colortypes = [
                     {"name": "CONSTRUCTION", "start_color": [1,1,1,0], "in_progress_color": [0,1,0,1], "end_color": [0.3,1,0.3,1]},
-                    {"name": "INSTALLATION", "start_color": [1,1,1,0], "in_progress_color": [0,0.8,0.5,1], "end_color": [0.3,0.8,0.5,1]},
+                    {"name": "INSTALLATION", "start_color": [1,1,1,0], "in_progress_color": [0,1,0,1], "end_color": [0.3,0.8,0.5,1]},
                     {"name": "DEMOLITION", "start_color": [1,1,1,1], "in_progress_color": [1,0,0,1], "end_color": [0,0,0,0]},
-                    {"name": "REMOVAL", "start_color": [1,1,1,1], "in_progress_color": [1,0.3,0,1], "end_color": [0,0,0,0]},
-                    {"name": "DISPOSAL", "start_color": [1,1,1,1], "in_progress_color": [0.8,0,0.2,1], "end_color": [0,0,0,0]},
-                    {"name": "DISMANTLE", "start_color": [1,1,1,1], "in_progress_color": [1,0.5,0,1], "end_color": [0,0,0,0]},
-                    {"name": "OPERATION", "start_color": [1,1,1,1], "in_progress_color": [0,0.5,1,1], "end_color": [1,1,1,1]},
-                    {"name": "MAINTENANCE", "start_color": [1,1,1,1], "in_progress_color": [0.3,0.6,1,1], "end_color": [1,1,1,1]},
-                    {"name": "ATTENDANCE", "start_color": [1,1,1,1], "in_progress_color": [0.5,0.5,1,1], "end_color": [1,1,1,1]},
-                    {"name": "RENOVATION", "start_color": [1,1,1,1], "in_progress_color": [0.5,0,1,1], "end_color": [0.9,0.9,0.9,1]},
+                    {"name": "REMOVAL", "start_color": [1,1,1,1], "in_progress_color": [1,0,0,1], "end_color": [0,0,0,0]},
+                    {"name": "DISPOSAL", "start_color": [1,1,1,1], "in_progress_color": [1,0,0,1], "end_color": [0,0,0,0]},
+                    {"name": "DISMANTLE", "start_color": [1,1,1,1], "in_progress_color": [1,0,0,1], "end_color": [0,0,0,0]},
+                    {"name": "OPERATION", "start_color": [1,1,1,1], "in_progress_color": [0,0,1,1], "end_color": [1,1,1,1]},
+                    {"name": "MAINTENANCE", "start_color": [1,1,1,1], "in_progress_color": [0,0,1,1], "end_color": [1,1,1,1]},
+                    {"name": "ATTENDANCE", "start_color": [1,1,1,1], "in_progress_color": [0,0,1,1], "end_color": [1,1,1,1]},
+                    {"name": "RENOVATION", "start_color": [1,1,1,1], "in_progress_color": [0,0,1,1], "end_color": [0.9,0.9,0.9,1]},
                     {"name": "LOGISTIC", "start_color": [1,1,1,1], "in_progress_color": [1,1,0,1], "end_color": [1,0.8,0.3,1]},
-                    {"name": "MOVE", "start_color": [1,1,1,1], "in_progress_color": [1,0.8,0,1], "end_color": [0.8,0.6,0,1]},
+                    {"name": "MOVE", "start_color": [1,1,1,1], "in_progress_color": [1,1,0,1], "end_color": [0.8,0.6,0,1]},
                     {"name": "NOTDEFINED", "start_color": [0.7,0.7,0.7,1], "in_progress_color": [0.5,0.5,0.5,1], "end_color": [0.3,0.3,0.3,1]},
+                    {"name": "USERDEFINED", "start_color": [0.7,0.7,0.7,1], "in_progress_color": [0.5,0.5,0.5,1], "end_color": [0.3,0.3,0.3,1]},
                 ]
                 # Fill with complete fields
                 for colortype in default_colortypes:
@@ -698,13 +699,13 @@ class UnifiedColorTypeManager:
             default_order = [
                 "CONSTRUCTION", "INSTALLATION", "DEMOLITION", "REMOVAL",
                 "DISPOSAL", "DISMANTLE", "OPERATION", "MAINTENANCE",
-                "ATTENDANCE", "RENOVATION", "LOGISTIC", "MOVE", "NOTDEFINED"
+                "ATTENDANCE", "RENOVATION", "LOGISTIC", "MOVE", "NOTDEFINED", "USERDEFINED"
             ]
             colortypes = {}
             for name in default_order:
+                # Aquí forzamos que se use el método que ya hemos corregido
                 colortypes[name] = UnifiedColorTypeManager._create_default_colortype_data(name)
             return colortypes
-        # --- END OF CORRECTION ---
 
         try:
             data = UnifiedColorTypeManager._read_sets_json(context)
@@ -841,7 +842,7 @@ class UnifiedColorTypeManager:
             default_order = [
                 "CONSTRUCTION", "INSTALLATION", "DEMOLITION", "REMOVAL", 
                 "DISPOSAL", "DISMANTLE", "OPERATION", "MAINTENANCE", 
-                "ATTENDANCE", "RENOVATION", "LOGISTIC", "MOVE", "NOTDEFINED"
+                "ATTENDANCE", "RENOVATION", "LOGISTIC", "MOVE", "NOTDEFINED", "USERDEFINED"
             ]
             
             # Check if collection is already correctly populated
@@ -870,7 +871,7 @@ class UnifiedColorTypeManager:
                 default_order = [
                     "CONSTRUCTION", "INSTALLATION", "DEMOLITION", "REMOVAL", 
                     "DISPOSAL", "DISMANTLE", "OPERATION", "MAINTENANCE", 
-                    "ATTENDANCE", "RENOVATION", "LOGISTIC", "MOVE", "NOTDEFINED"
+                    "ATTENDANCE", "RENOVATION", "LOGISTIC", "MOVE", "NOTDEFINED", "USERDEFINED"
                 ]
                 
                 # Load in the specified order
@@ -899,18 +900,19 @@ class UnifiedColorTypeManager:
         # Define specific colors for each type
         color_map = {
             "CONSTRUCTION": {"start": [1,1,1,0], "active": [0,1,0,1], "end": [0.3,1,0.3,1]},
-            "INSTALLATION": {"start": [1,1,1,0], "active": [0,0.8,0.5,1], "end": [0.3,0.8,0.5,1]},
+            "INSTALLATION": {"start": [1,1,1,0], "active": [0,1,0,1], "end": [0.3,0.8,0.5,1]},
             "DEMOLITION": {"start": [1,1,1,1], "active": [1,0,0,1], "end": [0,0,0,0], "hide": True},
-            "REMOVAL": {"start": [1,1,1,1], "active": [1,0.3,0,1], "end": [0,0,0,0], "hide": True},
-            "DISPOSAL": {"start": [1,1,1,1], "active": [0.8,0,0.2,1], "end": [0,0,0,0], "hide": True},
-            "DISMANTLE": {"start": [1,1,1,1], "active": [1,0.5,0,1], "end": [0,0,0,0], "hide": True},
-            "OPERATION": {"start": [1,1,1,1], "active": [0,0.5,1,1], "end": [1,1,1,1]},
-            "MAINTENANCE": {"start": [1,1,1,1], "active": [0.3,0.6,1,1], "end": [1,1,1,1]},
-            "ATTENDANCE": {"start": [1,1,1,1], "active": [0.5,0.5,1,1], "end": [1,1,1,1]},
-            "RENOVATION": {"start": [1,1,1,1], "active": [0.5,0,1,1], "end": [0.9,0.9,0.9,1]},
+            "REMOVAL": {"start": [1,1,1,1], "active": [1,0,0,1], "end": [0,0,0,0], "hide": True},
+            "DISPOSAL": {"start": [1,1,1,1], "active": [1,0,0,1], "end": [0,0,0,0], "hide": True},
+            "DISMANTLE": {"start": [1,1,1,1], "active": [1,0,0,1], "end": [0,0,0,0], "hide": True},
+            "OPERATION": {"start": [1,1,1,1], "active": [0,0,1,1], "end": [1,1,1,1]},
+            "MAINTENANCE": {"start": [1,1,1,1], "active": [0,0,1,1], "end": [1,1,1,1]},
+            "ATTENDANCE": {"start": [1,1,1,1], "active": [0,0,1,1], "end": [1,1,1,1]},
+            "RENOVATION": {"start": [1,1,1,1], "active": [0,0,1,1], "end": [0.9,0.9,0.9,1]},
             "LOGISTIC": {"start": [1,1,1,1], "active": [1,1,0,1], "end": [1,0.8,0.3,1]},
-            "MOVE": {"start": [1,1,1,1], "active": [1,0.8,0,1], "end": [0.8,0.6,0,1]},
+            "MOVE": {"start": [1,1,1,1], "active": [1,1,0,1], "end": [0.8,0.6,0,1]},
             "NOTDEFINED": {"start": [0.7,0.7,0.7,1], "active": [0.5,0.5,0.5,1], "end": [0.3,0.3,0.3,1]},
+            "USERDEFINED": {"start": [0.7,0.7,0.7,1], "active": [0.5,0.5,0.5,1], "end": [0.3,0.3,0.3,1]},
         }
         
         colors = color_map.get(colortype_name, color_map["NOTDEFINED"])
@@ -927,8 +929,8 @@ class UnifiedColorTypeManager:
             "use_active_original_color": False,
             "use_end_original_color": not colors.get("hide", False),
             "start_transparency": 0.0,
-            "active_start_transparency": 0.0,
-            "active_finish_transparency": 0.0,
+            "active_start_transparency": 0.8,
+            "active_finish_transparency": 0.3,
             "active_transparency_interpol": 1.0,
             "end_transparency": 0.0,
             "hide_at_end": colors.get("hide", False)
