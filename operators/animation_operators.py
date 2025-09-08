@@ -161,7 +161,7 @@ class AddAnimationTaskType(bpy.types.Operator):
         else:
             props.active_color_component_outputs_index = len(coll)-1
         try:
-            from bonsai.bim.module.sequence.prop import cleanup_all_tasks_colortype_mappings
+            from bonsai.bim.module.sequence.prop.task import cleanup_all_tasks_colortype_mappings
             cleanup_all_tasks_colortype_mappings(context)
         except Exception:
             pass
@@ -517,7 +517,7 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
                         all_colortype_names = []
                         for group_item in anim_props.animation_group_stack:
                             group_name = group_item.group
-                            from ..prop import UnifiedColorTypeManager
+                            from ..prop.animation import UnifiedColorTypeManager
                             group_colortypes = UnifiedColorTypeManager.get_group_colortypes(bpy.context, group_name)
                             if group_colortypes:
                                 all_colortype_names.extend(group_colortypes.keys())

@@ -12,7 +12,7 @@ try:
     from .ui import calculate_visible_columns_count
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop import update_filter_column
+        from bonsai.bim.module.sequence.prop.filter import update_filter_column
         import bonsai.bim.module.sequence.prop as prop
         from bonsai.bim.module.sequence.ui import calculate_visible_columns_count
     except Exception:
@@ -41,7 +41,7 @@ except Exception:
             pass
 
 try:
-    from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+    from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
 except Exception:
     UnifiedColorTypeManager = None  # optional
 
@@ -320,7 +320,7 @@ class UpdateDefaultcolortypeColors(bpy.types.Operator):
 
     def execute(self, context):
         try:
-            from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+            from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
             UnifiedColorTypeManager.update_default_group_colors(context)
             self.report({'INFO'}, "DEFAULT colortype colors updated to new scheme")
             return {'FINISHED'}

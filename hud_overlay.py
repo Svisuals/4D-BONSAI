@@ -1624,7 +1624,7 @@ class ScheduleHUD:
             print(f"🎨 Processing active group: {active_group}")
             
             # Get profiles from this group using UnifiedColorTypeManager
-            from .prop import UnifiedColorTypeManager
+            from .prop.animation import UnifiedColorTypeManager
             
             # SPECIAL CASE: For DEFAULT group in Legend HUD, always ensure full colortype list
             if active_group == "DEFAULT":

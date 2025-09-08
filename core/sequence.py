@@ -276,7 +276,7 @@ def _auto_sync_task_predefined_type(task_id: int, predefined_type: str) -> None:
     try:
         import bpy
         import bonsai.tool as tool
-        from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+        from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
 
         # 1. Find the task in UI properties (task_pg)
         tprops = tool.Sequence.get_task_tree_props()

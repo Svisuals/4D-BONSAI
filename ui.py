@@ -37,12 +37,14 @@ from bonsai.bim.module.sequence.data import (
     TaskICOMData,
     AnimationColorSchemeData,
 )
-from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager, monitor_predefined_type_change
+from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
+from bonsai.bim.module.sequence.prop.schedule import monitor_predefined_type_change
 from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from bonsai.bim.prop import Attribute
-    from bonsai.bim.module.sequence.prop import BIMWorkScheduleProperties, BIMTaskTreeProperties, Task
+    from bonsai.bim.module.sequence.prop.schedule import BIMWorkScheduleProperties
+    from bonsai.bim.module.sequence.prop.task import BIMTaskTreeProperties, Task
 
 
 class BIM_PT_status(Panel):
@@ -613,7 +615,7 @@ class BIM_PT_work_schedules(Panel):
 
         # Ensures that the active task has its DEFAULT group synchronized when drawn
         try:
-            from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+            from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
 
             tprops = tool.Sequence.get_task_tree_props()
             if tprops.tasks and self.props.active_task_index < len(tprops.tasks):

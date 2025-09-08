@@ -4264,7 +4264,7 @@ class Sequence(bonsai.core.tool.Sequence):
             """
             # Guarantees DEFAULT group if the user has not configured anything
             try:
-                from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+                from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
                 UnifiedColorTypeManager.ensure_default_group(bpy.context)
             except Exception:
                 pass
@@ -5435,7 +5435,7 @@ class Sequence(bonsai.core.tool.Sequence):
                             print(f"🔄 Copy3D SYNC: Task {task.ifc_definition_id} - '{current_animation_schemes}' -> '{selected_colortype}'")
                             
                             # Usar la función segura para asignar
-                            from ..prop import safe_set_animation_color_schemes
+                            from ..prop.animation import safe_set_animation_color_schemes
                             safe_set_animation_color_schemes(task, selected_colortype)
                             tasks_synced += 1
                         elif selected_colortype:
@@ -5575,7 +5575,7 @@ class Sequence(bonsai.core.tool.Sequence):
         # 3. Export ColorType Groups library from the scene property
         ColorType_groups_data = {}
         try:
-            from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+            from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
             ColorType_groups_data = UnifiedColorTypeManager._read_sets_json(bpy.context)
         except Exception as e:
             print(f"Could not export ColorType groups: {e}")
@@ -5642,7 +5642,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 # Task has no configured ColorTypes - export empty but valid structure
                 # Get all available ColorType groups and create empty entries
                 try:
-                    from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+                    from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
                     available_groups = UnifiedColorTypeManager._read_sets_json(bpy.context) or {}
                     choices = []
                     for group_name in available_groups.keys():
@@ -5689,7 +5689,7 @@ class Sequence(bonsai.core.tool.Sequence):
 
         # 1. Import data and modify IFC
         if "ColorType_groups" in data:
-            from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+            from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
             UnifiedColorTypeManager._write_sets_json(bpy.context, data["ColorType_groups"])
 
         if "ui_settings" in data:
@@ -6053,7 +6053,7 @@ class Sequence(bonsai.core.tool.Sequence):
 
             # Copy ColorType groups library
             if config_data.get("ColorType_groups"):
-                from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+                from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
                 UnifiedColorTypeManager._write_sets_json(bpy.context, config_data["ColorType_groups"])
 
             # Copy UI settings
@@ -6160,7 +6160,7 @@ class Sequence(bonsai.core.tool.Sequence):
                         # Get available ColorType groups to validate against
                         available_groups = {}
                         try:
-                            from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+                            from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
                             available_groups = UnifiedColorTypeManager._read_sets_json(bpy.context) or {}
                         except Exception as e:
                             print(f"Warning: Could not load ColorType groups for validation: {e}")
@@ -6308,7 +6308,7 @@ class Sequence(bonsai.core.tool.Sequence):
                     print("⚠️ PROBLEM: task_colortype_group_selector is empty or DEFAULT - dropdown will be empty!")
                     
                     # Try to find and set a valid group from copied data
-                    from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+                    from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
                     all_sets = UnifiedColorTypeManager._read_sets_json(bpy.context)
                     available_groups = [k for k in all_sets.keys() if k != "DEFAULT"]
                     if available_groups:
@@ -6319,7 +6319,7 @@ class Sequence(bonsai.core.tool.Sequence):
                     print(f"✅ task_colortype_group_selector is set to valid group: '{current_group}'")
                     
                 # Verify ColorType data exists for the selected group
-                from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+                from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
                 all_sets = UnifiedColorTypeManager._read_sets_json(bpy.context)
                 if current_group in all_sets:
                     group_data = all_sets[current_group]
@@ -7523,7 +7523,7 @@ class SearchCustomColorTypeGroup(bpy.types.Operator):
             return {'CANCELLED'}
 
         # Buscar en grupos disponibles
-        from bonsai.bim.module.sequence.prop import get_user_created_groups_enum
+        from bonsai.bim.module.sequence.prop.animation import get_user_created_groups_enum
         items = get_user_created_groups_enum(None, context)
 
         matches = [item for item in items if self.search_term.lower() in item[1].lower()]
@@ -7577,7 +7577,7 @@ class PasteCustomColorTypeGroup(bpy.types.Operator):
             return {'CANCELLED'}
 
         # Verificar que el valor existe en los grupos disponibles
-        from bonsai.bim.module.sequence.prop import get_user_created_groups_enum
+        from bonsai.bim.module.sequence.prop.animation import get_user_created_groups_enum
         items = get_user_created_groups_enum(None, context)
         valid_values = [item[0] for item in items]
 
@@ -7627,7 +7627,7 @@ class ShowCustomColorTypeGroupInfo(bpy.types.Operator):
 
         if current_value:
             # Obtener información del grupo
-            from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+            from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
             ColorTypes = UnifiedColorTypeManager.get_group_ColorTypes(context, current_value)
 
             info_text = f"Group: {current_value}\n"
