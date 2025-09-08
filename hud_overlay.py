@@ -202,13 +202,14 @@ class ScheduleHUD:
                 traceback.print_exc()
 
             # --- IMPROVED MODE DETECTION LOGIC ---
-            # Usar el estado de la UI (should_show_snapshot_ui) para determinar el modo de forma fiable,
-            # en lugar de depender de si las fechas de animación están vacías.
+            # Usar múltiples fuentes para determinar el modo snapshot de forma fiable
             snapshot_date = getattr(work_props, 'visualisation_start', None)
             is_snapshot_ui_active = getattr(work_props, 'should_show_snapshot_ui', False)
+            is_snapshot_flag_active = bpy.context.scene.get("is_snapshot_mode", False)
+            
             is_snapshot_mode = (
-                is_snapshot_ui_active and
-                snapshot_date and snapshot_date.strip() not in ('', '-')
+                (is_snapshot_ui_active and snapshot_date and snapshot_date.strip() not in ('', '-')) or
+                is_snapshot_flag_active
             )
             
             if is_snapshot_mode:

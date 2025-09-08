@@ -238,17 +238,8 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
         context.scene["is_snapshot_mode"] = True
         print("✅ DEBUG: is_snapshot_mode set to True")
         
-        # CRITICAL: Register HUD handler for snapshots
-        from .. import hud_overlay
-        if not hud_overlay.is_hud_enabled():
-            print("🎬 SNAPSHOT FIXED: Registering HUD handler for Timeline display")
-            hud_overlay.register_hud_handler()
-        else:
-            print("✅ SNAPSHOT FIXED: HUD handler already active")
-        
-        # Force HUD refresh for snapshot mode
-        hud_overlay.refresh_hud()
-        print("🎬 SNAPSHOT FIXED: Forced HUD refresh")
+        # NO registrar HUD handler en snapshots - debe ser estático
+        print("🎬 SNAPSHOT: No Timeline HUD registration (static mode)")
         
         try:
             tool.Sequence.sync_active_group_to_json()
@@ -284,54 +275,46 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
         tool.Sequence.show_snapshot(product_states)
         print("✅ DEBUG: show_snapshot completed")
         
-        # Create 3D texts for snapshot display
-        print("🔄 DEBUG: Creating 3D texts for snapshot...")
+        # --- APLICAR VISIBILIDAD Y REFRESCAR TEXTOS 3D EXISTENTES ---
+        print("🔄 DEBUG: Updating 3D texts visibility and content...")
         try:
-            # Get settings needed for text creation
-            settings = {
-                'start': snapshot_date,
-                'finish': snapshot_date,  # Same date for snapshot
-                'speed': 1.0,
-                'include_texts': True
-            }
-            tool.Sequence.add_text_animation_handler(settings)
-            print("✅ DEBUG: 3D texts created successfully")
-            
-            # Arrange/align 3D texts properly
-            try:
-                bpy.ops.bim.arrange_schedule_texts()
-                print("✅ DEBUG: 3D texts arranged successfully")
-            except Exception as e:
-                print(f"⚠️ DEBUG: Failed to arrange 3D texts: {e}")
-            
-            # --- APLICAR VISIBILIDAD SEGÚN CHECKBOX ---
             # Verificar el estado del checkbox y aplicar visibilidad
-            try:
-                anim_props = tool.Sequence.get_animation_props()
-                camera_props = anim_props.camera_orbit
-                should_hide = not getattr(camera_props, "show_3d_schedule_texts", False)
+            anim_props = tool.Sequence.get_animation_props()
+            camera_props = anim_props.camera_orbit
+            should_hide = not getattr(camera_props, "show_3d_schedule_texts", False)
+            
+            # Aplicar lógica de desactivación automática si 3D HUD Render está desactivado
+            if should_hide:
+                current_legend_enabled = getattr(camera_props, "enable_3d_legend_hud", False)
+                if current_legend_enabled:
+                    print("🔴 SNAPSHOT: 3D HUD Render disabled, auto-disabling 3D Legend HUD")
+                    camera_props.enable_3d_legend_hud = False
+            
+            texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
+            if texts_collection:
+                texts_collection.hide_viewport = should_hide
+                texts_collection.hide_render = should_hide
+                print(f"✅ DEBUG: 3D texts visibility updated (hidden: {should_hide})")
                 
-                texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
-                if texts_collection:
-                    texts_collection.hide_viewport = should_hide
-                    texts_collection.hide_render = should_hide
-                    print(f"✅ DEBUG: 3D texts visibility updated (hidden: {should_hide})")
-            except Exception as e:
-                print(f"⚠️ DEBUG: Could not update 3D texts visibility: {e}")
+            # También aplicar a 3D Legend HUD collection
+            legend_collection = bpy.data.collections.get("Schedule_Display_3D_Legend")
+            if legend_collection:
+                legend_collection.hide_viewport = should_hide
+                legend_collection.hide_render = should_hide
+                print(f"✅ DEBUG: 3D Legend collection visibility updated (hidden: {should_hide})")
             
             # Force viewport update to ensure everything is ready
             bpy.context.view_layer.update()
             
-            # Refresh texts to show correct snapshot date/info
+            # Refresh texts to show correct snapshot date/info (solo si ya existen)
             try:
                 bpy.ops.bim.refresh_snapshot_texts()
                 print("✅ DEBUG: 3D texts refreshed for snapshot date")
             except Exception as e:
                 print(f"⚠️ DEBUG: Failed to refresh snapshot texts: {e}")
+                
         except Exception as e:
-            print(f"❌ DEBUG: Failed to create 3D texts: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"⚠️ DEBUG: Could not update 3D texts visibility: {e}")
         
         # Check 3D texts after snapshot
         print("🔍 DEBUG: Checking 3D texts after snapshot...")
