@@ -486,10 +486,107 @@ class CopyTaskCustomcolortypeGroup(bpy.types.Operator, tool.Ifc.Operator):
     bl_idname = "bim.copy_task_custom_colortype_group"
     bl_label = "Copy Task Custom colortype Group"
     bl_options = {"REGISTER", "UNDO"}
+    
+    # UI may set these; declare to avoid attribute errors
+    enabled: bpy.props.BoolProperty(name='Enabled', default=False, options={'HIDDEN'})
+    group: bpy.props.StringProperty(name='Group', default='', options={'HIDDEN'})
 
     def _execute(self, context):
+        # Verificar si la función existe, si no, implementar temporalmente
+        if not hasattr(tool.Sequence, 'copy_task_colortype_config'):
+            # Implementación temporal directa en el operador
+            self._copy_task_colortype_config_temp(context)
+            return
+            
         tool.Sequence.copy_task_colortype_config()
         self.report({'INFO'}, "ColorType configuration copied to selected tasks.")
+    
+    def _copy_task_colortype_config_temp(self, context):
+        """
+        Implementación temporal de copia de ColorType hasta que se reinicie Blender.
+        """
+        try:
+            # Get task tree properties
+            tprops = tool.Sequence.get_task_tree_props()
+            if not tprops or not tprops.tasks:
+                self.report({'WARNING'}, "No task tree properties found")
+                return
+
+            # Get work schedule properties to find active task
+            ws_props = tool.Sequence.get_work_schedule_props()
+            if not ws_props or ws_props.active_task_index < 0 or ws_props.active_task_index >= len(tprops.tasks):
+                self.report({'WARNING'}, "No active task found")
+                return
+
+            # Get the source task (active task)
+            source_task = tprops.tasks[ws_props.active_task_index]
+            
+            # Get selected tasks (tasks with is_selected = True)
+            selected_tasks = [task for task in tprops.tasks if getattr(task, 'is_selected', False)]
+            if not selected_tasks:
+                self.report({'WARNING'}, "No tasks selected to copy to")
+                return
+
+            # Copy configuration from source to selected tasks
+            copied_count = 0
+            for target_task in selected_tasks:
+                if target_task.ifc_definition_id == source_task.ifc_definition_id:
+                    continue  # Skip copying to self
+
+                try:
+                    # Copy main colortype settings
+                    target_task.use_active_colortype_group = getattr(source_task, 'use_active_colortype_group', False)
+                    target_task.selected_colortype_in_active_group = getattr(source_task, 'selected_colortype_in_active_group', "")
+                    
+                    # Copy animation_color_schemes if it exists
+                    if hasattr(target_task, 'animation_color_schemes') and hasattr(source_task, 'animation_color_schemes'):
+                        target_task.animation_color_schemes = source_task.animation_color_schemes
+
+                    # Copy colortype group choices
+                    target_task.colortype_group_choices.clear()
+                    for source_group in source_task.colortype_group_choices:
+                        target_group = target_task.colortype_group_choices.add()
+                        target_group.group_name = source_group.group_name
+                        target_group.enabled = source_group.enabled
+                        
+                        # Copy the selected value using the appropriate attribute
+                        for attr_candidate in ("selected_colortype", "selected", "active_colortype", "colortype"):
+                            if hasattr(source_group, attr_candidate) and hasattr(target_group, attr_candidate):
+                                setattr(target_group, attr_candidate, getattr(source_group, attr_candidate))
+                                break
+
+                    copied_count += 1
+
+                except Exception as e:
+                    print(f"Error copying to task {target_task.ifc_definition_id}: {e}")
+
+            self.report({'INFO'}, f"ColorType configuration copied to {copied_count} selected tasks (temporary implementation - restart Blender for full functionality).")
+
+        except Exception as e:
+            self.report({'ERROR'}, f"Error in copy operation: {e}")
+            import traceback
+            traceback.print_exc()
+
+class DebugCopyFunction(bpy.types.Operator):
+    bl_idname = "bim.debug_copy_function"
+    bl_label = "Debug Copy Function"
+    bl_options = {"REGISTER"}
+    
+    def execute(self, context):
+        import bonsai.tool as tool
+        
+        # Verificar si la función existe
+        has_function = hasattr(tool.Sequence, 'copy_task_colortype_config')
+        self.report({'INFO'}, f"Function exists: {has_function}")
+        
+        if has_function:
+            # Listar algunos métodos de la clase
+            methods = [attr for attr in dir(tool.Sequence) if not attr.startswith('_')]
+            print("Available Sequence methods:")
+            for method in methods[-10:]:  # Show last 10 methods
+                print(f"  - {method}")
+        
+        return {'FINISHED'}
 
 # LEGACY OPERATORS
 class LoadDefaultAnimationColors(bpy.types.Operator):

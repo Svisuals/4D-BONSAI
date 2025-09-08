@@ -7461,3 +7461,74 @@ def get_unified_date_range(self, work_schedule):
     unified_finish = max(all_finishes)
 
     return unified_start, unified_finish
+
+    @classmethod
+    def copy_task_colortype_config(cls):
+        """
+        Copy ColorType configuration from the active task to selected tasks.
+        """
+        try:
+            # Get task tree properties
+            tprops = cls.get_task_tree_props()
+            if not tprops or not tprops.tasks:
+                print("Warning: No task tree properties found")
+                return
+
+            # Get work schedule properties to find active task
+            ws_props = cls.get_work_schedule_props()
+            if not ws_props or ws_props.active_task_index < 0 or ws_props.active_task_index >= len(tprops.tasks):
+                print("Warning: No active task found")
+                return
+
+            # Get the source task (active task)
+            source_task = tprops.tasks[ws_props.active_task_index]
+            print(f"Source task: {getattr(source_task, 'name', 'Unknown')} (ID: {source_task.ifc_definition_id})")
+
+            # Get selected tasks (tasks with is_selected = True)
+            selected_tasks = [task for task in tprops.tasks if getattr(task, 'is_selected', False)]
+            if not selected_tasks:
+                print("Warning: No tasks selected to copy to")
+                return
+
+            print(f"Found {len(selected_tasks)} selected tasks to copy to")
+
+            # Copy configuration from source to selected tasks
+            copied_count = 0
+            for target_task in selected_tasks:
+                if target_task.ifc_definition_id == source_task.ifc_definition_id:
+                    continue  # Skip copying to self
+
+                try:
+                    # Copy main colortype settings
+                    target_task.use_active_colortype_group = getattr(source_task, 'use_active_colortype_group', False)
+                    target_task.selected_colortype_in_active_group = getattr(source_task, 'selected_colortype_in_active_group', "")
+                    
+                    # Copy animation_color_schemes if it exists
+                    if hasattr(target_task, 'animation_color_schemes') and hasattr(source_task, 'animation_color_schemes'):
+                        target_task.animation_color_schemes = source_task.animation_color_schemes
+
+                    # Copy colortype group choices
+                    target_task.colortype_group_choices.clear()
+                    for source_group in source_task.colortype_group_choices:
+                        target_group = target_task.colortype_group_choices.add()
+                        target_group.group_name = source_group.group_name
+                        target_group.enabled = source_group.enabled
+                        
+                        # Copy the selected value using the appropriate attribute
+                        for attr_candidate in ("selected_colortype", "selected", "active_colortype", "colortype"):
+                            if hasattr(source_group, attr_candidate) and hasattr(target_group, attr_candidate):
+                                setattr(target_group, attr_candidate, getattr(source_group, attr_candidate))
+                                break
+
+                    copied_count += 1
+                    print(f"Copied configuration to task: {getattr(target_task, 'name', 'Unknown')} (ID: {target_task.ifc_definition_id})")
+
+                except Exception as e:
+                    print(f"Error copying to task {target_task.ifc_definition_id}: {e}")
+
+            print(f"Successfully copied ColorType configuration to {copied_count} tasks")
+
+        except Exception as e:
+            print(f"Error in copy_task_colortype_config: {e}")
+            import traceback
+            traceback.print_exc()
