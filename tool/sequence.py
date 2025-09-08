@@ -1333,64 +1333,134 @@ class Sequence(bonsai.core.tool.Sequence):
 
         # --- FALLBACK METHOD: Manual deep copy for very old IfcOpenShell versions ---
         def _create_entity_copy(ifc_file, entity: ifcopenshell.entity_instance):
-            """Creates a shallow copy of an IFC entity using the fundamental .add() method for maximum compatibility."""
+            """Creates a TRUE copy of an IFC entity with a new unique ID."""
             if not entity:
                 return None
             try:
-                # The .add() method is the most basic way to create a copy of an entity.
-                # It should be available in very old versions of ifcopenshell where .copy() or api.clone do not exist.
-                return ifc_file.add(entity)
+                # CRÍTICO: Usar create_entity para crear una nueva entidad con nuevo ID
+                # NO usar .add() que solo reutiliza la entidad existente
+                entity_info = entity.get_info()
+                
+                # Remover campos que deben ser únicos para la nueva entidad
+                if 'id' in entity_info:
+                    del entity_info['id']
+                if 'GlobalId' in entity_info:
+                    entity_info['GlobalId'] = ifcopenshell.guid.new()
+                
+                # Crear nueva entidad con los datos copiados
+                new_entity = ifc_file.create_entity(entity.is_a(), **entity_info)
+                print(f"✅ Tarea copiada: '{entity.Name}' - Original ID: {entity.id()} → Nuevo ID: {new_entity.id()}")
+                return new_entity
+                
             except Exception as e:
-                print(f"Bonsai ERROR: Failed during manual entity copy for {entity} using .add(): {e}")
+                print(f"❌ Error copiando entidad {entity} - {e}")
+                # Fallback: intentar con método API si está disponible
+                try:
+                    if entity.is_a("IfcTask"):
+                        # Para tareas, usar la API específica si está disponible
+                        work_schedule = None  # Se asignará después
+                        new_task = ifcopenshell.api.run("sequence.add_task", ifc_file, parent_task=None, work_schedule=work_schedule)
+                        
+                        # Copiar atributos importantes
+                        if hasattr(entity, 'Name') and entity.Name:
+                            new_task.Name = entity.Name
+                        if hasattr(entity, 'Description') and entity.Description:
+                            new_task.Description = entity.Description
+                        if hasattr(entity, 'Identification') and entity.Identification:
+                            new_task.Identification = entity.Identification
+                        if hasattr(entity, 'PredefinedType') and entity.PredefinedType:
+                            new_task.PredefinedType = entity.PredefinedType
+                            
+                        print(f"✅ Tarea creada con API: '{entity.Name}' - Original ID: {entity.id()} → Nuevo ID: {new_task.id()}")
+                        return new_task
+                except Exception as api_error:
+                    print(f"❌ También falló el método API: {api_error}")
+                
                 return None
 
         try:
             old_to_new_tasks = {}  # Map old task IDs to new task entities
+            cls.last_duplication_mapping = {}  # Para uso posterior en ColorType
 
             def _copy_task_recursive(old_task, new_parent):
-                # 1. Create a shallow copy of the task and its time properties
-                new_task = _create_entity_copy(file, old_task)
-                if not new_task:
-                    print(f"Bonsai ERROR: Failed to copy task {getattr(old_task, 'id', 'N/A')}. Skipping.")
-                    return
+                # 1. Crear una tarea completamente nueva con ID único
+                try:
+                    if new_parent.is_a("IfcWorkSchedule"):
+                        # Para tareas raíz, usar la API con work_schedule
+                        new_task = ifcopenshell.api.run("sequence.add_task", file, 
+                                                       work_schedule=new_parent, 
+                                                       parent_task=None)
+                    else:
+                        # Para tareas anidadas, usar la API con parent_task
+                        work_schedule = ifcopenshell.util.sequence.get_task_work_schedule(new_parent)
+                        new_task = ifcopenshell.api.run("sequence.add_task", file,
+                                                       work_schedule=work_schedule,
+                                                       parent_task=new_parent)
+                    
+                    # Copiar todos los atributos importantes
+                    if hasattr(old_task, 'Name') and old_task.Name:
+                        new_task.Name = old_task.Name
+                    if hasattr(old_task, 'Description') and old_task.Description:
+                        new_task.Description = old_task.Description
+                    if hasattr(old_task, 'Identification') and old_task.Identification:
+                        new_task.Identification = old_task.Identification
+                    if hasattr(old_task, 'PredefinedType') and old_task.PredefinedType:
+                        new_task.PredefinedType = old_task.PredefinedType
+                    if hasattr(old_task, 'Priority') and old_task.Priority:
+                        new_task.Priority = old_task.Priority
+                    if hasattr(old_task, 'Status') and old_task.Status:
+                        new_task.Status = old_task.Status
+                    if hasattr(old_task, 'WorkMethod') and old_task.WorkMethod:
+                        new_task.WorkMethod = old_task.WorkMethod
+                    if hasattr(old_task, 'IsMilestone') and old_task.IsMilestone is not None:
+                        new_task.IsMilestone = old_task.IsMilestone
+                        
+                    print(f"✅ NUEVA TAREA CREADA: '{old_task.Name}' - Original ID: {old_task.id()} → Nuevo ID: {new_task.id()}")
+                    
+                except Exception as api_error:
+                    print(f"❌ Error con API, intentando método directo: {api_error}")
+                    # Fallback al método de copia de entidad
+                    new_task = _create_entity_copy(file, old_task)
+                    if not new_task:
+                        print(f"❌ FALLO TOTAL: No se pudo copiar tarea {getattr(old_task, 'id', 'N/A')}. Saltando.")
+                        return
 
+                # 2. Copiar TaskTime si existe
                 if old_task.TaskTime:
-                    # The .add() method also copies related entities, but it's safer to handle TaskTime explicitly
-                    # to ensure the new task points to a new task time.
-                    new_task.TaskTime = _create_entity_copy(file, old_task.TaskTime)
+                    try:
+                        # Crear nuevo TaskTime usando API
+                        new_task_time = ifcopenshell.api.run("sequence.add_task_time", file, task=new_task)
+                        
+                        # Copiar atributos de tiempo
+                        old_time = old_task.TaskTime
+                        if hasattr(old_time, 'DurationType') and old_time.DurationType:
+                            new_task_time.DurationType = old_time.DurationType
+                        if hasattr(old_time, 'ScheduleDuration') and old_time.ScheduleDuration:
+                            new_task_time.ScheduleDuration = old_time.ScheduleDuration
+                        if hasattr(old_time, 'ScheduleStart') and old_time.ScheduleStart:
+                            new_task_time.ScheduleStart = old_time.ScheduleStart
+                        if hasattr(old_time, 'ScheduleFinish') and old_time.ScheduleFinish:
+                            new_task_time.ScheduleFinish = old_time.ScheduleFinish
+                        if hasattr(old_time, 'ActualStart') and old_time.ActualStart:
+                            new_task_time.ActualStart = old_time.ActualStart
+                        if hasattr(old_time, 'ActualFinish') and old_time.ActualFinish:
+                            new_task_time.ActualFinish = old_time.ActualFinish
+                            
+                        print(f"✅ TaskTime copiado para tarea '{new_task.Name}'")
+                        
+                    except Exception as time_error:
+                        print(f"⚠️ Error copiando TaskTime: {time_error}")
+                        # Fallback: copiar TaskTime con método directo
+                        try:
+                            new_task.TaskTime = _create_entity_copy(file, old_task.TaskTime)
+                        except:
+                            print(f"⚠️ No se pudo copiar TaskTime para '{new_task.Name}'")
                 
                 old_to_new_tasks[old_task.id()] = new_task
+                cls.last_duplication_mapping[old_task.id()] = new_task.id()
 
-                # 2. Assign the new task to its new parent (either the new schedule or a new parent task)
-                # The ifcopenshell.api.run("sequence.assign_nest", ...) is not available in older versions.
-                # We fall back to the most fundamental way of creating the relationship.
-                owner_history = file.by_type("IfcProject")[0].OwnerHistory
-                if new_parent.is_a("IfcWorkSchedule"):
-                    try:
-                        # Root tasks are assigned to the schedule via IfcRelAssignsToControl
-                        file.create_entity(
-                            "IfcRelAssignsToControl",
-                            GlobalId=ifcopenshell.guid.new(),
-                            OwnerHistory=owner_history,
-                            RelatingControl=new_parent,
-                            RelatedObjects=[new_task],
-                        )
-                    except Exception as e:
-                        print(f"Bonsai ERROR: Failed to manually create IfcRelAssignsToControl for task {getattr(new_task, 'id', 'N/A')}: {e}")
-                else:
-                    try:
-                        # Nested tasks are assigned to a parent task via IfcRelNests
-                        file.create_entity(
-                            "IfcRelNests",
-                            GlobalId=ifcopenshell.guid.new(),
-                            OwnerHistory=owner_history,
-                            RelatingObject=new_parent,
-                            RelatedObjects=[new_task],
-                        )
-                    except Exception as e:
-                        print(f"Bonsai ERROR: Failed to manually create IfcRelNests for task {getattr(new_task, 'id', 'N/A')}: {e}")
-
-                # 3. Re-assign products and resources to the new task
+                # 3. Las relaciones ya se crearon automáticamente con la API
+                # Copiar productos y recursos a la nueva tarea
                 for product in ifcopenshell.util.sequence.get_task_outputs(old_task):
                     ifcopenshell.api.run("sequence.assign_product", file, relating_product=product, related_object=new_task)
                 for product_input in ifcopenshell.util.sequence.get_task_inputs(old_task):

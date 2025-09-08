@@ -218,7 +218,52 @@ class RemoveWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
     work_schedule: bpy.props.IntProperty()
 
     def _execute(self, context):
-        core.remove_work_schedule(tool.Ifc, work_schedule=tool.Ifc.get().by_id(self.work_schedule))
+        import ifcopenshell.util.sequence
+        
+        schedule_to_remove_id = self.work_schedule
+        schedule_to_remove = tool.Ifc.get().by_id(schedule_to_remove_id)
+        
+        print(f"\n🔍 === DEBUGGING ELIMINACIÓN CRONOGRAMA ===")
+        print(f"🗑️ Eliminando cronograma ID {schedule_to_remove_id} - '{schedule_to_remove.Name}'")
+        
+        # ANTES de eliminar: Inspeccionar el estado
+        ifc_file = tool.Ifc.get()
+        all_schedules_before = ifc_file.by_type("IfcWorkSchedule")
+        
+        print(f"📊 ANTES - Total cronogramas: {len(all_schedules_before)}")
+        for ws in all_schedules_before:
+            tasks = ifcopenshell.util.sequence.get_root_tasks(ws)
+            print(f"  📅 '{ws.Name}' (ID:{ws.id()}) - {len(tasks)} tareas raíz")
+            for i, task in enumerate(tasks[:3]):  # Solo primeras 3 tareas
+                print(f"    📝 Tarea {i+1}: '{task.Name}' (ID:{task.id()})")
+        
+        # Current active schedule
+        ws_props = tool.Sequence.get_work_schedule_props()
+        current_active = ws_props.active_work_schedule_id
+        print(f"🎯 Cronograma activo actual: {current_active}")
+        
+        # Eliminar el cronograma (operación original)
+        core.remove_work_schedule(tool.Ifc, work_schedule=schedule_to_remove)
+        
+        # DESPUÉS de eliminar: Inspeccionar el estado
+        all_schedules_after = ifc_file.by_type("IfcWorkSchedule")
+        
+        print(f"📊 DESPUÉS - Total cronogramas: {len(all_schedules_after)}")
+        for ws in all_schedules_after:
+            try:
+                tasks = ifcopenshell.util.sequence.get_root_tasks(ws)
+                print(f"  📅 '{ws.Name}' (ID:{ws.id()}) - {len(tasks)} tareas raíz")
+                for i, task in enumerate(tasks[:3]):  # Solo primeras 3 tareas
+                    print(f"    📝 Tarea {i+1}: '{task.Name}' (ID:{task.id()})")
+            except Exception as e:
+                print(f"  ❌ Error inspeccionando '{ws.Name}': {e}")
+        
+        # Check active schedule after deletion
+        current_active_after = ws_props.active_work_schedule_id
+        print(f"🎯 Cronograma activo después: {current_active_after}")
+        
+        print(f"✅ Cronograma eliminado: ID {schedule_to_remove_id}")
+        print(f"🔍 === FIN DEBUGGING ELIMINACIÓN ===\n")
 
 
 class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
@@ -229,18 +274,72 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
     work_schedule: bpy.props.IntProperty()  # pyright: ignore[reportRedeclaration]
 
     def _execute(self, context):
-        # 0. Capturar configuración de ColorType del cronograma origen ANTES de duplicar
+        import ifcopenshell.util.sequence
+        
+        # 0. CRÍTICO: Hacer snapshot ANTES de capturar para asegurar que todo esté guardado
+        print(f"🔄 Forzando snapshot completo antes de duplicar...")
+        from .filter_operators import snapshot_all_ui_state
+        snapshot_all_ui_state(context)
+        
+        # 1. Capturar configuración de ColorType del cronograma origen DESPUÉS del snapshot
         source_schedule = tool.Ifc.get().by_id(self.work_schedule)
         source_colortype_config = self._capture_schedule_colortype_config(context, source_schedule)
         
-        # 1. Ejecutar la lógica de copia que ahora sí crea un duplicado en el IFC.
+        print(f"\n🔍 === DEBUGGING DUPLICACIÓN CRONOGRAMA ===")
+        print(f"📋 Duplicando cronograma '{source_schedule.Name}' (ID:{source_schedule.id()})")
+        
+        # ANTES de duplicar: Inspeccionar el estado
+        ifc_file = tool.Ifc.get()
+        all_schedules_before = ifc_file.by_type("IfcWorkSchedule")
+        source_tasks = ifcopenshell.util.sequence.get_root_tasks(source_schedule)
+        
+        print(f"📊 ANTES - Total cronogramas: {len(all_schedules_before)}")
+        print(f"📝 Cronograma origen tiene {len(source_tasks)} tareas raíz:")
+        for i, task in enumerate(source_tasks[:3]):  # Solo primeras 3 tareas
+            print(f"  📝 Tarea {i+1}: '{task.Name}' (ID:{task.id()})")
+        
+        # 2. Ejecutar la lógica de copia que ahora sí crea un duplicado en el IFC.
         core.copy_work_schedule(tool.Sequence, work_schedule=source_schedule)
+        
+        # DESPUÉS de duplicar: Inspeccionar el estado
+        all_schedules_after = ifc_file.by_type("IfcWorkSchedule")
+        
+        print(f"📊 DESPUÉS - Total cronogramas: {len(all_schedules_after)}")
+        
+        # Encontrar el cronograma recién duplicado
+        new_schedules = [ws for ws in all_schedules_after if ws.id() not in [s.id() for s in all_schedules_before]]
+        
+        if new_schedules:
+            duplicate_schedule = new_schedules[0]
+            duplicate_tasks = ifcopenshell.util.sequence.get_root_tasks(duplicate_schedule)
+            print(f"🆕 Cronograma duplicado: '{duplicate_schedule.Name}' (ID:{duplicate_schedule.id()})")
+            print(f"📝 Cronograma duplicado tiene {len(duplicate_tasks)} tareas raíz:")
+            for i, task in enumerate(duplicate_tasks[:3]):  # Solo primeras 3 tareas
+                print(f"  📝 Tarea {i+1}: '{task.Name}' (ID:{task.id()})")
+        else:
+            print("❌ No se encontró cronograma duplicado!")
+        
+        # Verificar si las tareas tienen IDs diferentes
+        if new_schedules and source_tasks:
+            duplicate_tasks = ifcopenshell.util.sequence.get_root_tasks(new_schedules[0])
+            if duplicate_tasks:
+                print(f"🔍 VERIFICACIÓN IDs:")
+                print(f"  Original tarea 1 ID: {source_tasks[0].id()}")
+                print(f"  Duplicada tarea 1 ID: {duplicate_tasks[0].id()}")
+                if source_tasks[0].id() == duplicate_tasks[0].id():
+                    print("🚨 ¡¡¡PROBLEMA!!! Las tareas comparten el mismo ID!")
+                else:
+                    print("✅ Las tareas tienen IDs diferentes")
+        
+        print(f"🔍 === FIN DEBUGGING DUPLICACIÓN ===\n")
 
-        # 2. Aplicar configuración de ColorType al cronograma duplicado
+        # 3. Aplicar configuración de ColorType al cronograma duplicado
         if source_colortype_config:
-            self._apply_colortype_config_to_duplicate(context, source_colortype_config)
+            # Obtener el mapeo de tareas originales a duplicadas
+            task_mapping = getattr(tool.Sequence, 'last_duplication_mapping', {})
+            self._apply_colortype_config_to_duplicate(context, source_colortype_config, task_mapping)
 
-        # 3. Forzar la recarga de los datos y el redibujado de la UI.
+        # 4. Forzar la recarga de los datos y el redibujado de la UI.
         try:
             from bonsai.bim.module.sequence.data import SequenceData, WorkScheduleData
             SequenceData.load()
@@ -253,46 +352,185 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
     
     def _capture_schedule_colortype_config(self, context, source_schedule):
         """
-        Captura toda la configuración de ColorType del cronograma origen.
+        Captura DIRECTAMENTE desde la UI toda la configuración de ColorType del cronograma origen.
         """
         try:
             import json
-            ws_id = source_schedule.id()
-            
-            # Capturar snapshot específico del cronograma origen
-            snap_key_specific = f"_task_colortype_snapshot_json_WS_{ws_id}"
-            cache_key = "_task_colortype_snapshot_cache_json"
+            import ifcopenshell.util.sequence
             
             config = {}
             
-            # Obtener datos del snapshot específico
-            snap_raw = context.scene.get(snap_key_specific)
-            if snap_raw:
-                try:
-                    config.update(json.loads(snap_raw) or {})
-                except Exception:
-                    pass
+            # DIAGNÓSTICO EXHAUSTIVO: Capturar DIRECTAMENTE desde las propiedades de UI
+            print(f"🔍🔍🔍 === INICIANDO CAPTURA DIRECTA EXHAUSTIVA ===")
+            print(f"📋 Cronograma origen: {source_schedule.Name} (ID: {source_schedule.id()})")
             
-            # Obtener datos del caché general
-            cache_raw = context.scene.get(cache_key)
-            if cache_raw:
-                try:
-                    cache_data = json.loads(cache_raw) or {}
-                    # Solo agregar datos de tareas del cronograma origen
-                    for task_id, task_data in cache_data.items():
-                        if task_id not in config:  # No sobrescribir datos específicos
-                            config[task_id] = task_data
-                except Exception:
-                    pass
+            # Obtener todas las tareas del cronograma origen
+            def get_all_tasks_recursive(tasks):
+                all_tasks_list = []
+                for task in tasks:
+                    all_tasks_list.append(task)
+                    nested_tasks = ifcopenshell.util.sequence.get_nested_tasks(task)
+                    if nested_tasks:
+                        all_tasks_list.extend(get_all_tasks_recursive(nested_tasks))
+                return all_tasks_list
             
-            print(f"🎨 Captured ColorType config for {len(config)} tasks from schedule '{source_schedule.Name}'")
-            return config
+            root_tasks = ifcopenshell.util.sequence.get_root_tasks(source_schedule)
+            all_tasks = get_all_tasks_recursive(root_tasks)
+            print(f"📊 Total tareas en cronograma: {len(all_tasks)}")
+            
+            # Obtener propiedades de UI
+            try:
+                tprops = tool.Sequence.get_task_tree_props()
+                if not tprops:
+                    print(f"❌ No se pudieron obtener task_tree_props")
+                    return {}
+                
+                print(f"✅ task_tree_props obtenidas exitosamente")
+                
+                # Examinar estructura completa de tprops
+                print(f"🔎 Estructura de tprops:")
+                for attr_name in dir(tprops):
+                    if not attr_name.startswith('_'):
+                        attr_value = getattr(tprops, attr_name, None)
+                        if hasattr(attr_value, '__len__') and not isinstance(attr_value, str):
+                            try:
+                                print(f"  {attr_name}: tipo {type(attr_value).__name__}, longitud {len(attr_value)}")
+                            except:
+                                print(f"  {attr_name}: tipo {type(attr_value).__name__}")
+                        else:
+                            print(f"  {attr_name}: {type(attr_value).__name__} = {attr_value}")
+                
+                # Crear mapeo de IDs a elementos de UI
+                tasks_prop = getattr(tprops, "tasks", [])
+                print(f"📋 tprops.tasks longitud: {len(tasks_prop)}")
+                
+                task_id_to_ui = {}
+                for i, t in enumerate(tasks_prop):
+                    task_id = str(getattr(t, "ifc_definition_id", 0))
+                    task_id_to_ui[task_id] = t
+                    print(f"  UI Task {i}: ID={task_id}, Name='{getattr(t, 'name', 'NO_NAME')}'")
+                    
+                    # Examinar propiedades de ColorType de esta UI task
+                    colortype_attrs = []
+                    for attr_name in dir(t):
+                        if 'color' in attr_name.lower() and not attr_name.startswith('_'):
+                            attr_value = getattr(t, attr_name, None)
+                            colortype_attrs.append(f"{attr_name}={attr_value}")
+                    if colortype_attrs:
+                        print(f"    ColorType attrs: {', '.join(colortype_attrs)}")
+                    
+                    # Examinar colortype_group_choices específicamente
+                    colortype_group_choices = getattr(t, "colortype_group_choices", [])
+                    print(f"    colortype_group_choices: {len(colortype_group_choices)} grupos")
+                    for j, group in enumerate(colortype_group_choices):
+                        print(f"      Grupo {j}:")
+                        for attr_name in dir(group):
+                            if not attr_name.startswith('_'):
+                                attr_value = getattr(group, attr_name, None)
+                                print(f"        {attr_name}: {attr_value}")
+                
+                print(f"📋 UI tiene {len(task_id_to_ui)} tareas cargadas, IDs: {list(task_id_to_ui.keys())}")
+                
+                # Capturar configuración de cada tarea
+                for task in all_tasks:
+                    task_id = str(task.id())
+                    task_name = getattr(task, 'Name', 'SIN_NOMBRE')
+                    print(f"\n🎯 Procesando tarea IFC: {task_id} '{task_name}'")
+                    
+                    if task_id == "0":
+                        print(f"    ⏭️ Saltando tarea ID=0")
+                        continue
+                        
+                    # Buscar la tarea en la UI
+                    if task_id in task_id_to_ui:
+                        ui_task = task_id_to_ui[task_id]
+                        print(f"    ✅ Encontrada en UI")
+                        
+                        # Capturar grupos de colores DIRECTAMENTE
+                        groups_list = []
+                        colortype_group_choices = getattr(ui_task, "colortype_group_choices", [])
+                        print(f"    📊 colortype_group_choices: {len(colortype_group_choices)} grupos")
+                        
+                        for idx, group in enumerate(colortype_group_choices):
+                            group_name = getattr(group, "group_name", "")
+                            print(f"      Grupo {idx}: name='{group_name}'")
+                            
+                            if group_name:
+                                # Detectar el atributo correcto para el valor seleccionado
+                                selected_value = ""
+                                selected_attr = ""
+                                
+                                for attr in ["selected_colortype", "selected", "active_colortype", "colortype"]:
+                                    if hasattr(group, attr):
+                                        val = getattr(group, attr, "")
+                                        print(f"        {attr}: '{val}'")
+                                        if val and not selected_value:
+                                            selected_value = val
+                                            selected_attr = attr
+                                
+                                enabled = bool(getattr(group, "enabled", False))
+                                print(f"        enabled: {enabled}")
+                                print(f"        selected_value: '{selected_value}' (de {selected_attr})")
+                                
+                                groups_list.append({
+                                    "group_name": group_name,
+                                    "enabled": enabled,
+                                    "selected_value": selected_value,
+                                    "selected_attr": selected_attr,
+                                })
+                        
+                        # Capturar estado de checkbox y selector activo
+                        use_active = bool(getattr(ui_task, "use_active_colortype_group", False))
+                        selected_active = getattr(ui_task, "selected_colortype_in_active_group", "")
+                        animation_schemes = getattr(ui_task, "animation_color_schemes", "")
+                        
+                        print(f"    📋 use_active_colortype_group: {use_active}")
+                        print(f"    📋 selected_colortype_in_active_group: '{selected_active}'")
+                        print(f"    📋 animation_color_schemes: '{animation_schemes}'")
+                        
+                        config[task_id] = {
+                            "active": use_active,
+                            "selected_active_colortype": selected_active,
+                            "animation_color_schemes": animation_schemes,
+                            "groups": groups_list,
+                            "is_selected": getattr(ui_task, 'is_selected', False),
+                            "is_expanded": getattr(ui_task, 'is_expanded', False),
+                        }
+                        
+                        print(f"    ✅ Configuración capturada: {len(groups_list)} grupos, active={use_active}")
+                        
+                    else:
+                        print(f"    ❌ Tarea {task_id} '{task_name}' NO encontrada en UI")
+                        print(f"       IDs disponibles en UI: {list(task_id_to_ui.keys())}")
+                
+                print(f"\n🎨 === RESUMEN CAPTURA DIRECTA ===")
+                print(f"🎨 Total configuraciones capturadas: {len(config)} tareas")
+                
+                # DEBUG: Mostrar estructura DIRECTA capturada para TODAS las tareas
+                for task_id, task_config in config.items():
+                    print(f"🔍 TASK {task_id} configuración final:")
+                    groups = task_config.get("groups", [])
+                    print(f"    groups: {len(groups)} items")
+                    for g in groups:
+                        print(f"      - '{g.get('group_name', 'sin nombre')}': enabled={g.get('enabled')}, value='{g.get('selected_value', '')}'")
+                    print(f"    active: {task_config.get('active')}")
+                    print(f"    selected_active_colortype: '{task_config.get('selected_active_colortype', '')}'")
+                
+                return config
+                
+            except Exception as ui_error:
+                print(f"❌ Error capturando desde UI: {ui_error}")
+                import traceback
+                traceback.print_exc()
+                return {}
             
         except Exception as e:
-            print(f"Warning: Could not capture ColorType config: {e}")
+            print(f"❌ Error general en captura: {e}")
+            import traceback
+            traceback.print_exc()
             return {}
     
-    def _apply_colortype_config_to_duplicate(self, context, source_config):
+    def _apply_colortype_config_to_duplicate(self, context, source_config, task_mapping=None):
         """
         Aplica la configuración de ColorType capturada al cronograma duplicado.
         """
@@ -300,24 +538,32 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
             import json
             import ifcopenshell.util.sequence
             
+            print(f"🔄🔄🔄 === INICIANDO APLICACIÓN EXHAUSTIVA ===")
+            
             if not source_config:
+                print(f"❌ source_config está vacío, no hay nada que aplicar")
                 return
+            
+            print(f"📊 source_config tiene {len(source_config)} entradas")
             
             # Encontrar el cronograma recién creado (último "Copy of...")
             ifc_file = tool.Ifc.get()
             all_schedules = ifc_file.by_type("IfcWorkSchedule")
             duplicate_schedule = None
             
+            print(f"📋 Buscando cronograma duplicado entre {len(all_schedules)} cronogramas:")
             for schedule in all_schedules:
-                if schedule.Name and schedule.Name.startswith("Copy of "):
+                schedule_name = getattr(schedule, 'Name', 'SIN_NOMBRE')
+                print(f"  - {schedule.id()}: '{schedule_name}'")
+                if schedule_name and schedule_name.startswith("Copy of "):
                     duplicate_schedule = schedule
-                    break
+                    print(f"    ✅ Este es el cronograma duplicado")
             
             if not duplicate_schedule:
-                print("Warning: Could not find duplicated schedule")
+                print("❌ No se encontró cronograma duplicado")
                 return
             
-            # Mapear tareas del cronograma duplicado por Identification
+            # Obtener todas las tareas del cronograma duplicado
             def get_all_tasks_recursive(tasks):
                 all_tasks_list = []
                 for task in tasks:
@@ -330,55 +576,188 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
             root_tasks = ifcopenshell.util.sequence.get_root_tasks(duplicate_schedule)
             all_duplicate_tasks = get_all_tasks_recursive(root_tasks)
             
+            print(f"📊 Cronograma duplicado '{duplicate_schedule.Name}' tiene {len(all_duplicate_tasks)} tareas")
+            
             # Crear mapping por Identification para encontrar tareas correspondientes
             duplicate_task_map = {}
             for task in all_duplicate_tasks:
                 identification = getattr(task, "Identification", None)
                 if identification:
                     duplicate_task_map[identification] = task
+                    print(f"  Duplicate task {task.id()}: '{getattr(task, 'Name', 'SIN_NOMBRE')}' -> identification: '{identification}'")
             
             # Aplicar configuración a las tareas duplicadas
             duplicate_ws_id = duplicate_schedule.id()
             snap_key_duplicate = f"_task_colortype_snapshot_json_WS_{duplicate_ws_id}"
             cache_key = "_task_colortype_snapshot_cache_json"
             
-            # Mapear configuración origen a tareas duplicadas
-            duplicate_config = {}
-            for source_task_id, config_data in source_config.items():
-                # Intentar encontrar la tarea correspondiente por Identification
-                # (Esto funciona si las tareas tienen Identification únicos)
-                for identification, duplicate_task in duplicate_task_map.items():
-                    duplicate_task_id = str(duplicate_task.id())
-                    if duplicate_task_id not in duplicate_config:
-                        # Aplicar configuración de cualquier tarea origen a esta tarea duplicada
-                        duplicate_config[duplicate_task_id] = config_data.copy()
-                        break
+            print(f"📁 Keys para guardar configuración:")
+            print(f"  snap_key_duplicate: {snap_key_duplicate}")
+            print(f"  cache_key: {cache_key}")
             
-            # Si no hay suficientes mapeos por Identification, aplicar secuencialmente
-            if len(duplicate_config) < len(source_config):
-                duplicate_task_ids = [str(task.id()) for task in all_duplicate_tasks]
-                source_configs = list(source_config.values())
+            # NUEVO: Usar el mapeo exacto de IDs si está disponible
+            duplicate_config = {}
+            
+            if task_mapping:
+                print(f"🎯 Usando mapeo exacto de {len(task_mapping)} tareas para ColorType")
+                print(f"🔗 Mapeo disponible: {task_mapping}")
                 
-                for i, duplicate_task_id in enumerate(duplicate_task_ids):
-                    if duplicate_task_id not in duplicate_config and i < len(source_configs):
-                        duplicate_config[duplicate_task_id] = source_configs[i].copy()
+                # Mapeo directo usando el mapeo de duplicación
+                for source_task_id_int, target_task_id_int in task_mapping.items():
+                    source_task_id_str = str(source_task_id_int)
+                    target_task_id_str = str(target_task_id_int)
+                    
+                    print(f"\n🎯 Procesando mapeo: {source_task_id_str} → {target_task_id_str}")
+                    
+                    if source_task_id_str in source_config:
+                        config_data = source_config[source_task_id_str].copy()
+                        duplicate_config[target_task_id_str] = config_data
+                        
+                        print(f"  ✅ ColorType copiado exitosamente")
+                        print(f"    📁 Keys en config original: {list(config_data.keys())}")
+                        
+                        # Verificar estructura detalladamente
+                        if "groups" in config_data:
+                            groups = config_data["groups"]
+                            print(f"    📁 Groups encontrados: {len(groups)} items")
+                            
+                            for idx, g in enumerate(groups):
+                                group_name = g.get("group_name", "SIN_NOMBRE")
+                                enabled = g.get("enabled", False)
+                                value = g.get("selected_value", "")
+                                print(f"      {idx}: '{group_name}' (enabled={enabled}, value='{value}')")
+                                
+                                # Enfoque especial en DEFAULT
+                                if group_name == "DEFAULT":
+                                    print(f"      🔍 DEFAULT DETECTADO: enabled={enabled}, value='{value}'")
+                        else:
+                            print(f"    ❌ Campo 'groups' NO encontrado en configuración")
+                        
+                        # Verificar checkbox activo
+                        active = config_data.get("active", False)
+                        selected = config_data.get("selected_active_colortype", "")
+                        print(f"    📋 Checkbox activo: {active}")
+                        print(f"    📋 Valor seleccionado: '{selected}'")
+                        
+                    else:
+                        print(f"  ❌ ID de origen {source_task_id_str} NO encontrado en source_config")
+                        print(f"      IDs disponibles: {list(source_config.keys())}")
+                        
+                print(f"🎨 Resultado mapeo exacto: {len(duplicate_config)} configuraciones transferidas")
+                
+            else:
+                print(f"⚠️ No hay mapeo exacto, usando método fallback por Identification")
+                # Fallback: mapeo por Identification (método anterior)
+                for source_task_id, config_data in source_config.items():
+                    print(f"🔍 Buscando correspondencia para source task {source_task_id}")
+                    
+                    # Intentar encontrar la tarea correspondiente por Identification
+                    for identification, duplicate_task in duplicate_task_map.items():
+                        duplicate_task_id = str(duplicate_task.id())
+                        if duplicate_task_id not in duplicate_config:
+                            duplicate_config[duplicate_task_id] = config_data.copy()
+                            print(f"  ✅ Asignado por Identification '{identification}': {source_task_id} → {duplicate_task_id}")
+                            break
+                
+                # Si no hay suficientes mapeos por Identification, aplicar secuencialmente
+                if len(duplicate_config) < len(source_config):
+                    print(f"⚠️ Mapeo por Identification insuficiente, aplicando secuencialmente")
+                    duplicate_task_ids = [str(task.id()) for task in all_duplicate_tasks]
+                    source_configs = list(source_config.values())
+                    
+                    for i, duplicate_task_id in enumerate(duplicate_task_ids):
+                        if duplicate_task_id not in duplicate_config and i < len(source_configs):
+                            duplicate_config[duplicate_task_id] = source_configs[i].copy()
+                            print(f"  ✅ Asignado secuencialmente: índice {i} → {duplicate_task_id}")
+            
+            print(f"\n📊 === RESULTADO FINAL DE CONFIGURACIÓN ===")
+            print(f"Total configuraciones a aplicar: {len(duplicate_config)}")
+            
+            # Mostrar configuración final que se va a guardar
+            for task_id, config in duplicate_config.items():
+                print(f"🔍 TASK {task_id} configuración final:")
+                groups = config.get("groups", [])
+                print(f"    groups: {len(groups)} items")
+                for g in groups:
+                    name = g.get('group_name', 'sin nombre')
+                    enabled = g.get('enabled', False)
+                    value = g.get('selected_value', '')
+                    print(f"      - '{name}': enabled={enabled}, value='{value}'")
+                    if name == "DEFAULT":
+                        print(f"        🔍 DEFAULT: enabled={enabled}, value='{value}'")
+                print(f"    active: {config.get('active')}")
+                print(f"    selected_active_colortype: '{config.get('selected_active_colortype', '')}'")
             
             # Guardar configuración en el snapshot y caché
-            context.scene[snap_key_duplicate] = json.dumps(duplicate_config)
+            print(f"\n💾 === GUARDANDO CONFIGURACIÓN ===")
+            
+            config_json = json.dumps(duplicate_config)
+            context.scene[snap_key_duplicate] = config_json
+            print(f"✅ Guardado en snapshot: {len(config_json)} caracteres")
             
             # También actualizar el caché general
             try:
                 cache_raw = context.scene.get(cache_key, "{}")
-                cache_data = json.loads(cache_raw) or {}
+                cache_data = json.loads(cache_raw) if cache_raw else {}
                 cache_data.update(duplicate_config)
                 context.scene[cache_key] = json.dumps(cache_data)
-            except Exception:
+                print(f"✅ Cache general actualizado")
+            except Exception as cache_error:
+                print(f"⚠️ Error actualizando cache general: {cache_error}")
                 context.scene[cache_key] = json.dumps(duplicate_config)
+                print(f"✅ Cache general recreado")
+            
+            # Verificar que efectivamente se guardó
+            verification = context.scene.get(snap_key_duplicate, "")
+            if verification:
+                verification_data = json.loads(verification)
+                print(f"✅ Verificación: {len(verification_data)} entradas guardadas correctamente")
+            else:
+                print(f"❌ ERROR: No se pudo verificar el guardado")
             
             print(f"🎨 Applied ColorType config to {len(duplicate_config)} tasks in duplicated schedule '{duplicate_schedule.Name}'")
             
+            # CRÍTICO: Cargar la configuración en la UI para que sea visible
+            if duplicate_config:
+                try:
+                    from .filter_operators import restore_persistent_task_state
+                    print(f"🔄 === CARGANDO CONFIGURACIÓN EN UI ===")
+                    
+                    # Temporalmente cambiar al cronograma duplicado para cargar su configuración
+                    ws_props = tool.Sequence.get_work_schedule_props()
+                    original_active_id = ws_props.active_work_schedule_id
+                    print(f"📋 Cronograma activo original: {original_active_id}")
+                    
+                    # Cambiar temporalmente al cronograma duplicado
+                    ws_props.active_work_schedule_id = duplicate_ws_id
+                    print(f"📋 Cambiando temporalmente a cronograma duplicado: {duplicate_ws_id}")
+                    tool.Sequence.load_task_tree(duplicate_schedule)
+                    
+                    # Restaurar la configuración en la UI
+                    print(f"🔄 Ejecutando restore_persistent_task_state...")
+                    restore_persistent_task_state(context)
+                    print(f"✅ restore_persistent_task_state completado")
+                    
+                    # Volver al cronograma original
+                    if original_active_id != 0:
+                        print(f"📋 Volviendo al cronograma original: {original_active_id}")
+                        ws_props.active_work_schedule_id = original_active_id
+                        original_schedule = tool.Ifc.get().by_id(original_active_id)
+                        tool.Sequence.load_task_tree(original_schedule)
+                    
+                    print(f"✅ Configuración ColorType cargada en UI del cronograma duplicado")
+                    
+                except Exception as ui_error:
+                    print(f"❌ Error cargando configuración en UI: {ui_error}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                print(f"❌ No hay configuración que cargar en UI")
+            
+            print(f"🎨 === ColorType duplication process COMPLETED ===")
+            
         except Exception as e:
-            print(f"Warning: Could not apply ColorType config to duplicate: {e}")
+            print(f"❌ Error general aplicando ColorType config: {e}")
             import traceback
             traceback.print_exc()
 
@@ -409,13 +788,23 @@ class EnableEditingWorkScheduleTasks(bpy.types.Operator):
 
     def execute(self, context):
         
-        # --- PASO 1: LIMPIAR LA CACHÉ PERSISTENTE ---
-        # Este es el paso más importante. Antes de hacer NADA, nos aseguramos
-        # de que la memoria de los ColorTypes del cronograma anterior sea borrada.
+        # --- PASO 1: LIMPIAR LA CACHÉ PERSISTENTE DE FORMA SELECTIVA ---
+        # Solo limpiamos el cache del cronograma ANTERIOR, no globalmente.
+        # Esto preserva las tareas del cronograma original cuando se duplica/elimina.
         try:
-            bpy.ops.bim.clear_task_state_cache()
+            # Obtener el cronograma que se está dejando (si hay uno)
+            ws_props = tool.Sequence.get_work_schedule_props()
+            previous_schedule_id = getattr(ws_props, "active_work_schedule_id", 0)
+            
+            if previous_schedule_id != 0 and previous_schedule_id != self.work_schedule:
+                # Solo limpiar cache del cronograma anterior, no del que se va a activar
+                bpy.ops.bim.clear_task_state_cache(work_schedule_id=previous_schedule_id)
+                print(f"🎯 Cache selectivo: limpiado cronograma anterior {previous_schedule_id}")
+            else:
+                print("🔄 Cambio de cronograma: sin limpieza de cache necesaria")
+                
         except Exception as e:
-            print(f"Advertencia: No se pudo ejecutar bim.clear_task_state_cache(). Error: {e}")
+            print(f"Advertencia: Limpieza selectiva falló: {e}. Sin limpieza de cache.")
 
         # --- PASO 2: GUARDAR EL ESTADO GENERAL DE LA UI ---
         # Esto guarda cosas como la posición del scroll o la tarea activa,

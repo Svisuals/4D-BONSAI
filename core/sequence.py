@@ -86,8 +86,7 @@ def edit_work_schedule(
             sequence.disable_editing_work_schedule()
             return
             
-        # DIRECT SOLUTION: Instead of disable_editing_work_schedule,
-        # manually reset so that the 4 buttons appear
+        # SOLUCIÓN INTELIGENTE: Preservar cronograma original en lugar de resetear automáticamente
         try:
             # Refresh ALL schedule-related data
             from bonsai.bim.module.sequence.data import SequenceData, WorkScheduleData
@@ -95,9 +94,40 @@ def edit_work_schedule(
             WorkScheduleData.load()
             
             props = sequence.get_work_schedule_props()
-            # KEY: Set active_work_schedule_id = 0 so the 4 buttons appear (line 254 ui.py)
-            props.active_work_schedule_id = 0
-            props.editing_type = ""
+            current_active_id = props.active_work_schedule_id
+            
+            # CRÍTICO: Solo resetear si NO hay otros cronogramas disponibles
+            # En lugar de resetear automáticamente, buscar un cronograma fallback
+            ifc_file = tool.Ifc.get()
+            all_schedules = ifc_file.by_type("IfcWorkSchedule")
+            
+            if all_schedules:
+                # Si hay cronogramas disponibles, preferir originales sobre copias
+                original_schedules = [ws for ws in all_schedules 
+                                    if not (ws.Name and ws.Name.startswith("Copy of "))]
+                
+                if original_schedules:
+                    # Usar el primer cronograma original encontrado
+                    fallback_id = original_schedules[0].id()
+                    props.active_work_schedule_id = fallback_id
+                    props.editing_type = "TASKS"
+                    print(f"🎯 EDIT_WORK_SCHEDULE: Preservando cronograma original ID {fallback_id} - '{original_schedules[0].Name}'")
+                elif all_schedules:
+                    # Si no hay originales, usar cualquier cronograma disponible
+                    fallback_id = all_schedules[0].id()
+                    props.active_work_schedule_id = fallback_id
+                    props.editing_type = "TASKS"
+                    print(f"🎯 EDIT_WORK_SCHEDULE: Usando cronograma disponible ID {fallback_id} - '{all_schedules[0].Name}'")
+                else:
+                    # Solo resetear si realmente no hay cronogramas
+                    props.active_work_schedule_id = 0
+                    props.editing_type = ""
+                    print("ℹ️ EDIT_WORK_SCHEDULE: No hay cronogramas disponibles, reseteando")
+            else:
+                # Solo resetear si realmente no hay cronogramas
+                props.active_work_schedule_id = 0
+                props.editing_type = ""
+                print("ℹ️ EDIT_WORK_SCHEDULE: No hay cronogramas disponibles, reseteando")
             
             # Force UI update
             import bpy

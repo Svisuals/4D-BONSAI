@@ -32,6 +32,9 @@ except Exception:
 # ▼▼▼ SISTEMA DE SNAPSHOT/RESTORE COMPLETO (BASADO EN V125 FUNCIONAL) ▼▼▼
 # =============================================================================
 
+# Variable global para cache de estado de tareas (usada por filtros)
+_persistent_task_state = {}
+
 def snapshot_all_ui_state(context):
     """
     Captura el estado completo de TODAS las tareas del cronograma activo.
@@ -367,15 +370,97 @@ def restore_all_ui_state(context):
     except Exception as e:
         print(f"Bonsai WARNING: restore_all_ui_state falló: {e}")
 
+def populate_persistent_task_state_from_snapshot(context):
+    """
+    Llena _persistent_task_state desde los snapshots JSON de context.scene.
+    Esto sincroniza los dos sistemas de memoria.
+    """
+    global _persistent_task_state
+    
+    try:
+        # Buscar cronograma activo
+        ws_props = tool.Sequence.get_work_schedule_props()
+        ws_id = getattr(ws_props, "active_work_schedule_id", 0)
+        if not ws_id:
+            return
+        
+        # Intentar cargar desde snapshot específico del cronograma
+        snap_key = f"_task_colortype_snapshot_json_WS_{ws_id}"
+        snapshot_data = context.scene.get(snap_key)
+        
+        if snapshot_data:
+            import json
+            try:
+                data = json.loads(snapshot_data)
+                for task_id, task_data in data.items():
+                    _persistent_task_state[task_id] = {
+                        "is_selected": task_data.get("is_selected", False),
+                        "is_expanded": task_data.get("is_expanded", False),
+                        "use_active_colortype_group": task_data.get("active", False),
+                        "selected_colortype_in_active_group": task_data.get("selected_active_colortype", ""),
+                    }
+                print(f"📥 Sincronizado _persistent_task_state desde snapshot: {len(data)} tareas")
+            except Exception as e:
+                print(f"⚠️ Error sincronizando desde snapshot: {e}")
+                
+    except Exception as e:
+        print(f"⚠️ Error poblando _persistent_task_state: {e}")
+
 def restore_persistent_task_state(context):
     """Inicia la restauración de estado de forma diferida."""
-    # Usamos un pequeño retardo para dar tiempo a Blender a dibujar la UI
+    # Primero sincronizar desde snapshots si es necesario
+    populate_persistent_task_state_from_snapshot(context)
+    # Luego restaurar con retardo para la UI
     bpy.app.timers.register(deferred_restore_task_state, first_interval=0.05)
 
 class ClearTaskStateCache(bpy.types.Operator):
     bl_idname = "bim.clear_task_state_cache"; bl_label = "Clear Task State Cache"; bl_options = {"REGISTER", "INTERNAL"}
+    work_schedule_id: bpy.props.IntProperty(default=0)  # Para limpieza selectiva
+    
     def execute(self, context):
-        global _persistent_task_state; _persistent_task_state.clear(); return {'FINISHED'}
+        global _persistent_task_state
+        
+        # Si no se especifica cronograma, limpiar todo (comportamiento original)
+        if self.work_schedule_id == 0:
+            _persistent_task_state.clear()
+            print("🧹 Cache completo limpiado (modo global)")
+            return {'FINISHED'}
+        
+        # Limpieza selectiva: solo remover tareas del cronograma especificado
+        try:
+            import ifcopenshell.util.sequence
+            work_schedule = tool.Ifc.get().by_id(self.work_schedule_id)
+            if not work_schedule:
+                print(f"⚠️ Cronograma {self.work_schedule_id} no encontrado para limpieza selectiva")
+                return {'FINISHED'}
+            
+            # Obtener todas las tareas del cronograma especificado
+            def get_all_task_ids_recursive(tasks):
+                all_ids = set()
+                for task in tasks:
+                    all_ids.add(str(task.id()))
+                    nested = ifcopenshell.util.sequence.get_nested_tasks(task)
+                    if nested:
+                        all_ids.update(get_all_task_ids_recursive(nested))
+                return all_ids
+            
+            root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
+            task_ids_to_clear = get_all_task_ids_recursive(root_tasks)
+            
+            # Remover solo las tareas de este cronograma del cache
+            removed_count = 0
+            for task_id in list(_persistent_task_state.keys()):
+                if task_id in task_ids_to_clear:
+                    del _persistent_task_state[task_id]
+                    removed_count += 1
+            
+            print(f"🧹 Cache selectivo: {removed_count} tareas removidas del cronograma '{work_schedule.Name or 'Sin nombre'}'")
+            
+        except Exception as e:
+            print(f"❌ Error en limpieza selectiva: {e}. Fallback a limpieza global.")
+            _persistent_task_state.clear()
+        
+        return {'FINISHED'}
 
 # =============================================================================
 # ▲▲▲ FIN DEL SISTEMA DE MEMORIA ▲▲▲
