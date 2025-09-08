@@ -1170,6 +1170,13 @@ class ScheduleHUD:
                     week_interval = 4
                     show_week_text = False
 
+                # Decidimos la altura del texto de la semana según si los días son visibles
+                days_are_visible = (zoom_level == 'DETAILED')
+                if days_are_visible:
+                    y_pos_weeks = y_start + 15  # Posición elevada para no solapar con los días
+                else:
+                    y_pos_weeks = y_start + 5   # Posición original, más abajo
+
                 # NEW APPROACH: Vertical lines that mark EXACTLY the BEGINNINGS of the week
                 # based on the configured START date, ALIGNED WITH THE INDICATOR
                 
@@ -1239,7 +1246,7 @@ class ScheduleHUD:
                                     
                                 # POSITION EXACTLY ALIGNED with the vertical line
                                 text_x = week_x + 1  # Muy cerca de la línea para alineación perfecta
-                                text_y = y_start + 5  # Posicionado más abajo para evitar solapamiento con meses
+                                text_y = y_pos_weeks  # Posicionado más abajo para evitar solapamiento con meses
                                 
                                 blf.color(self.font_id, color_text[0], color_text[1], color_text[2], color_text[3])
                                 blf.position(self.font_id, text_x, text_y, 0)
