@@ -26,32 +26,6 @@ from . import operators
 
 classes = (
     
-# Property groups from prop.py
-    prop.WorkPlan,
-    prop.BIMWorkPlanProperties,
-    prop.TaskcolortypeGroupChoice,
-    prop.Task,
-    prop.TaskResource,
-    prop.TaskProduct,
-    prop.IFCStatus,
-    prop.BIMStatusProperties,
-    # --- Filter Property Groups ---
-    prop.TaskFilterRule,
-    prop.BIMTaskFilterProperties,
-    prop.SavedFilterSet,
-
-    prop.BIMWorkScheduleProperties,
-    prop.BIMTaskTreeProperties,
-    prop.BIMTaskTypeColor,
-    prop.AnimationColorSchemes,
-    prop.AnimationColorTypeGroupItem,
-    prop.BIMAnimationProperties,
-    prop.WorkCalendar,
-    prop.RecurrenceComponent,
-    prop.BIMWorkCalendarProperties,
-    prop.DatePickerProperties,
-    prop.BIMDateTextProperties,
-
     # UI Panels & Lists from ui.py
     ui.BIM_PT_work_plans,
     ui.BIM_PT_work_schedules,

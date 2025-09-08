@@ -17,7 +17,9 @@ from .animation import (
     UnifiedColorTypeManager,
     AnimationColorSchemes,
     AnimationColorTypeGroupItem,
-    BIMAnimationProperties
+    BIMAnimationProperties,
+    monitor_predefined_type_change,
+    safe_set_selected_colortype_in_active_group
 )
 
 from .camera_hud import (
