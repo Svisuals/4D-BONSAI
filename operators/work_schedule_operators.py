@@ -257,31 +257,50 @@ class EnableEditingWorkSchedule(bpy.types.Operator):
 
 
 class EnableEditingWorkScheduleTasks(bpy.types.Operator):
+    """
+    Habilita la edición de la estructura de tareas para un cronograma de trabajo específico,
+    asegurando que la caché de estado se gestione correctamente.
+    """
     bl_idname = "bim.enable_editing_work_schedule_tasks"
     bl_label = "Enable Editing Work Schedule Tasks"
-    bl_description = "Enable editing work scheduke tasks."
+    bl_description = "Enable editing work schedule tasks."
     bl_options = {"REGISTER", "UNDO"}
+    
     work_schedule: bpy.props.IntProperty()
 
     def execute(self, context):
-        # USAR EL PATRÓN CORRECTO CON TIMING ADECUADO:
-        print(f"🚀 DEBUG OPERADOR: Iniciando cambio a WS {self.work_schedule}")
         
-        # >>> 1. Establecer cronograma activo (dispara callback de guardado/carga automático)
-        print("📝 DEBUG OPERADOR: Paso 1 - Estableciendo cronograma activo")
-        core.enable_editing_work_schedule_tasks(tool.Sequence, work_schedule=tool.Ifc.get().by_id(self.work_schedule))
+        # --- PASO 1: LIMPIAR LA CACHÉ PERSISTENTE ---
+        # Este es el paso más importante. Antes de hacer NADA, nos aseguramos
+        # de que la memoria de los ColorTypes del cronograma anterior sea borrada.
+        try:
+            bpy.ops.bim.clear_task_state_cache()
+        except Exception as e:
+            print(f"Advertencia: No se pudo ejecutar bim.clear_task_state_cache(). Error: {e}")
+
+        # --- PASO 2: GUARDAR EL ESTADO GENERAL DE LA UI ---
+        # Esto guarda cosas como la posición del scroll o la tarea activa,
+        # usando el mecanismo que ya tenías.
+        snapshot_all_ui_state(context)
+
+        # --- PASO 3: ESTABLECER EL NUEVO CRONOGRAMA ACTIVO Y CARGAR DATOS ---
+        # Obtenemos la instancia del cronograma a partir de su ID
+        work_schedule_instance = tool.Ifc.get().by_id(self.work_schedule)
         
-        # >>> 2. Cargar task tree DESPUÉS del callback (para no borrar datos restaurados)
-        print("🔄 DEBUG OPERADOR: Paso 2 - Cargando task tree")
-        work_schedule = tool.Ifc.get().by_id(self.work_schedule)
-        tool.Sequence.load_task_tree(work_schedule)
+        # Llamamos a tu función 'core' que se encarga de la lógica principal de activación
+        core.enable_editing_work_schedule_tasks(tool.Sequence, work_schedule=work_schedule_instance)
+        
+        # Recargamos el árbol de tareas y las propiedades, como en tu versión original.
+        # Esto es necesario para que la UI muestre las tareas del nuevo cronograma.
+        tool.Sequence.load_task_tree(work_schedule_instance)
         tool.Sequence.load_task_properties()
-        
-        # >>> 3. Restaurar estado desde el caché (como hacen los filtros)
-        print("📥 DEBUG OPERADOR: Paso 3 - Restaurando estado")
+
+        # --- PASO 4: RESTAURAR EL ESTADO GENERAL DE LA UI ---
+        # Restauramos el scroll y la selección que guardamos en el paso 2.
+        # Como la caché de ColorTypes está vacía, no intentará restaurar
+        # datos incorrectos del cronograma anterior.
         restore_all_ui_state(context)
 
-        print("✅ DEBUG OPERADOR: Operación completada")
         return {"FINISHED"}
 
 
