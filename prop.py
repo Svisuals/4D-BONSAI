@@ -2307,31 +2307,40 @@ def toggle_3d_text_visibility(self, context):
         if collection_texts:
             collection_texts.hide_viewport = should_hide
             collection_texts.hide_render = should_hide
-            print(f"✅ Schedule_Display_Texts visibility set to hide={should_hide}")
-        else:
-            print("⚠️ Collection 'Schedule_Display_Texts' not found")
+            # También itera sobre los objetos para asegurar la visibilidad
+            for obj in collection_texts.objects:
+                obj.hide_viewport = should_hide
+                obj.hide_render = should_hide
+            print(f"✅ Schedule_Display_Texts collection and objects visibility set to hide={should_hide}")
     except Exception as e:
         print(f"❌ Error toggling 3D text visibility: {e}")
 
     # Toggle visibility for "Schedule_Display_3D_Legend" (controlled by show_3d_schedule_texts)
     try:
+        import bonsai.tool as tool
+        camera_props = tool.Sequence.get_animation_props().camera_orbit
+        legend_should_be_hidden = should_hide or not camera_props.enable_3d_legend_hud
+
         collection_legend = bpy.data.collections.get("Schedule_Display_3D_Legend")
         if collection_legend:
-            collection_legend.hide_viewport = should_hide
-            collection_legend.hide_render = should_hide
-            
-            # ADDITIONAL FIX: Also hide/show individual objects to ensure visibility
-            objects_processed = 0
+            collection_legend.hide_viewport = legend_should_be_hidden
+            collection_legend.hide_render = legend_should_be_hidden
+            # Itera sobre los objetos de la leyenda para asegurar la visibilidad
             for obj in collection_legend.objects:
-                obj.hide_viewport = should_hide
-                obj.hide_render = should_hide
-                objects_processed += 1
-            
-            print(f"✅ Schedule_Display_3D_Legend collection & {objects_processed} objects visibility set to hide={should_hide}")
-        else:
-            print("⚠️ Collection 'Schedule_Display_3D_Legend' not found")
+                obj.hide_viewport = legend_should_be_hidden
+                obj.hide_render = legend_should_be_hidden
+            print(f"✅ Schedule_Display_3D_Legend visibility set to hide={legend_should_be_hidden}")
     except Exception as e:
         print(f"❌ Error toggling 3D Legend HUD visibility: {e}")
+
+    # Forzar refresco de la pantalla
+    try:
+        for window in context.window_manager.windows:
+            for area in window.screen.areas:
+                if area.type == 'VIEW_3D':
+                    area.tag_redraw()
+    except Exception:
+        pass
         
     # SEPARATE control for individual 3D Legend HUD objects (controlled by enable_3d_legend_hud)
     try:
