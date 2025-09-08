@@ -506,6 +506,65 @@ class Sequence(bonsai.core.tool.Sequence):
         
         bpy.context.scene.camera = cam_obj
         print(f"✅ Snapshot Camera created successfully: {cam_obj.name}")
+        
+        # --- CREAR TEXTOS 3D SI NO EXISTEN ---
+        # Verificar si ya existe la colección de textos 3D
+        texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
+        if not texts_collection or len(texts_collection.objects) == 0:
+            print("📝 Creating 3D texts for snapshot display...")
+            try:
+                # Obtener configuraciones básicas para los textos
+                ws_props = cls.get_work_schedule_props()
+                active_schedule_id = getattr(ws_props, "active_work_schedule_id", None)
+                
+                if active_schedule_id:
+                    import bonsai.tool as tool
+                    work_schedule = tool.Ifc.get().by_id(active_schedule_id)
+                    schedule_name = work_schedule.Name if work_schedule and hasattr(work_schedule, 'Name') else 'No Schedule'
+                    
+                    # Configuración mínima para los textos
+                    snapshot_settings = {
+                        'start': None,  # Se establecerá dinámicamente
+                        'finish': None, # Se establecerá dinámicamente
+                        'schedule_name': schedule_name,
+                        'start_frame': 1,
+                        'total_frames': 250,
+                        'speed': 1.0,
+                        'include_texts': True
+                    }
+                    
+                    # Crear los textos 3D usando la función existente
+                    cls.add_text_animation_handler(snapshot_settings)
+                    
+                    # --- APLICAR VISIBILIDAD SEGÚN CHECKBOX ---
+                    anim_props = cls.get_animation_props()
+                    camera_props = anim_props.camera_orbit
+                    should_hide = not getattr(camera_props, "show_3d_schedule_texts", False)
+                    
+                    # Actualizar la colección después de crearla
+                    texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
+                    if texts_collection:
+                        texts_collection.hide_viewport = should_hide
+                        texts_collection.hide_render = should_hide
+                        print(f"✅ 3D texts created and visibility set (hidden: {should_hide})")
+                    
+                    # Auto-arrange texts para posicionamiento por defecto
+                    try:
+                        bpy.ops.bim.arrange_schedule_texts()
+                        print("✅ 3D texts auto-arranged")
+                    except Exception as e:
+                        print(f"⚠️ Could not auto-arrange texts: {e}")
+                        
+                else:
+                    print("⚠️ No active work schedule found, skipping 3D text creation")
+                    
+            except Exception as e:
+                print(f"⚠️ Could not create 3D texts for snapshot camera: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print("✅ 3D texts already exist, skipping creation")
+        
         return cam_obj
 
     @classmethod

@@ -304,6 +304,21 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
             except Exception as e:
                 print(f"⚠️ DEBUG: Failed to arrange 3D texts: {e}")
             
+            # --- APLICAR VISIBILIDAD SEGÚN CHECKBOX ---
+            # Verificar el estado del checkbox y aplicar visibilidad
+            try:
+                anim_props = tool.Sequence.get_animation_props()
+                camera_props = anim_props.camera_orbit
+                should_hide = not getattr(camera_props, "show_3d_schedule_texts", False)
+                
+                texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
+                if texts_collection:
+                    texts_collection.hide_viewport = should_hide
+                    texts_collection.hide_render = should_hide
+                    print(f"✅ DEBUG: 3D texts visibility updated (hidden: {should_hide})")
+            except Exception as e:
+                print(f"⚠️ DEBUG: Could not update 3D texts visibility: {e}")
+            
             # Force viewport update to ensure everything is ready
             bpy.context.view_layer.update()
             
