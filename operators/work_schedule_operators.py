@@ -229,10 +229,18 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
     work_schedule: bpy.props.IntProperty()  # pyright: ignore[reportRedeclaration]
 
     def _execute(self, context):
+        # 0. Capturar configuración de ColorType del cronograma origen ANTES de duplicar
+        source_schedule = tool.Ifc.get().by_id(self.work_schedule)
+        source_colortype_config = self._capture_schedule_colortype_config(context, source_schedule)
+        
         # 1. Ejecutar la lógica de copia que ahora sí crea un duplicado en el IFC.
-        core.copy_work_schedule(tool.Sequence, work_schedule=tool.Ifc.get().by_id(self.work_schedule))
+        core.copy_work_schedule(tool.Sequence, work_schedule=source_schedule)
 
-        # 2. Forzar la recarga de los datos y el redibujado de la UI.
+        # 2. Aplicar configuración de ColorType al cronograma duplicado
+        if source_colortype_config:
+            self._apply_colortype_config_to_duplicate(context, source_colortype_config)
+
+        # 3. Forzar la recarga de los datos y el redibujado de la UI.
         try:
             from bonsai.bim.module.sequence.data import SequenceData, WorkScheduleData
             SequenceData.load()
@@ -242,6 +250,137 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
                     area.tag_redraw()
         except Exception as e:
             print(f"Bonsai WARNING: UI refresh failed after copying schedule: {e}")
+    
+    def _capture_schedule_colortype_config(self, context, source_schedule):
+        """
+        Captura toda la configuración de ColorType del cronograma origen.
+        """
+        try:
+            import json
+            ws_id = source_schedule.id()
+            
+            # Capturar snapshot específico del cronograma origen
+            snap_key_specific = f"_task_colortype_snapshot_json_WS_{ws_id}"
+            cache_key = "_task_colortype_snapshot_cache_json"
+            
+            config = {}
+            
+            # Obtener datos del snapshot específico
+            snap_raw = context.scene.get(snap_key_specific)
+            if snap_raw:
+                try:
+                    config.update(json.loads(snap_raw) or {})
+                except Exception:
+                    pass
+            
+            # Obtener datos del caché general
+            cache_raw = context.scene.get(cache_key)
+            if cache_raw:
+                try:
+                    cache_data = json.loads(cache_raw) or {}
+                    # Solo agregar datos de tareas del cronograma origen
+                    for task_id, task_data in cache_data.items():
+                        if task_id not in config:  # No sobrescribir datos específicos
+                            config[task_id] = task_data
+                except Exception:
+                    pass
+            
+            print(f"🎨 Captured ColorType config for {len(config)} tasks from schedule '{source_schedule.Name}'")
+            return config
+            
+        except Exception as e:
+            print(f"Warning: Could not capture ColorType config: {e}")
+            return {}
+    
+    def _apply_colortype_config_to_duplicate(self, context, source_config):
+        """
+        Aplica la configuración de ColorType capturada al cronograma duplicado.
+        """
+        try:
+            import json
+            import ifcopenshell.util.sequence
+            
+            if not source_config:
+                return
+            
+            # Encontrar el cronograma recién creado (último "Copy of...")
+            ifc_file = tool.Ifc.get()
+            all_schedules = ifc_file.by_type("IfcWorkSchedule")
+            duplicate_schedule = None
+            
+            for schedule in all_schedules:
+                if schedule.Name and schedule.Name.startswith("Copy of "):
+                    duplicate_schedule = schedule
+                    break
+            
+            if not duplicate_schedule:
+                print("Warning: Could not find duplicated schedule")
+                return
+            
+            # Mapear tareas del cronograma duplicado por Identification
+            def get_all_tasks_recursive(tasks):
+                all_tasks_list = []
+                for task in tasks:
+                    all_tasks_list.append(task)
+                    nested_tasks = ifcopenshell.util.sequence.get_nested_tasks(task)
+                    if nested_tasks:
+                        all_tasks_list.extend(get_all_tasks_recursive(nested_tasks))
+                return all_tasks_list
+            
+            root_tasks = ifcopenshell.util.sequence.get_root_tasks(duplicate_schedule)
+            all_duplicate_tasks = get_all_tasks_recursive(root_tasks)
+            
+            # Crear mapping por Identification para encontrar tareas correspondientes
+            duplicate_task_map = {}
+            for task in all_duplicate_tasks:
+                identification = getattr(task, "Identification", None)
+                if identification:
+                    duplicate_task_map[identification] = task
+            
+            # Aplicar configuración a las tareas duplicadas
+            duplicate_ws_id = duplicate_schedule.id()
+            snap_key_duplicate = f"_task_colortype_snapshot_json_WS_{duplicate_ws_id}"
+            cache_key = "_task_colortype_snapshot_cache_json"
+            
+            # Mapear configuración origen a tareas duplicadas
+            duplicate_config = {}
+            for source_task_id, config_data in source_config.items():
+                # Intentar encontrar la tarea correspondiente por Identification
+                # (Esto funciona si las tareas tienen Identification únicos)
+                for identification, duplicate_task in duplicate_task_map.items():
+                    duplicate_task_id = str(duplicate_task.id())
+                    if duplicate_task_id not in duplicate_config:
+                        # Aplicar configuración de cualquier tarea origen a esta tarea duplicada
+                        duplicate_config[duplicate_task_id] = config_data.copy()
+                        break
+            
+            # Si no hay suficientes mapeos por Identification, aplicar secuencialmente
+            if len(duplicate_config) < len(source_config):
+                duplicate_task_ids = [str(task.id()) for task in all_duplicate_tasks]
+                source_configs = list(source_config.values())
+                
+                for i, duplicate_task_id in enumerate(duplicate_task_ids):
+                    if duplicate_task_id not in duplicate_config and i < len(source_configs):
+                        duplicate_config[duplicate_task_id] = source_configs[i].copy()
+            
+            # Guardar configuración en el snapshot y caché
+            context.scene[snap_key_duplicate] = json.dumps(duplicate_config)
+            
+            # También actualizar el caché general
+            try:
+                cache_raw = context.scene.get(cache_key, "{}")
+                cache_data = json.loads(cache_raw) or {}
+                cache_data.update(duplicate_config)
+                context.scene[cache_key] = json.dumps(cache_data)
+            except Exception:
+                context.scene[cache_key] = json.dumps(duplicate_config)
+            
+            print(f"🎨 Applied ColorType config to {len(duplicate_config)} tasks in duplicated schedule '{duplicate_schedule.Name}'")
+            
+        except Exception as e:
+            print(f"Warning: Could not apply ColorType config to duplicate: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 class EnableEditingWorkSchedule(bpy.types.Operator):
