@@ -12,7 +12,7 @@ try:
     # ... otras importaciones de ..prop
 except (ImportError, ValueError):
     # Fallback si la estructura cambia
-    from bonsai.bim.module.sequence.prop.task import safe_set_selected_colortype_in_active_group
+    from bonsai.bim.module.sequence.prop.animation import safe_set_selected_colortype_in_active_group
 
 try:
     from .prop import update_filter_column

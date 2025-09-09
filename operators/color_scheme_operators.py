@@ -9,7 +9,7 @@ from bpy_extras.io_utils import ExportHelper, ImportHelper
 
 # Import helpers using absolute paths like v18
 from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
-from bonsai.bim.module.sequence.prop.task import safe_set_selected_colortype_in_active_group
+from bonsai.bim.module.sequence.prop.animation import safe_set_selected_colortype_in_active_group
 try:
     from .schedule_task_operators import snapshot_all_ui_state
 except ImportError:
