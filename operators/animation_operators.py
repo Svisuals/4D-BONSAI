@@ -41,7 +41,15 @@ class CreateAnimation(bpy.types.Operator, tool.Ifc.Operator):
         # Levanta la bandera para indicar que la animación ya existe y es válida.
         anim_props.is_animation_created = True
         print("✅ Animation flag SET to TRUE.")
-        # --- FIN DE LA MODIFICACIÓN ---
+        
+        try:
+            camera_props = tool.Sequence.get_animation_props().camera_orbit
+            if camera_props.enable_3d_legend_hud:
+                print("✅ 3D Legend HUD is enabled, ensuring it is created...")
+                bpy.ops.bim.setup_3d_legend_hud()
+        except Exception as e:
+            print(f"⚠️ Could not auto-create 3D Legend HUD during animation creation: {e}")
+
 
         return {'FINISHED'}
 

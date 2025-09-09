@@ -578,9 +578,6 @@ class ScheduleHUD:
             # --- TIMELINE HUD SETTINGS (NEW) ---
             # Enable Timeline HUD automatically for snapshots (following v90 behavior)
             timeline_enabled_setting = getattr(camera_props, 'enable_timeline_hud', False)
-            if is_snapshot_mode_active and not timeline_enabled_setting:
-                print("🎬 SNAPSHOT: Auto-enabling Timeline HUD for snapshot (v90 behavior)")
-                timeline_enabled_setting = True
                 
             timeline_hud_settings = {
                 'enabled': timeline_enabled_setting,
