@@ -41,9 +41,12 @@ except Exception:
             pass
 
 try:
-    from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
+    from ..prop.animation import UnifiedColorTypeManager
 except Exception:
-    UnifiedColorTypeManager = None  # optional
+    try:
+        from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
+    except Exception:
+        UnifiedColorTypeManager = None  # optional
 
 # Constants
 DEMO_KEYS = {"DEMOLITION","REMOVAL","DISPOSAL","DISMANTLE"}
@@ -320,7 +323,7 @@ class UpdateDefaultcolortypeColors(bpy.types.Operator):
 
     def execute(self, context):
         try:
-            from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
+            # UnifiedColorTypeManager is already imported at module level
             UnifiedColorTypeManager.update_default_group_colors(context)
             self.report({'INFO'}, "DEFAULT colortype colors updated to new scheme")
             return {'FINISHED'}

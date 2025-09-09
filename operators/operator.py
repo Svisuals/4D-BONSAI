@@ -64,13 +64,19 @@ import bonsai.core.sequence as core
 import bonsai.bim.module.sequence.helper as helper
 from .animation_operators import _clear_previous_animation, _get_animation_settings, _compute_product_frames, _ensure_default_group
 try:
-    from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
+    from ..prop.animation import UnifiedColorTypeManager
 except Exception:
-    UnifiedColorTypeManager = None  # optional
+    try:
+        from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
+    except Exception:
+        UnifiedColorTypeManager = None  # optional
 try:
-    from bonsai.bim.module.sequence.prop.task import TaskcolortypeGroupChoice
+    from ..prop.task import TaskcolortypeGroupChoice
 except Exception:
-    TaskcolortypeGroupChoice = None  # optional
+    try:
+        from bonsai.bim.module.sequence.prop.task import TaskcolortypeGroupChoice
+    except Exception:
+        TaskcolortypeGroupChoice = None  # optional
 
 import ifcopenshell.util.sequence
 import ifcopenshell.util.selector

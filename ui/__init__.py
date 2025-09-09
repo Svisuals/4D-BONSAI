@@ -5,8 +5,7 @@ classes, thematically organized to build the addon's interface in Blender.
 
 The structure is as follows:
 - panels_schedule.py: Panels for managing schedules, tasks, variance analysis, and ICOM.
-- panels_animation.py: Panels dedicated to 4D animation configuration and color schemes.
-- panels_camera_hud.py: Panels for camera control, orbit, and HUD (Head-Up Display) settings.
+- panels_animation.py: Panels dedicated to 4D animation configuration, color schemes, camera control, orbit, and HUD settings.
 - panels_workplan.py: Panels for managing Work Plans and Calendars.
 - elements.py: Contains reusable UI elements, primarily the UIList classes that display data lists.
 

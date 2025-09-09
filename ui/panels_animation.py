@@ -39,14 +39,14 @@ from bonsai.bim.module.sequence.data import (
     TaskICOMData,
     AnimationColorSchemeData,
 )
-from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
-from bonsai.bim.module.sequence.prop.animation import monitor_predefined_type_change
+from ..prop.animation import UnifiedColorTypeManager
+from ..prop.animation import monitor_predefined_type_change
 from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from bonsai.bim.prop import Attribute
-    from bonsai.bim.module.sequence.prop.schedule import BIMWorkScheduleProperties
-    from bonsai.bim.module.sequence.prop.task import BIMTaskTreeProperties, Task
+    from ..prop.schedule import BIMWorkScheduleProperties
+    from ..prop.task import BIMTaskTreeProperties, Task
 
 
 

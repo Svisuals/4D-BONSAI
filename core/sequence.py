@@ -19,6 +19,20 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Union
 
+# Import animation functions with fallback
+try:
+    from ..prop.animation import UnifiedColorTypeManager
+except ImportError:
+    # Fallback for when running from the original location
+    try:
+        from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
+    except ImportError:
+        # Ultimate fallback - create dummy class
+        class UnifiedColorTypeManager:
+            @staticmethod
+            def sync_default_colortype_for_task(task_pg, predefined_type):
+                pass
+
 if TYPE_CHECKING:
     import bpy
     import ifcopenshell
@@ -276,7 +290,7 @@ def _auto_sync_task_predefined_type(task_id: int, predefined_type: str) -> None:
     try:
         import bpy
         import bonsai.tool as tool
-        from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
+        # UnifiedColorTypeManager is already imported at module level
 
         # 1. Find the task in UI properties (task_pg)
         tprops = tool.Sequence.get_task_tree_props()

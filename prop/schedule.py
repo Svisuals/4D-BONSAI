@@ -138,6 +138,43 @@ def update_active_task_index(self, context):
             print(f"✅ Animation colortypes loaded for group: {selected_group}")
     except Exception as e:
         print(f"⚠️ Error in automatic colortype synchronization: {e}")
+    
+    # --- 3D SELECTION LOGIC FOR SINGLE CLICK ---
+    props = tool.Sequence.get_work_schedule_props()
+    if props.should_select_3d_on_task_click:
+        if not task_ifc:
+            try:
+                import bpy
+                bpy.ops.object.select_all(action='DESELECT')
+            except RuntimeError:
+                # Occurs if we're not in object mode, safe to ignore
+                pass
+            return
+        
+        try:
+            import bpy
+            outputs = tool.Sequence.get_task_outputs(task_ifc)
+            
+            # Deselect everything first
+            if bpy.context.view_layer.objects.active:
+                bpy.ops.object.mode_set(mode='OBJECT')
+            bpy.ops.object.select_all(action='DESELECT')
+            
+            if outputs:
+                objects_to_select = [tool.Ifc.get_object(p) for p in outputs if tool.Ifc.get_object(p)]
+                
+                if objects_to_select:
+                    for obj in objects_to_select:
+                        # Make sure object is visible and selectable
+                        obj.hide_set(False)
+                        obj.hide_select = False
+                        obj.select_set(True)
+                    
+                    # Set the first object as active
+                    bpy.context.view_layer.objects.active = objects_to_select[0]
+                    print(f"🎯 3D Task: Selected {len(objects_to_select)} objects for task '{task_ifc.Name or task_ifc.id()}'")
+        except Exception as e:
+            print(f"⚠️ Error in 3D selection: {e}")
 
 def get_schedule_predefined_types(self, context):
     if not SequenceData.is_loaded:

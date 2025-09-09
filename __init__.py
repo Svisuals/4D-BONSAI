@@ -23,6 +23,7 @@ import bpy
 from . import ui
 from . import prop
 from . import operators
+from .operators import io_operators, camera_operators
 
 
 classes = (
@@ -77,30 +78,31 @@ classes = (
 )
 
 # --- Optional registration: ClearAnimationAdvanced (guarded) ---
-try:
-    _ADV = operator.ClearAnimationAdvanced
-except Exception:
-    _ADV = None
-if _ADV:
-    try:
-        classes = tuple(list(classes) + [_ADV])
-    except Exception:
-        pass
+# Note: ClearAnimationAdvanced is not currently implemented in the refactored version
+# try:
+#     _ADV = operator.ClearAnimationAdvanced
+# except Exception:
+#     _ADV = None
+# if _ADV:
+#     try:
+#         classes = tuple(list(classes) + [_ADV])
+#     except Exception:
+#         pass
 # --- end optional registration ---
 
 
 
 def menu_func_export(self, context):
-    self.layout.operator(operator.ExportP6.bl_idname, text="P6 (.xml)")
-    self.layout.operator(operator.ExportMSP.bl_idname, text="Microsoft Project (.xml)")
+    self.layout.operator(io_operators.ExportP6.bl_idname, text="P6 (.xml)")
+    self.layout.operator(io_operators.ExportMSP.bl_idname, text="Microsoft Project (.xml)")
 
 
 def menu_func_import(self, context):
-    self.layout.operator(operator.ImportWorkScheduleCSV.bl_idname, text="Work Schedule (.csv)")
-    self.layout.operator(operator.ImportP6.bl_idname, text="P6 (.xml)")
-    self.layout.operator(operator.ImportP6XER.bl_idname, text="P6 (.xer)")
-    self.layout.operator(operator.ImportPP.bl_idname, text="Powerproject (.pp)")
-    self.layout.operator(operator.ImportMSP.bl_idname, text="Microsoft Project (.xml)")
+    self.layout.operator(io_operators.ImportWorkScheduleCSV.bl_idname, text="Work Schedule (.csv)")
+    self.layout.operator(io_operators.ImportP6.bl_idname, text="P6 (.xml)")
+    self.layout.operator(io_operators.ImportP6XER.bl_idname, text="P6 (.xer)")
+    self.layout.operator(io_operators.ImportPP.bl_idname, text="Powerproject (.pp)")
+    self.layout.operator(io_operators.ImportMSP.bl_idname, text="Microsoft Project (.xml)")
 
 
 def register():
@@ -124,7 +126,7 @@ def register():
     except Exception:
         pass
     try:
-        bpy.utils.register_class(operator.ResetCameraSettings)
+        bpy.utils.register_class(camera_operators.ResetCameraSettings)
     except Exception:
         pass
 
@@ -222,7 +224,7 @@ def unregister():
         pass
     # --- NEW: unregister test operators and camera orbit PG ---
     try:
-        bpy.utils.unregister_class(operator.ResetCameraSettings)
+        bpy.utils.unregister_class(camera_operators.ResetCameraSettings)
     except Exception:
         pass
     try:

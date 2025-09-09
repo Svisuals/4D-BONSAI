@@ -360,6 +360,11 @@ class BIMCameraOrbitProperties(PropertyGroup):
         default=True,
         update=update_snapshot_camera_visibility,
     )
+    show_camera_orbit_settings: BoolProperty(
+        name="Show Camera & Orbit Settings",
+        description="Toggle visibility of camera and orbit configuration settings",
+        default=False,
+    )
 
     # =====================
     # HUD System
@@ -952,6 +957,7 @@ class BIMCameraOrbitProperties(PropertyGroup):
         active_snapshot_camera: bpy.types.Object
         show_animation_cameras: bool
         show_snapshot_cameras: bool
+        show_camera_orbit_settings: bool
         enable_text_hud: bool
         expand_hud_settings: bool
         expand_schedule_hud: bool

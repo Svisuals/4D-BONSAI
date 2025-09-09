@@ -161,7 +161,7 @@ class AddAnimationTaskType(bpy.types.Operator):
         else:
             props.active_color_component_outputs_index = len(coll)-1
         try:
-            from bonsai.bim.module.sequence.prop.task import cleanup_all_tasks_colortype_mappings
+            from ..prop.task import cleanup_all_tasks_colortype_mappings
             cleanup_all_tasks_colortype_mappings(context)
         except Exception:
             pass
