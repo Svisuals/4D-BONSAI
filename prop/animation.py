@@ -1330,3 +1330,107 @@ def monitor_predefined_type_change(context):
 
     except Exception as e:
         print(f"[ERROR] monitor_predefined_type_change: {e}")
+
+# ============================================================================
+# ENUM HELPER FUNCTIONS FOR COLOR TYPE MANAGEMENT
+# ============================================================================
+
+def get_internal_ColorType_sets_enum(self, context):
+    """Gets enum of ALL available colortype groups, including DEFAULT."""
+    try:
+        # Get all groups directly from the source
+        all_groups = sorted(list(UnifiedColorTypeManager._read_sets_json(context).keys()))
+        
+        if all_groups:
+            # Ensure "DEFAULT" appears first for convenience
+            if "DEFAULT" in all_groups:
+                all_groups.remove("DEFAULT")
+                all_groups.insert(0, "DEFAULT")
+            return [(name, name, f"colortype group: {name}") for name in all_groups]
+    except Exception:
+        pass
+    
+    # Fallback - always have at least DEFAULT
+    return [("DEFAULT", "DEFAULT", "Auto-managed default group")]
+
+def get_all_groups_enum(self, context):
+    """Enum para todos los grupos (incluyendo DEFAULT)."""
+    try:
+        groups = UnifiedColorTypeManager.get_all_groups(context)
+        items = []
+        for i, group in enumerate(sorted(groups)):
+            desc = "Auto-managed colortypes by PredefinedType" if group == "DEFAULT" else "Custom colortype group"
+            items.append((group, group, desc, i))
+        return items if items else [("DEFAULT", "DEFAULT", "Auto-managed default group", 0)]
+    except Exception:
+        return [("DEFAULT", "DEFAULT", "Auto-managed default group", 0)]
+
+def get_user_created_groups_enum(self, context):
+    """Returns EnumProperty items for user-created groups, excluding 'DEFAULT'."""
+    try:
+        user_groups = UnifiedColorTypeManager.get_user_created_groups(context)
+        if user_groups:
+            return [(name, name, f"colortype group: {name}") for name in user_groups]
+    except Exception:
+        pass
+    return [("NONE", "<no custom groups>", "Create custom groups in the Animation Color Schemes panel")]
+
+def get_saved_color_schemes(self, context):
+    """Gets saved color schemes (legacy - maintain for compatibility)"""
+    if not AnimationColorSchemeData.is_loaded:
+        AnimationColorSchemeData.load()
+    return AnimationColorSchemeData.data.get("saved_color_schemes", [])
+
+def update_colortype_considerations(self, context):
+    """Validation logic for colortype states"""
+    try:
+        # Ensure color scheme consistency
+        _sync_animation_color_schemes_with_active_groups(context)
+    except Exception as e:
+        print(f"Error in colortype considerations update: {e}")
+
+def _sync_animation_color_schemes_with_active_groups(context):
+    """Auto-sync functionality for animation color schemes"""
+    try:
+        # Get animation properties
+        anim_props = tool.Sequence.get_animation_props()
+        if not anim_props:
+            return
+            
+        # Sync active colortype groups with animation settings
+        active_groups = UnifiedColorTypeManager.get_all_groups(context)
+        if active_groups and anim_props.get('active_colortype_group'):
+            current_group = anim_props.active_colortype_group
+            if current_group not in active_groups:
+                # Set to DEFAULT if current group no longer exists
+                anim_props.active_colortype_group = "DEFAULT"
+                print(f"Synced active colortype group to DEFAULT (was: {current_group})")
+                
+    except Exception as e:
+        print(f"Error syncing animation color schemes: {e}")
+
+def get_task_colortype_items(self, context):
+    """Task-specific colortype items"""
+    try:
+        # Get current task's available colortypes
+        tprops = tool.Sequence.get_task_tree_props()
+        wprops = tool.Sequence.get_work_schedule_props()
+        
+        if not (tprops.tasks and wprops.active_task_index < len(tprops.tasks)):
+            return [("NONE", "No Task", "No active task selected")]
+            
+        task_pg = tprops.tasks[wprops.active_task_index]
+        
+        # Get colortypes for current task
+        items = []
+        try:
+            colortype_data = UnifiedColorTypeManager.get_all_colortypes_for_task(context, task_pg)
+            for colortype, info in colortype_data.items():
+                items.append((colortype, colortype, f"Colortype: {colortype}"))
+        except:
+            pass
+            
+        return items if items else [("DEFAULT", "Default", "Default colortype")]
+        
+    except Exception:
+        return [("DEFAULT", "Default", "Default colortype")]

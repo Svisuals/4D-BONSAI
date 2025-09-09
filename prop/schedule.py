@@ -600,3 +600,47 @@ class BIMWorkScheduleProperties(PropertyGroup):
         selected_tasks_count: int
         variance_source_a: str
         variance_source_b: str
+
+# ============================================================================
+# ADDITIONAL SCHEDULE HELPER FUNCTIONS  
+# ============================================================================
+
+def switch_options(self, context):
+    """Toggles between visualization and snapshot"""
+    if self.should_show_visualisation_ui:
+        self.should_show_snapshot_ui = False
+    else:
+        if not self.should_show_snapshot_ui:
+            self.should_show_snapshot_ui = True
+
+def switch_options2(self, context):
+    """Toggles between snapshot and visualization"""
+    if self.should_show_snapshot_ui:
+        self.should_show_visualisation_ui = False
+    else:
+        if not self.should_show_visualisation_ui:
+            self.should_show_visualisation_ui = True
+
+def getWorkCalendars(self, context):
+    """Work calendars enum function"""
+    if not SequenceData.is_loaded:
+        SequenceData.load()
+    return SequenceData.data["work_calendars_enum"]
+
+def getWorkSchedules(self, context):
+    """Work schedules enum function"""  
+    if not SequenceData.is_loaded:
+        SequenceData.load()
+    return SequenceData.data["work_schedules_enum"]
+
+def getTaskColumns(self, context):
+    """Task columns enum function"""
+    if not SequenceData.is_loaded:
+        SequenceData.load()
+    return SequenceData.data["task_columns_enum"]
+
+def getTaskTimeColumns(self, context):
+    """Task time columns enum function"""
+    if not SequenceData.is_loaded:
+        SequenceData.load()
+    return SequenceData.data["task_time_columns_enum"]

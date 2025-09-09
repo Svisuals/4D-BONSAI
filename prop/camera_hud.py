@@ -302,6 +302,140 @@ def update_active_animation_camera(self, context):
 
     bpy.app.timers.register(set_camera_deferred, first_interval=0.1)
 
+def update_active_snapshot_camera(self, context):
+    """
+    Callback para establecer la cámara de snapshot como activa en la escena.
+    """
+    camera_obj = self.active_snapshot_camera
+    if not camera_obj:
+        return
+
+    def set_camera_deferred():
+        try:
+            if camera_obj and bpy.context.scene:
+                bpy.context.scene.camera = camera_obj
+                print(f"✅ Snapshot camera '{camera_obj.name}' set as active")
+                
+                # Forzar actualización de la UI
+                for window in bpy.context.window_manager.windows:
+                    for area in window.screen.areas:
+                        if area.type == 'VIEW_3D':
+                            area.tag_redraw()
+        except Exception as e:
+            print(f"❌ Error setting snapshot camera: {e}")
+        return None
+
+    bpy.app.timers.register(set_camera_deferred, first_interval=0.1)
+
+def update_active_4d_camera(self, context):
+    """
+    Callback legacy para establecer la cámara de la escena cuando cambia la cámara 4D activa.
+    Usa un temporizador para evitar problemas de contexto al modificar `scene.camera`.
+    """
+    camera_name = self.active_4d_camera.name if self.active_4d_camera else None
+    if not camera_name:
+        return
+
+    def set_camera_deferred():
+        try:
+            if bpy.context.scene and self.active_4d_camera:
+                bpy.context.scene.camera = self.active_4d_camera
+                print(f"✅ 4D camera '{camera_name}' set as active scene camera")
+                # Force UI refresh
+                for window in bpy.context.window_manager.windows:
+                    for area in window.screen.areas:
+                        if area.type == 'VIEW_3D':
+                            area.tag_redraw()
+        except Exception as e:
+            print(f"❌ Error setting 4D camera: {e}")
+        return None
+
+    bpy.app.timers.register(set_camera_deferred, first_interval=0.01)
+
+def update_legend_3d_hud_constraint(context):
+    """
+    Finds the 'HUD_3D_Legend' empty and updates its rotation and location constraints.
+    Rotation and location can follow the active camera or custom targets.
+    """
+    import bpy
+    import bonsai.tool as tool
+    
+    hud_empty = None
+    for obj in bpy.data.objects:
+        if obj.get("is_3d_legend_hud", False):
+            hud_empty = obj
+            break
+    
+    if not hud_empty:
+        return
+
+    # --- WORLD ORIGIN ANCHOR (Snapshot / Forced) ---
+    scene = getattr(context, 'scene', None)
+    if scene is None:
+        import bpy as _bpy
+        scene = _bpy.context.scene
+
+    force_world_origin = False
+
+    # Check for persistent world origin anchor mode
+    try:
+        camera_props = tool.Sequence.get_camera_orbit_props()
+        force_world_origin = getattr(camera_props, 'force_world_origin_anchor', False)
+        if force_world_origin:
+            print("🔒 Persistent anchor mode active - forcing world origin anchoring for 3D Legend HUD")
+    except Exception:
+        pass
+
+    # Clear all existing constraints on the 3D legend HUD
+    hud_empty.constraints.clear()
+
+    if force_world_origin:
+        print("🌍 3D Legend HUD: Anchored to world origin (no constraints)")
+        return
+
+    # Get active camera from camera settings
+    active_camera = None
+    try:
+        camera_props = tool.Sequence.get_camera_orbit_props()
+        active_camera = getattr(camera_props, 'active_animation_camera', None)
+    except Exception:
+        pass
+
+    # Fallback to scene camera if no active animation camera
+    if not active_camera:
+        active_camera = scene.camera
+
+    if not active_camera:
+        print("⚠️ No active camera found for 3D Legend HUD constraints")
+        return
+
+    # Get custom targets from camera properties
+    try:
+        camera_props = tool.Sequence.get_camera_orbit_props()
+        use_custom_rotation = getattr(camera_props, 'legend_3d_hud_use_custom_rotation_target', False)
+        rotation_target = getattr(camera_props, 'legend_3d_hud_rotation_target', None) if use_custom_rotation else None
+        use_custom_location = getattr(camera_props, 'legend_3d_hud_use_custom_location_target', False)
+        location_target = getattr(camera_props, 'legend_3d_hud_location_target', None) if use_custom_location else None
+    except Exception:
+        rotation_target = None
+        location_target = None
+
+    # Add rotation constraint
+    final_rotation_target = rotation_target if rotation_target else active_camera
+    if final_rotation_target:
+        rotation_constraint = hud_empty.constraints.new(type='COPY_ROTATION')
+        rotation_constraint.target = final_rotation_target
+        rotation_constraint.name = "Follow_Rotation"
+        print(f"✅ 3D Legend HUD rotation follows: {final_rotation_target.name}")
+
+    # Add location constraint  
+    final_location_target = location_target if location_target else active_camera
+    if final_location_target:
+        location_constraint = hud_empty.constraints.new(type='COPY_LOCATION')
+        location_constraint.target = final_location_target
+        location_constraint.name = "Follow_Location"
+        print(f"✅ 3D Legend HUD location follows: {final_location_target.name}")
+
 # ============================================================================
 # CAMERA AND HUD PROPERTY GROUP CLASSES
 # ============================================================================
@@ -345,6 +479,16 @@ class BIMCameraOrbitProperties(PropertyGroup):
         name="Snapshot Camera",
         description="Camera used for schedule snapshots",
         poll=lambda self, obj: obj.type == 'CAMERA',
+        update=update_active_snapshot_camera,
+    )
+    
+    # Legacy 4D camera property for backward compatibility
+    active_4d_camera: PointerProperty(
+        type=bpy.types.Object,
+        name="4D Camera",
+        description="Legacy camera property for 4D animation sequences",
+        poll=lambda self, obj: obj.type == 'CAMERA',
+        update=update_active_4d_camera,
     )
 
     # Camera visibility controls
@@ -375,6 +519,32 @@ class BIMCameraOrbitProperties(PropertyGroup):
         description="Display schedule information as an overlay in the viewport",
         default=False,
         update=update_gpu_hud_visibility,
+    )
+    
+    # HUD content toggles
+    hud_show_date: BoolProperty(
+        name="Date", 
+        description="Show date information in HUD",
+        default=True, 
+        update=update_hud_gpu
+    )
+    hud_show_week: BoolProperty(
+        name="Week", 
+        description="Show week information in HUD",
+        default=True, 
+        update=update_hud_gpu
+    )
+    hud_show_day: BoolProperty(
+        name="Day", 
+        description="Show day information in HUD",
+        default=False, 
+        update=update_hud_gpu
+    )
+    hud_show_progress: BoolProperty(
+        name="Progress", 
+        description="Show progress information in HUD",
+        default=False, 
+        update=update_hud_gpu
     )
     expand_hud_settings: BoolProperty(
         name="Expand HUD Settings",
@@ -927,6 +1097,66 @@ class BIMCameraOrbitProperties(PropertyGroup):
         description="Force all HUD and schedule displays to anchor at world origin instead of following camera",
         default=False,
         update=lambda self, context: update_schedule_display_parent_constraint(context),
+    )
+    
+    # =============================
+    # CUSTOM CONSTRAINT TARGETS FOR SCHEDULE DISPLAY PARENT
+    # =============================
+    use_custom_rotation_target: BoolProperty(
+        name="Use Custom Rotation Target",
+        description="Override the default camera tracking and constrain the rotation of the 3D text group to a specific object",
+        default=False,
+        update=lambda self, context: update_schedule_display_parent_constraint(context)
+    )
+    schedule_display_rotation_target: PointerProperty(
+        name="Rotation Target",
+        type=bpy.types.Object,
+        description="Object to which the 3D text group's rotation will be constrained",
+        poll=lambda self, obj: obj.type in {'CAMERA', 'EMPTY'},
+        update=lambda self, context: update_schedule_display_parent_constraint(context)
+    )
+    use_custom_location_target: BoolProperty(
+        name="Use Custom Location Target",
+        description="Override the default camera tracking and constrain the location of the 3D text group to a specific object",
+        default=False,
+        update=lambda self, context: update_schedule_display_parent_constraint(context)
+    )
+    schedule_display_location_target: PointerProperty(
+        name="Location Target",
+        type=bpy.types.Object,
+        description="Object to which the 3D text group's location will be constrained",
+        poll=lambda self, obj: obj.type in {'CAMERA', 'EMPTY'},
+        update=lambda self, context: update_schedule_display_parent_constraint(context)
+    )
+    
+    # =============================
+    # CUSTOM CONSTRAINT TARGETS FOR 3D LEGEND HUD
+    # =============================
+    legend_3d_hud_use_custom_rotation_target: BoolProperty(
+        name="Use Custom Rotation Target",
+        description="Override the default camera tracking and constrain the rotation of the 3D Legend HUD to a specific object",
+        default=False,
+        update=lambda self, context: update_legend_3d_hud_constraint(context)
+    )
+    legend_3d_hud_rotation_target: PointerProperty(
+        name="Rotation Target",
+        type=bpy.types.Object,
+        description="Object to which the 3D Legend HUD's rotation will be constrained",
+        poll=lambda self, obj: obj.type in {'CAMERA', 'EMPTY'},
+        update=lambda self, context: update_legend_3d_hud_constraint(context)
+    )
+    legend_3d_hud_use_custom_location_target: BoolProperty(
+        name="Use Custom Location Target",
+        description="Override the default camera tracking and constrain the location of the 3D Legend HUD to a specific object",
+        default=False,
+        update=lambda self, context: update_legend_3d_hud_constraint(context)
+    )
+    legend_3d_hud_location_target: PointerProperty(
+        name="Location Target",
+        type=bpy.types.Object,
+        description="Object to which the 3D Legend HUD's location will be constrained",
+        poll=lambda self, obj: obj.type in {'CAMERA', 'EMPTY'},
+        update=lambda self, context: update_legend_3d_hud_constraint(context)
     )
 
     # Camera orbit controls
