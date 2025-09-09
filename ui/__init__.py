@@ -15,6 +15,7 @@ their centralized registration and unregistration in Blender.
 
 
 import bpy
+<<<<<<< HEAD
 
 # 1. Importar todas las clases desde los nuevos módulos de UI
 from .animation_ui import (
@@ -84,3 +85,30 @@ def unregister():
     """Des-registra todas las clases de UI en orden inverso."""
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
+=======
+from . import elements
+from . import panels_workplan
+from . import panels_schedule
+from . import panels_animation
+from .panels_workplan import BIM_PT_work_plans, BIM_PT_work_calendars
+
+from .panels_schedule import (
+    BIM_PT_status, BIM_PT_work_schedules, BIM_PT_task_icom,
+    BIM_PT_variance_analysis, BIM_PT_4D_Tools
+)
+from .panels_animation import BIM_PT_animation_color_schemes, BIM_PT_animation_tools
+from .elements import (
+    BIM_UL_animation_group_stack, BIM_UL_task_columns, BIM_UL_task_filters,
+    BIM_UL_saved_filter_sets, BIM_UL_task_inputs, BIM_UL_task_resources,
+    BIM_UL_animation_colors, BIM_UL_task_outputs, BIM_UL_product_input_tasks,
+    BIM_UL_product_output_tasks, BIM_UL_tasks)
+
+# Lista de todos los módulos que contienen clases de UI para registrar
+
+MODULES = [
+    elements,
+    panels_workplan,
+    panels_schedule,
+    panels_animation,   
+]
+>>>>>>> a1ba380f1f277fd470bd00ca3d8feb4edeacbb21

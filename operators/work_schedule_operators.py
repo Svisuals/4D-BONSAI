@@ -28,7 +28,7 @@ try:
     from .ui import calculate_visible_columns_count
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop import update_filter_column
+        from bonsai.bim.module.sequence.prop.filter import update_filter_column
         import bonsai.bim.module.sequence.prop as prop
         from bonsai.bim.module.sequence.ui import calculate_visible_columns_count
     except Exception:
@@ -51,12 +51,12 @@ from .animation_operators import _clear_previous_animation, _get_animation_setti
 from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
 
 try:
-    from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+    from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
 except Exception:
     UnifiedColorTypeManager = None  # optional
 
 try:
-    from bonsai.bim.module.sequence.prop import TaskcolortypeGroupChoice
+    from bonsai.bim.module.sequence.prop.task import TaskcolortypeGroupChoice
 except Exception:
     TaskcolortypeGroupChoice = None  # optional
 

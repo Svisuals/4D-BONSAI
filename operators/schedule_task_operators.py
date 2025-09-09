@@ -8,11 +8,19 @@ import bonsai.tool as tool
 import bonsai.core.sequence as core
 
 try:
-    from ..prop import safe_set_selected_colortype_in_active_group
+    from ..prop.task import safe_set_selected_colortype_in_active_group
     # ... otras importaciones de ..prop
 except (ImportError, ValueError):
     # Fallback si la estructura cambia
-    from bonsai.bim.module.sequence.prop import safe_set_selected_colortype_in_active_group
+    try:
+        from bonsai.bim.module.sequence.prop.animation import safe_set_selected_colortype_in_active_group
+    except ImportError:
+        # Ultimate fallback
+        def safe_set_selected_colortype_in_active_group(task_obj, value, skip_validation=False):
+            try:
+                setattr(task_obj, "selected_colortype_in_active_group", value)
+            except Exception:
+                pass
 
 try:
     from .prop import update_filter_column
@@ -20,7 +28,7 @@ try:
     from .ui import calculate_visible_columns_count
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop import update_filter_column
+        from bonsai.bim.module.sequence.prop.filter import update_filter_column
         import bonsai.bim.module.sequence.prop as prop
         from bonsai.bim.module.sequence.ui import calculate_visible_columns_count
     except Exception:
@@ -682,9 +690,21 @@ class GoToTask(bpy.types.Operator):
     task: bpy.props.IntProperty()
 
     def execute(self, context):
-        r = core.go_to_task(tool.Sequence, task=tool.Ifc.get().by_id(self.task))
-        if isinstance(r, str):
-            self.report({"WARNING"}, r)
+        print(f"🚀 GoToTask operator executed with task ID: {self.task}")
+        try:
+            task_entity = tool.Ifc.get().by_id(self.task)
+            print(f"📋 Retrieved task entity: {task_entity} (Name: {getattr(task_entity, 'Name', 'N/A')})")
+            r = core.go_to_task(tool.Sequence, task=task_entity)
+            if isinstance(r, str):
+                print(f"⚠️ GoToTask returned warning: {r}")
+                self.report({"WARNING"}, r)
+            else:
+                print(f"✅ GoToTask completed successfully")
+        except Exception as e:
+            print(f"❌ Error in GoToTask operator: {e}")
+            import traceback
+            traceback.print_exc()
+            self.report({"ERROR"}, f"Error: {e}")
         return {"FINISHED"}
 
 

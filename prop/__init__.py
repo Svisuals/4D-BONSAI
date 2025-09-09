@@ -12,6 +12,7 @@ This package contains PropertyGroup classes organized thematically:
 All PropertyGroups maintain full compatibility with the original prop.py implementation.
 """
 
+<<<<<<< HEAD
 
 
 import bpy
@@ -71,3 +72,93 @@ def unregister():
 
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
+=======
+# Import all PropertyGroups to make them available when importing from prop
+from .animation import (
+    UnifiedColorTypeManager,
+    AnimationColorSchemes,
+    AnimationColorTypeGroupItem,
+    BIMAnimationProperties,
+    monitor_predefined_type_change,
+    safe_set_selected_colortype_in_active_group
+)
+
+from .camera_hud import (
+    BIMCameraOrbitProperties
+)
+
+from .task import (
+    TaskcolortypeGroupChoice,
+    Task,
+    TaskResource,
+    TaskProduct,
+    BIMTaskTreeProperties
+)
+
+from .schedule import (
+    WorkPlan,
+    BIMWorkPlanProperties,
+    BIMWorkScheduleProperties
+)
+
+from .filter import (
+    TaskFilterRule,
+    BIMTaskFilterProperties,
+    SavedFilterSet
+)
+
+from .calendar import (
+    WorkCalendar,
+    RecurrenceComponent,
+    BIMWorkCalendarProperties,
+    DatePickerProperties,
+    BIMDateTextProperties
+)
+
+from .misc import (
+    BIMTaskTypeColor,
+    IFCStatus,
+    BIMStatusProperties
+)
+
+# Export all classes for easy importing
+__all__ = [
+    # Animation
+    'UnifiedColorTypeManager',
+    'AnimationColorSchemes',
+    'AnimationColorTypeGroupItem',
+    'BIMAnimationProperties',
+    
+    # Camera & HUD
+    'BIMCameraOrbitProperties',
+    
+    # Tasks
+    'TaskcolortypeGroupChoice',
+    'Task',
+    'TaskResource',
+    'TaskProduct',
+    'BIMTaskTreeProperties',
+    
+    # Schedules
+    'WorkPlan',
+    'BIMWorkPlanProperties',
+    'BIMWorkScheduleProperties',
+    
+    # Filters
+    'TaskFilterRule',
+    'BIMTaskFilterProperties',
+    'SavedFilterSet',
+    
+    # Calendar
+    'WorkCalendar',
+    'RecurrenceComponent',
+    'BIMWorkCalendarProperties',
+    'DatePickerProperties',
+    'BIMDateTextProperties',
+    
+    # Miscellaneous
+    'BIMTaskTypeColor',
+    'IFCStatus',
+    'BIMStatusProperties'
+]
+>>>>>>> a1ba380f1f277fd470bd00ca3d8feb4edeacbb21
