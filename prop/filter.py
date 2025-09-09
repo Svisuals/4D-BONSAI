@@ -226,13 +226,16 @@ class TaskFilterRule(PropertyGroup):
 
 class BIMTaskFilterProperties(PropertyGroup):
     """Stores the complete configuration of the filter system."""
+    
     rules: CollectionProperty(
         name="Filter Rules",
         type=TaskFilterRule,
     )
+    
     active_rule_index: IntProperty(
         name="Active Filter Rule Index",
     )
+    
     logic: EnumProperty(
         name="Filter Logic",
         description="How multiple filter rules are combined",
@@ -240,60 +243,79 @@ class BIMTaskFilterProperties(PropertyGroup):
             ('AND', "Match All (AND)", "Show tasks that meet ALL active rules"),
             ('OR', "Match Any (OR)", "Show tasks that meet AT LEAST ONE active rule"),
         ],
-        default='AND',
-    )
-    show_filters: BoolProperty(
-        name="Show Filters",
-        description="Shows or hides the filter configuration panel",
-        default=False,
-    )
-    # --- ADDED PROPERTY ---
-    show_saved_filters: BoolProperty(
-        name="Show Saved Filters",
-        description="Shows or hides the saved filters panel",
-        default=False,
+        default='AND'
     )
 
-    def to_json_data(self):
-        """Serializes the filter state to a Python dictionary."""
-        rules_data = []
-        for rule in self.rules:
-            rules_data.append({
-                "is_active": rule.is_active,
-                "column": rule.column,
-                "operator": rule.operator,
-                "data_type": rule.data_type,
-                "value_string": rule.value_string,
-                "value_integer": rule.value_integer,
-                "value_float": rule.value_float,
-                "value_boolean": rule.value_boolean,
-            })
-        return {
-            "rules": rules_data,
-            "logic": self.logic,
-            "show_filters": self.show_filters,
-            "show_saved_filters": self.show_saved_filters,
-            "active_rule_index": self.active_rule_index,
-        }
+    # Quick filter options for common use cases
+    show_only_active_tasks: BoolProperty(
+        name="Show Only Active Tasks",
+        description="Filter to show only tasks that are currently in progress",
+        default=False
+    )
 
-    def from_json_data(self, data):
-        """Restores the filter state from a Python dictionary."""
-        self.rules.clear()
-        self.logic = data.get("logic", "AND")
-        self.show_filters = data.get("show_filters", False)
-        self.show_saved_filters = data.get("show_saved_filters", False)
-        for rule_data in data.get("rules", []):
-            new_rule = self.rules.add()
-            for key, value in rule_data.items():
-                if hasattr(new_rule, key):
-                    setattr(new_rule, key, value)
-        self.active_rule_index = data.get("active_rule_index", 0)
+    show_only_delayed_tasks: BoolProperty(
+        name="Show Only Delayed Tasks", 
+        description="Filter to show only tasks that are behind schedule",
+        default=False
+    )
 
+    show_only_tasks_with_outputs: BoolProperty(
+        name="Show Only Tasks with 3D Outputs",
+        description="Filter to show only tasks that have 3D elements assigned",
+        default=False
+    )
 
-class SavedFilterSet(PropertyGroup):
-    """Almacena un conjunto de reglas de filtro con un nombre."""
-    name: StringProperty(name="Set Name")
-    rules: CollectionProperty(type=TaskFilterRule)
+    # Search functionality
+    quick_search: StringProperty(
+        name="Quick Search",
+        description="Search tasks by name or identification",
+        default=""
+    )
+
+    search_in_columns: EnumProperty(
+        name="Search In",
+        description="Which columns to search in for quick search",
+        items=[
+            ('NAME', "Name", "Search in task names only"),
+            ('ID', "Identification", "Search in task identification only"), 
+            ('BOTH', "Name & ID", "Search in both name and identification"),
+            ('ALL', "All Text Columns", "Search in all text-based columns"),
+        ],
+        default='BOTH'
+    )
+
+    # Filter performance settings
+    enable_live_filtering: BoolProperty(
+        name="Live Filtering",
+        description="Update filter results in real-time as you type",
+        default=True
+    )
+
+    # Filter result statistics
+    total_tasks: IntProperty(
+        name="Total Tasks",
+        description="Total number of tasks in the schedule",
+        default=0
+    )
+
+    filtered_tasks: IntProperty(
+        name="Filtered Tasks",
+        description="Number of tasks after applying filters",
+        default=0
+    )
+
+    if TYPE_CHECKING:
+        rules: bpy.types.bpy_prop_collection_idprop[TaskFilterRule]
+        active_rule_index: int
+        logic: str
+        show_only_active_tasks: bool
+        show_only_delayed_tasks: bool
+        show_only_tasks_with_outputs: bool
+        quick_search: str
+        search_in_columns: str
+        enable_live_filtering: bool
+        total_tasks: int
+        filtered_tasks: int
 
 class SavedFilterSet(PropertyGroup):
     """Almacena un conjunto de reglas de filtro con un nombre."""

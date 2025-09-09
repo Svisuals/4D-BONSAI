@@ -4,7 +4,7 @@
 import bpy
 import bonsai.tool as tool
 import ifcopenshell.util.sequence
-from .. import hud as hud_overlay
+from .. import hud_overlay
 from datetime import datetime, timedelta
 from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
 

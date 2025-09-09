@@ -441,6 +441,8 @@ def update_legend_3d_hud_constraint(context):
 # ============================================================================
 
 class BIMCameraOrbitProperties(PropertyGroup):
+    """Properties for camera orbit, HUD display, and 3D timeline management"""
+    
     # =====================
     # Camera settings
     # =====================
@@ -464,19 +466,14 @@ class BIMCameraOrbitProperties(PropertyGroup):
         description="Camera far clipping distance",
     )
 
-    # =====================
-    # Orbit settings
-    # =====================
-    orbit_mode: EnumProperty(
-        name="Orbit Mode",
-        items=[
-            ("NONE", "None (Static)", "The camera will not move or be animated."),
-            ("CIRCLE_360", "Circle 360°", "The camera performs a full 360-degree circular orbit."),
-            ("PINGPONG", "Ping-Pong", "The camera moves back and forth along a 180-degree arc."),
-        ],
-        default="CIRCLE_360",
+    # Animation and snapshot camera selection
+    active_animation_camera: PointerProperty(
+        type=bpy.types.Object,
+        name="Animation Camera",
+        description="Camera used for 4D animation sequences",
+        poll=lambda self, obj: obj.type == 'CAMERA',
+        update=update_active_animation_camera,
     )
-<<<<<<< HEAD
     active_snapshot_camera: PointerProperty(
         type=bpy.types.Object,
         name="Snapshot Camera",
@@ -492,145 +489,34 @@ class BIMCameraOrbitProperties(PropertyGroup):
         description="Legacy camera property for 4D animation sequences",
         poll=lambda self, obj: obj.type == 'CAMERA',
         update=update_active_4d_camera,
-=======
-    orbit_radius_mode: EnumProperty(
-        name="Radius Mode",
-        items=[
-            ("AUTO", "Auto (from bbox)", "Compute radius from WorkSchedule bbox"),
-            ("MANUAL", "Manual", "Use manual radius value"),
-        ],
-        default="AUTO",
-    )
-    orbit_radius: FloatProperty(
-        name="Radius (m)",
-        default=10.0,
-        min=0.01,
-        description="Manual orbit radius in meters",
-    )
-    orbit_height: FloatProperty(
-        name="Height (Z offset)",
-        default=8.0,
-        description="Height offset from target center",
-    )
-    orbit_start_angle_deg: FloatProperty(
-        name="Start Angle (deg)",
-        default=0.0,
-        description="Starting angle in degrees",
-    )
-    orbit_direction: EnumProperty(
-        name="Direction",
-        items=[("CCW", "CCW", "Counter-clockwise"), ("CW", "CW", "Clockwise")],
-        default="CCW",
->>>>>>> 198004b538752a71834f8081cc97b6b4ff86f400
     )
 
-    # =====================
-    # Look At settings
-    # =====================
-    look_at_mode: EnumProperty(
-        name="Look At",
-        items=[
-            ("AUTO", "Auto (active WorkSchedule area)", "Use bbox center of active WorkSchedule"),
-            ("OBJECT", "Object", "Select object/Empty as target"),
-        ],
-        default="AUTO",
-    )
-    look_at_object: PointerProperty(
-        name="Target",
-        type=bpy.types.Object,
-        description="Target object for camera to look at",
-    )
-
-    # =====================
-    # Path & Interpolation
-    # =====================
-    orbit_path_shape: EnumProperty(
-        name="Path Shape",
-        items=[
-            ("CIRCLE", "Circle (Generated)", "The add-on creates a perfect circle"),
-            ("CUSTOM", "Custom Path", "Use your own curve object as the path"),
-        ],
-        default="CIRCLE",
-        description="Choose between a generated circle or a custom curve for the orbit path",
-    )
-    custom_orbit_path: PointerProperty(
-        name="Custom Path",
-        type=bpy.types.Object,
-        description="Select a Curve object for the camera to follow",
-        poll=lambda self, object: getattr(object, "type", None) == "CURVE",
-    )
-    interpolation_mode: EnumProperty(
-        name="Interpolation",
-        items=[
-            ("LINEAR", "Linear (Constant Speed)", "Constant, mechanical speed"),
-            ("BEZIER", "Bezier (Smooth)", "Smooth ease-in and ease-out for a natural feel"),
-        ],
-        default="LINEAR",
-        description="Controls the smoothness and speed changes of the camera motion",
-    )
-    bezier_smoothness_factor: FloatProperty(
-        name="Smoothness Factor",
-        description="Controls the intensity of the ease-in/ease-out. Higher values create a more gradual transition",
-        default=0.35,
-        min=0.0,
-        max=2.0,
-        soft_min=0.0,
-        soft_max=1.0,
-    )
-
-    # =====================
-    # Animation settings
-    # =====================
-    orbit_path_method: EnumProperty(
-        name="Path Method",
-        items=[
-            ("FOLLOW_PATH", "Follow Path (editable)", "Bezier circle + Follow Path"),
-            ("KEYFRAMES", "Keyframes (lightweight)", "Animate location directly"),
-        ],
-        default="FOLLOW_PATH",
-    )
-    orbit_use_4d_duration: BoolProperty(
-        name="Use 4D total frames",
+    # Camera visibility controls
+    show_animation_cameras: BoolProperty(
+        name="Show Animation Cameras",
+        description="Toggle visibility of animation cameras and related objects in viewport",
         default=True,
-        description="If enabled, orbit spans the whole 4D animation range",
+        update=update_animation_camera_visibility,
     )
-    orbit_duration_frames: FloatProperty(
-        name="Orbit Duration (frames)",
-        default=250.0,
-        min=1.0,
-        description="Custom orbit duration in frames",
+    show_snapshot_cameras: BoolProperty(
+        name="Show Snapshot Cameras", 
+        description="Toggle visibility of snapshot cameras and related objects in viewport",
+        default=True,
+        update=update_snapshot_camera_visibility,
     )
-
-    # =====================
-    # UI toggles
-    # =====================
     show_camera_orbit_settings: BoolProperty(
-        name="Camera & Orbit",
+        name="Show Camera & Orbit Settings",
+        description="Toggle visibility of camera and orbit configuration settings",
         default=False,
-        description="Toggle Camera & Orbit settings visibility",
-    )
-    hide_orbit_path: BoolProperty(
-        name="Hide Orbit Path",
-        default=False,
-        description="Hide the visible orbit path (Bezier Circle) in the viewport and render",
     )
 
     # =====================
-    # 3D Texts
+    # HUD System
     # =====================
-    show_3d_schedule_texts: BoolProperty(
-        name="Show 3D HUD Render",
-        description="Toggle visibility of the 3D objects used as a Heads-Up Display (HUD) for rendering",
-        default=False,
-        update=lambda self, context: toggle_3d_text_visibility(self, context),
-    )
-
-    # =====================
-    # HUD (GPU) - Base
-    # =====================
+    # Global HUD toggle
     enable_text_hud: BoolProperty(
-        name="Enable Viewport HUD",
-        description="Enable GPU-based HUD overlay for real-time schedule information in the viewport",
+        name="Enable Schedule HUD",
+        description="Display schedule information as an overlay in the viewport",
         default=False,
         update=update_gpu_hud_visibility,
     )
@@ -680,26 +566,22 @@ class BIMCameraOrbitProperties(PropertyGroup):
         default=False,
         description="Show/hide Legend HUD settings"
     )
-    expand_3d_hud_render: BoolProperty(
-        name="Expand 3D HUD Render",
-        default=False,
-        description="Show/hide 3D HUD Render settings"
-    )
 
-    hud_show_date: BoolProperty(name="Date", default=True, update=update_hud_gpu)
-    hud_show_week: BoolProperty(name="Week", default=True, update=update_hud_gpu)
-    hud_show_day: BoolProperty(name="Day", default=False, update=update_hud_gpu)
-    hud_show_progress: BoolProperty(name="Progress", default=False, update=update_hud_gpu)
-
+    # Position and layout
     hud_position: EnumProperty(
         name="Position",
         items=[
-            ("TOP_RIGHT", "Top Right", ""),
-            ("TOP_LEFT", "Top Left", ""),
-            ("BOTTOM_RIGHT", "Bottom Right", ""),
-            ("BOTTOM_LEFT", "Bottom Left", ""),
+            ("TOP_LEFT", "Top Left", "Display HUD in the top-left corner"),
+            ("TOP_CENTER", "Top Center", "Display HUD in the top-center"),
+            ("TOP_RIGHT", "Top Right", "Display HUD in the top-right corner"),
+            ("MIDDLE_LEFT", "Middle Left", "Display HUD in the middle-left"),
+            ("CENTER", "Center", "Display HUD in the center"),
+            ("MIDDLE_RIGHT", "Middle Right", "Display HUD in the middle-right"),
+            ("BOTTOM_LEFT", "Bottom Left", "Display HUD in the bottom-left corner"),
+            ("BOTTOM_CENTER", "Bottom Center", "Display HUD in the bottom-center"),
+            ("BOTTOM_RIGHT", "Bottom Right", "Display HUD in the bottom-right corner"),
         ],
-        default="BOTTOM_LEFT",
+        default="TOP_LEFT",
         update=force_hud_refresh,
     )
     hud_scale_factor: FloatProperty(
@@ -935,8 +817,6 @@ class BIMCameraOrbitProperties(PropertyGroup):
         update=force_hud_refresh,
     )
 
-# --- START OF CORRECTED CODE ---
-
     # ==========================================
     # === TIMELINE HUD (GPU) - PROPIEDADES NUEVAS ===
     # ==========================================
@@ -1047,314 +927,178 @@ class BIMCameraOrbitProperties(PropertyGroup):
             ('TOP_RIGHT', "Top Right", "Position at the top-right corner"),
             ('BOTTOM_LEFT', "Bottom Left", "Position at the bottom-left corner"),
             ('BOTTOM_RIGHT', "Bottom Right", "Position at the bottom-right corner"),
+            ('CENTER_LEFT', "Center Left", "Position at the center-left side"),
+            ('CENTER_RIGHT', "Center Right", "Position at the center-right side"),
         ],
-        default="TOP_LEFT",
+        default='TOP_RIGHT',
         update=force_hud_refresh,
     )
     
     legend_hud_margin_horizontal: FloatProperty(
-        name="Horizontal Margin",
-        description="Horizontal margin from screen edges",
-        default=0.05,
+        name="H-Margin",
+        description="Horizontal margin from screen edge",
+        default=0.02,
         min=0.0,
-        max=0.5,
-        step=1,
+        max=0.45,
         precision=3,
         update=force_hud_refresh,
     )
     
     legend_hud_margin_vertical: FloatProperty(
-        name="Vertical Margin",
-        description="Vertical margin from screen edges",
-        default=0.5,
+        name="V-Margin", 
+        description="Vertical margin from screen edge",
+        default=0.02,
         min=0.0,
-        max=0.5,
-        step=1,
+        max=0.45,
         precision=3,
         update=force_hud_refresh,
     )
-    
-    legend_hud_orientation: EnumProperty(
-        name="Orientation",
-        description="Layout orientation of legend items",
-        items=[
-            ("VERTICAL", "Vertical", "Stack items vertically"),
-            ("HORIZONTAL", "Horizontal", "Arrange items horizontally"),
-        ],
-        default="VERTICAL",
-        update=force_hud_refresh,
-    )
-    
-    legend_hud_scale: FloatProperty(
+
+    legend_hud_scale_factor: FloatProperty(
         name="Scale",
-        description="Overall scale factor for legend HUD",
+        description="Scale factor for the legend HUD",
         default=1.0,
-        min=0.1,
+        min=0.3,
         max=3.0,
-        step=1,
         precision=2,
         update=force_hud_refresh,
     )
-    
+
+    # Legend visual properties
     legend_hud_background_color: FloatVectorProperty(
         name="Background Color",
-        description="Background color of legend HUD",
-        default=(0.0, 0.0, 0.0, 0.8),
+        subtype='COLOR',
+        size=4,
+        default=(0.0, 0.0, 0.0, 0.7),
         min=0.0,
         max=1.0,
-        size=4,
-        subtype='COLOR',
         update=force_hud_refresh,
     )
-    
+
+    legend_hud_text_color: FloatVectorProperty(
+        name="Text Color",
+        subtype='COLOR',
+        size=4,
+        default=(1.0, 1.0, 1.0, 1.0),
+        min=0.0,
+        max=1.0,
+        update=force_hud_refresh,
+    )
+
+    legend_hud_padding: FloatProperty(
+        name="Padding",
+        description="Internal padding of the legend panel",
+        default=10.0,
+        min=0.0,
+        max=50.0,
+        update=force_hud_refresh,
+    )
+
     legend_hud_border_radius: FloatProperty(
         name="Border Radius",
-        description="Corner rounding radius for legend background",
-        default=5.0,
-        min=0.0,
-        max=50.0,
-        step=1,
-        precision=1,
-        update=force_hud_refresh,
-    )
-    
-    legend_hud_padding_horizontal: FloatProperty(
-        name="Horizontal Padding",
-        description="Horizontal padding inside legend background",
-        default=12.0,
-        min=0.0,
-        max=50.0,
-        step=1,
-        precision=1,
-        update=force_hud_refresh,
-    )
-    
-    legend_hud_padding_vertical: FloatProperty(
-        name="Vertical Padding",
-        description="Vertical padding inside legend background",
+        description="Corner radius of the legend background",
         default=8.0,
         min=0.0,
-        max=50.0,
-        step=1,
-        precision=1,
+        max=20.0,
         update=force_hud_refresh,
     )
-    
+
     legend_hud_item_spacing: FloatProperty(
         name="Item Spacing",
         description="Spacing between legend items",
-        default=8.0,
+        default=2.0,
         min=0.0,
-        max=30.0,
-        step=1,
-        precision=1,
+        max=20.0,
         update=force_hud_refresh,
     )
-    
-    legend_hud_text_color: FloatVectorProperty(
-        name="Text Color",
-        description="Color of legend text",
-        default=(1.0, 1.0, 1.0, 1.0),
-        min=0.0,
-        max=1.0,
-        size=4,
-        subtype='COLOR',
-        update=force_hud_refresh,
-    )
-    
-    legend_hud_show_title: BoolProperty(
-        name="Show Title",
-        description="Display title at the top of legend",
-        default=True,
-        update=force_hud_refresh,
-    )
-    
-    legend_hud_title_text: StringProperty(
-        name="Title Text",
-        description="Text to display as legend title",
-        default="Legend",
-        update=force_hud_refresh,
-    )
-    
-    legend_hud_title_color: FloatVectorProperty(
-        name="Title Color",
-        description="Color of legend title text",
-        default=(1.0, 1.0, 1.0, 1.0),
-        min=0.0,
-        max=1.0,
-        size=4,
-        subtype='COLOR',
-        update=force_hud_refresh,
-    )
-    
-    legend_hud_color_indicator_size: FloatProperty(
-        name="Color Indicator Size",
-        description="Size of color indicator squares",
+
+    legend_hud_color_box_size: FloatProperty(
+        name="Color Box Size",
+        description="Size of the color indicator boxes",
         default=12.0,
         min=4.0,
-        max=32.0,
-        step=1,
-        precision=1,
+        max=30.0,
         update=force_hud_refresh,
     )
-    
-    legend_hud_text_shadow_enabled: BoolProperty(
-        name="Text Shadow",
-        description="Enable text shadow for better visibility",
+
+    # Advanced legend options
+    legend_hud_show_task_count: BoolProperty(
+        name="Show Task Count",
+        description="Display the number of tasks for each colortype",
         default=True,
         update=force_hud_refresh,
     )
-    
-    legend_hud_text_shadow_color: FloatVectorProperty(
-        name="Shadow Color",
-        description="Color of text shadow",
-        default=(0.0, 0.0, 0.0, 0.8),
-        min=0.0,
-        max=1.0,
-        size=4,
-        subtype='COLOR',
-        update=force_hud_refresh,
-    )
-    
-    legend_hud_text_shadow_offset_x: FloatProperty(
-        name="Shadow Offset X",
-        description="Horizontal offset of text shadow",
-        default=1.0,
-        min=-10.0,
-        max=10.0,
-        step=1,
-        precision=1,
-        update=force_hud_refresh,
-    )
-    
-    legend_hud_text_shadow_offset_y: FloatProperty(
-        name="Shadow Offset Y",
-        description="Vertical offset of text shadow",
-        default=-1.0,
-        min=-10.0,
-        max=10.0,
-        step=1,
-        precision=1,
-        update=force_hud_refresh,
-    )
-    
-    legend_hud_auto_scale: BoolProperty(
-        name="Auto Scale",
-        description="Automatically scale legend to fit content",
-        default=True,
-        update=force_hud_refresh,
-    )
-    
-    legend_hud_max_width: FloatProperty(
-        name="Max Width",
-        description="Maximum width as proportion of viewport width",
-        default=0.3,
-        min=0.1,
-        max=0.8,
-        step=1,
-        precision=2,
-        update=force_hud_refresh,
-    )
-    
-    # ==================== LEGEND HUD COLOR COLUMNS ====================
-    
-    legend_hud_show_start_column: BoolProperty(
-        name="Show Start Colors",
-        description="Display start state colors column",
+
+    legend_hud_show_inactive_types: BoolProperty(
+        name="Show Inactive Types",
+        description="Include colortypes that are not currently active in the legend",
         default=False,
         update=force_hud_refresh,
     )
-    
-    legend_hud_show_active_column: BoolProperty(
-        name="Show Active Colors",
-        description="Display active/in-progress state colors column",
-        default=True,
+
+    legend_hud_max_items: IntProperty(
+        name="Max Items",
+        description="Maximum number of legend items to display",
+        default=15,
+        min=1,
+        max=50,
         update=force_hud_refresh,
     )
-    
-    legend_hud_show_end_column: BoolProperty(
-        name="Show End Colors",
-        description="Display end/finished state colors column",
-        default=False,
-        update=force_hud_refresh,
-    )
-    
-    legend_hud_show_start_title: BoolProperty(
-        name="Show 'Start' Title",
-        description="Display 'Start' column title",
-        default=False,
-        update=force_hud_refresh,
-    )
-    
-    legend_hud_show_active_title: BoolProperty(
-        name="Show 'Active' Title", 
-        description="Display 'Active' column title",
-        default=False,
-        update=force_hud_refresh,
-    )
-    
-    legend_hud_show_end_title: BoolProperty(
-        name="Show 'End' Title",
-        description="Display 'End' column title", 
-        default=False,
-        update=force_hud_refresh,
-    )
-    
-    legend_hud_column_spacing: FloatProperty(
-        name="Column Spacing",
-        description="Spacing between color columns",
-        default=16.0,
-        min=4.0,
-        max=50.0,
-        step=1,
-        precision=1,
-        update=force_hud_refresh,
-    )
-    
-    legend_hud_title_font_size: FloatProperty(
-        name="Title Font Size",
-        description="Font size for the legend title",
-        default=16.0,
-        min=8.0,
-        max=48.0,
-        step=1,
-        precision=1,
-        update=force_hud_refresh,
-    )
-    
-    # ==================== colortype VISIBILITY SELECTION ====================
-    
-    legend_hud_visible_colortypes: StringProperty(
-        name="Hidden colortypes",
-        description="Comma-separated list of colortype names to hide in legend (all colortypes visible by default)",
-        default="",
-        update=force_hud_refresh,
-    )
-    
-    # colortype list scroll properties
-    legend_hud_colortype_scroll_offset: IntProperty(
-        name="colortype List Scroll Offset",
-        description="Current scroll position in the colortype list",
-        default=0,
-        min=0,
-    )
-    
+
     # ==================== 3D LEGEND HUD PROPERTIES ====================
     
     enable_3d_legend_hud: BoolProperty(
         name="Enable 3D Legend HUD",
-        description="Display 3D Legend HUD with current active ColorTypes as 3D objects",
+        description="Create 3D text objects in the scene for the legend instead of GPU overlay",
         default=False,
         update=update_gpu_hud_visibility,
     )
-    
-    expand_3d_legend_hud: BoolProperty(
-        name="Expand 3D Legend HUD Settings",
-        description="Show/hide 3D Legend HUD settings",
+
+    # 3D Legend positioning
+    legend_3d_location: FloatVectorProperty(
+        name="3D Location",
+        description="World space location for the 3D legend",
+        subtype='TRANSLATION',
+        size=3,
+        default=(10.0, 0.0, 5.0),
+        update=force_hud_refresh,
+    )
+
+    legend_3d_scale: FloatProperty(
+        name="3D Scale",
+        description="Scale factor for 3D legend text objects",
+        default=1.0,
+        min=0.1,
+        max=10.0,
+        precision=2,
+        update=force_hud_refresh,
+    )
+
+    legend_3d_spacing: FloatProperty(
+        name="3D Spacing",
+        description="Vertical spacing between 3D legend items",
+        default=2.0,
+        min=0.1,
+        max=10.0,
+        precision=2,
+        update=force_hud_refresh,
+    )
+
+    legend_3d_always_face_camera: BoolProperty(
+        name="Always Face Camera",
+        description="Make 3D legend text always face the active camera",
+        default=True,
+        update=force_hud_refresh,
+    )
+
+    # Anchor system for displaying schedules and HUD elements
+    force_world_origin_anchor: BoolProperty(
+        name="Force World Origin Anchor",
+        description="Force all HUD and schedule displays to anchor at world origin instead of following camera",
         default=False,
+        update=lambda self, context: update_schedule_display_parent_constraint(context),
     )
     
-<<<<<<< HEAD
     # =============================
     # CUSTOM CONSTRAINT TARGETS FOR SCHEDULE DISPLAY PARENT
     # =============================
@@ -1422,310 +1166,91 @@ class BIMCameraOrbitProperties(PropertyGroup):
         default=1.0,
         min=0.1,
         max=5.0,
-=======
-    # Position and Layout
-    legend_3d_hud_distance: FloatProperty(
-        name="HUD Distance",
-        description="Distance from camera in camera space",
-        default=2.2,
-        min=0.5,
-        max=10.0,
-        step=1,
->>>>>>> 198004b538752a71834f8081cc97b6b4ff86f400
         precision=2,
     )
     
-    legend_3d_hud_pos_x: FloatProperty(
-        name="HUD Position X",
-        description="Horizontal position in camera space",
-        default=-3.6,
-        min=-10.0,
-        max=10.0,
-        step=1,
-        precision=2,
-    )
-    
-    legend_3d_hud_pos_y: FloatProperty(
-        name="HUD Position Y", 
-        description="Vertical position in camera space",
-        default=1.4,
-        min=-10.0,
-        max=10.0,
-        step=1,
-        precision=2,
-    )
-    
-    legend_3d_hud_scale: FloatProperty(
-        name="HUD Scale",
-        description="Overall scale of the 3D Legend HUD",
-        default=1.0,
-        min=0.1,
-        max=5.0,
-        step=1,
-        precision=2,
-    )
-    
-    # Panel Settings
-    legend_3d_panel_width: FloatProperty(
-        name="Panel Width",
-        description="Width of the legend panel",
-        default=2.2,
-        min=0.5,
-        max=10.0,
-        step=1,
-        precision=2,
-    )
-    
-    legend_3d_panel_radius: FloatProperty(
-        name="Panel Corner Radius",
-        description="Corner radius for rounded panel",
-        default=0.12,
-        min=0.0,
-        max=1.0,
-        step=1,
-        precision=3,
-    )
-    
-    legend_3d_panel_alpha: FloatProperty(
-        name="Panel Alpha",
-        description="Panel background transparency",
-        default=0.85,
-        min=0.0,
-        max=1.0,
-        step=1,
-        precision=2,
-    )
-    
-    # Font Settings
-    legend_3d_font_size_title: FloatProperty(
-        name="Title Font Size",
-        description="Font size for legend title",
-        default=0.18,
-        min=0.05,
-        max=1.0,
-        step=1,
-        precision=3,
-    )
-    
-    legend_3d_font_size_item: FloatProperty(
-        name="Item Font Size",
-        description="Font size for legend items",
-        default=0.15,
-        min=0.05,
-        max=1.0,
-        step=1,
-        precision=3,
-    )
-    
-    # Layout Settings
-    legend_3d_padding_x: FloatProperty(
-        name="Padding X",
-        description="Horizontal padding inside panel",
-        default=0.18,
-        min=0.0,
-        max=1.0,
-        step=1,
-        precision=3,
-    )
-    
-    legend_3d_padding_top: FloatProperty(
-        name="Padding Top",
-        description="Top padding inside panel",
-        default=0.20,
-        min=0.0,
-        max=1.0,
-        step=1,
-        precision=3,
-    )
-    
-    legend_3d_padding_bottom: FloatProperty(
-        name="Padding Bottom", 
-        description="Bottom padding inside panel",
-        default=0.20,
-        min=0.0,
-        max=1.0,
-        step=1,
-        precision=3,
-    )
-    
-    legend_3d_row_height: FloatProperty(
-        name="Row Height",
-        description="Height of each legend item row",
-        default=0.20,
-        min=0.05,
-        max=1.0,
-        step=1,
-        precision=3,
-    )
-    
-    legend_3d_dot_diameter: FloatProperty(
-        name="Color Dot Diameter",
-        description="Diameter of color indicator dots",
-        default=0.10,
-        min=0.02,
-        max=0.5,
-        step=1,
-        precision=3,
-    )
-    
-    legend_3d_dot_text_gap: FloatProperty(
-        name="Dot to Text Gap",
-        description="Gap between color dot and text",
-        default=0.12,
-        min=0.01,
-        max=0.5,
-        step=1,
-        precision=3,
-    )
-    
-    legend_3d_title_text: StringProperty(
-        name="Legend Title",
-        description="Text to display as legend title",
-        default="Legend",
-    )
-    
-    timeline_hud_width: FloatProperty(
-        name="Timeline Width",
-        description="Width of the timeline HUD as percentage of viewport width",
-        default=0.8, min=0.1, max=1.0, subtype='PERCENTAGE',
-        update=force_hud_refresh,
-    )
-    timeline_hud_color_indicator: FloatVectorProperty(
-        name="Current Date Indicator Color",
-        subtype='COLOR', size=4, min=0.0, max=1.0,
-        default=(1.0, 0.906, 0.204, 1.0),  # #FFE734FF
-        update=force_hud_refresh,
-    )
-    
-    # LOCK/UNLOCK controls for manual positioning
-    text_hud_locked: BoolProperty(
-        name="Lock Text HUD",
-        description="When locked, text HUD position is automatic. When unlocked, allows manual positioning",
-        default=True,
-        update=force_hud_refresh,
-    )
-    # Manual positioning coordinates (stored when unlocked)
-    text_hud_manual_x: FloatProperty(
-        name="Manual X Position",
-        description="Manual X position for text HUD when unlocked",
-        default=0.0,
-        update=force_hud_refresh,
-    )
-    text_hud_manual_y: FloatProperty(
-        name="Manual Y Position", 
-        description="Manual Y position for text HUD when unlocked",
-        default=0.0,
-        update=force_hud_refresh,
-    )
-    timeline_hud_manual_x: FloatProperty(
-        name="Manual X Position",
-        description="Manual X position for timeline HUD when unlocked", 
-        default=0.0,
-        update=force_hud_refresh,
-    )
-    timeline_hud_manual_y: FloatProperty(
-        name="Manual Y Position",
-        description="Manual Y position for timeline HUD when unlocked",
-        default=0.0,
-        update=force_hud_refresh,
+    orbit_radius: FloatProperty(
+        name="Orbit Radius", 
+        description="Radius of camera orbit path",
+        default=10.0,
+        min=1.0,
+        max=100.0,
+        precision=1,
     )
 
-    # =====================
-    # 4D Camera Management - Animation Context
-    # =====================
-    active_animation_camera: PointerProperty(
-        name="Active Animation Camera",
-        type=bpy.types.Object,
-        description="Selecciona una cámara 4D existente para los Ajustes de Animación",
-        poll=lambda self, obj: tool.Sequence.is_bonsai_animation_camera(obj), # <-- LÓGICA DE FILTRADO
-        update=update_active_animation_camera,
-    )
-    hide_all_animation_cameras: BoolProperty(
-        name="Hide All Animation Cameras",
-        description="Alterna la visibilidad de todas las cámaras de animación 4D en la vista",
-        default=False,
-        update=update_animation_camera_visibility,
-    )
-    
-    # =====================
-    # 4D Camera Management - Snapshot Context  
-    # =====================
-    active_snapshot_camera: PointerProperty(
-        name="Active Snapshot Camera",
-        type=bpy.types.Object,
-        description="Selecciona una cámara 4D existente para los Ajustes de Snapshot",
-        poll=lambda self, obj: tool.Sequence.is_bonsai_snapshot_camera(obj), # <-- LÓGICA DE FILTRADO
-        update=update_active_snapshot_camera,
-    )
-    hide_all_snapshot_cameras: BoolProperty(
-        name="Hide All Snapshot Cameras",
-        description="Alterna la visibilidad de todas las cámaras de snapshot 4D en la vista",
-        default=False,
-        update=update_snapshot_camera_visibility,
-    )
-    
-    # Legacy property for backward compatibility - will be deprecated
-    active_4d_camera: PointerProperty(
-        name="Active 4D Camera (Legacy)",
-        type=bpy.types.Object,
-        description="Legacy camera selector - use context-specific selectors instead",
-        poll=lambda self, obj: (obj and obj.type == 'CAMERA' and 
-                               (obj.get('is_4d_camera') or 
-                                '4D_Animation_Camera' in obj.name or 
-                                'Snapshot_Camera' in obj.name)),
-        update=update_active_4d_camera,
-    )
-    # --- NEW: Custom Rotation for 3D HUD Render Settings ---
-    use_custom_rotation_target: BoolProperty(
-        name="Use Custom Rotation Target",
-        description="Override the default camera tracking and constrain the rotation of the 3D text group to a specific object",
-        default=False,
-        update=lambda self, context: update_schedule_display_parent_constraint(context)
-    )
-    schedule_display_rotation_target: PointerProperty(
-        name="Rotation Target",
-        type=bpy.types.Object,
-        description="Object to which the 3D text group's rotation will be constrained",
-        poll=lambda self, object: object.type in {'CAMERA', 'EMPTY'},
-        update=lambda self, context: update_schedule_display_parent_constraint(context)
-    )
-    use_custom_location_target: BoolProperty(
-        name="Use Custom Location Target",
-        description="Override the default camera tracking and constrain the location of the 3D text group to a specific object",
-        default=False,
-        update=lambda self, context: update_schedule_display_parent_constraint(context)
-    )
-    schedule_display_location_target: PointerProperty(
-        name="Location Target",
-        type=bpy.types.Object,
-        description="Object to which the 3D text group's location will be constrained",
-        poll=lambda self, object: object.type in {'CAMERA', 'EMPTY'},
-        update=lambda self, context: update_schedule_display_parent_constraint(context)
-    )
-    # --- NEW: Custom Rotation for 3D Legend HUD ---
-    legend_3d_hud_use_custom_rotation_target: BoolProperty(
-        name="Use Custom Rotation Target",
-        description="Override the default camera tracking and constrain the rotation of the 3D Legend HUD to a specific object",
-        default=False,
-        update=lambda self, context: update_legend_3d_hud_constraint(context)
-    )
-    legend_3d_hud_rotation_target: PointerProperty(
-        name="Rotation Target",
-        type=bpy.types.Object,
-        description="Object to which the 3D Legend HUD's rotation will be constrained",
-        poll=lambda self, object: object.type in {'CAMERA', 'EMPTY'},
-        update=lambda self, context: update_legend_3d_hud_constraint(context)
-    )
-    legend_3d_hud_use_custom_location_target: BoolProperty(
-        name="Use Custom Location Target",
-        description="Override the default camera tracking and constrain the location of the 3D Legend HUD to a specific object",
-        default=False,
-        update=lambda self, context: update_legend_3d_hud_constraint(context)
-    )
-    legend_3d_hud_location_target: PointerProperty(
-        name="Location Target",
-        type=bpy.types.Object,
-        description="Object to which the 3D Legend HUD's location will be constrained",
-        poll=lambda self, object: object.type in {'CAMERA', 'EMPTY'},
-        update=lambda self, context: update_legend_3d_hud_constraint(context)
-    )
+    # Type checking
+    if TYPE_CHECKING:
+        camera_focal_mm: float
+        camera_clip_start: float
+        camera_clip_end: float
+        active_animation_camera: bpy.types.Object
+        active_snapshot_camera: bpy.types.Object
+        show_animation_cameras: bool
+        show_snapshot_cameras: bool
+        show_camera_orbit_settings: bool
+        enable_text_hud: bool
+        expand_hud_settings: bool
+        expand_schedule_hud: bool
+        expand_timeline_hud: bool
+        expand_legend_hud: bool
+        hud_position: str
+        hud_scale_factor: float
+        hud_margin_horizontal: float
+        hud_margin_vertical: float
+        hud_text_color: tuple[float, float, float, float]
+        hud_background_color: tuple[float, float, float, float]
+        hud_text_spacing: float
+        hud_text_alignment: str
+        hud_padding_horizontal: float
+        hud_padding_vertical: float
+        hud_border_radius: float
+        hud_border_width: float
+        hud_border_color: tuple[float, float, float, float]
+        hud_text_shadow_enabled: bool
+        hud_text_shadow_offset_x: float
+        hud_text_shadow_offset_y: float
+        hud_text_shadow_color: tuple[float, float, float, float]
+        hud_background_shadow_enabled: bool
+        hud_background_shadow_offset_x: float
+        hud_background_shadow_offset_y: float
+        hud_background_shadow_blur: float
+        hud_background_shadow_color: tuple[float, float, float, float]
+        hud_font_weight: str
+        hud_letter_spacing: float
+        hud_background_gradient_enabled: bool
+        hud_background_gradient_color: tuple[float, float, float, float]
+        hud_gradient_direction: str
+        enable_timeline_hud: bool
+        timeline_hud_position: str
+        timeline_hud_margin_vertical: float
+        timeline_hud_margin_horizontal: float
+        timeline_hud_zoom_level: str
+        timeline_hud_height: float
+        timeline_hud_color_inactive_range: tuple[float, float, float, float]
+        timeline_hud_color_active_range: tuple[float, float, float, float]
+        timeline_hud_color_progress: tuple[float, float, float, float]
+        timeline_hud_color_text: tuple[float, float, float, float]
+        timeline_hud_border_radius: float
+        timeline_hud_show_progress_bar: bool
+        enable_legend_hud: bool
+        legend_hud_position: str
+        legend_hud_margin_horizontal: float
+        legend_hud_margin_vertical: float
+        legend_hud_scale_factor: float
+        legend_hud_background_color: tuple[float, float, float, float]
+        legend_hud_text_color: tuple[float, float, float, float]
+        legend_hud_padding: float
+        legend_hud_border_radius: float
+        legend_hud_item_spacing: float
+        legend_hud_color_box_size: float
+        legend_hud_show_task_count: bool
+        legend_hud_show_inactive_types: bool
+        legend_hud_max_items: int
+        enable_3d_legend_hud: bool
+        legend_3d_location: tuple[float, float, float]
+        legend_3d_scale: float
+        legend_3d_spacing: float
+        legend_3d_always_face_camera: bool
+        force_world_origin_anchor: bool
+        orbit_speed: float
+        orbit_radius: float
