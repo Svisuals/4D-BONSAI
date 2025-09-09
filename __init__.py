@@ -20,8 +20,10 @@
 
 import bpy
 
-from . import ui, prop
+from . import ui
+from . import prop
 from . import operators
+from .operators import io_operators, camera_operators
 
 
 classes = (
