@@ -391,4 +391,360 @@ def copy_task_colortype_config():
                         setattr(target_group, attr, getattr(source_group, attr))
                         break
         except Exception as e:
-            print(f"Error copying to task {target_task.ifc_definition_id}: {e}")
+            print(f"Error copying ColorType config: {e}")
+
+def _process_task_status_cached(task, status_cache=None):
+    """Process task status with caching for performance"""
+    if not task:
+        return None
+    
+    task_id = task.id()
+    
+    # Use cache if provided
+    if status_cache and task_id in status_cache:
+        return status_cache[task_id]
+    
+    try:
+        status = getattr(task, 'Status', 'Unknown')
+        
+        # Cache the result if cache provided
+        if status_cache is not None:
+            status_cache[task_id] = status
+        
+        return status
+        
+    except Exception as e:
+        print(f"Error processing task status: {e}")
+        return "Unknown"
+
+def _process_task_with_ColorTypes(task, colortype_data):
+    """Process task with ColorType data integration"""
+    if not task or not colortype_data:
+        return False
+    
+    try:
+        task_id = task.id()
+        
+        # Get task ColorType configuration
+        task_colortype = colortype_data.get(str(task_id), {})
+        
+        if not task_colortype:
+            return False
+        
+        # Process ColorType groups
+        colortype_groups = task_colortype.get('ColorType_groups', '')
+        use_active_group = task_colortype.get('use_active_colortype_group', False)
+        
+        if use_active_group or colortype_groups:
+            # Apply ColorType configuration to task
+            from . import props_sequence
+            tprops = props_sequence.get_task_tree_props()
+            
+            # Find task in UI and update ColorType settings
+            for ui_task in tprops.tasks:
+                if ui_task.ifc_definition_id == task_id:
+                    if hasattr(ui_task, 'use_active_colortype_group'):
+                        ui_task.use_active_colortype_group = use_active_group
+                    if hasattr(ui_task, 'ColorType_groups'):
+                        ui_task.ColorType_groups = colortype_groups
+                    break
+            
+            print(f"Applied ColorType to task {task.Name}: groups='{colortype_groups}', active={use_active_group}")
+            return True
+        
+        return False
+        
+    except Exception as e:
+        print(f"Error processing task ColorTypes: {e}")
+        return False
+
+def _task_has_consider_start_ColorType(task):
+    """Check if task has consider start ColorType configuration"""
+    if not task:
+        return False
+    
+    try:
+        from . import props_sequence
+        tprops = props_sequence.get_task_tree_props()
+        
+        # Find task in UI properties
+        for ui_task in tprops.tasks:
+            if ui_task.ifc_definition_id == task.id():
+                # Check for consider start ColorType
+                colortype_groups = getattr(ui_task, 'ColorType_groups', '')
+                if 'consider_start' in colortype_groups.lower():
+                    return True
+                
+                # Check group choices for consider start
+                group_choices = getattr(ui_task, 'colortype_group_choices', [])
+                for choice in group_choices:
+                    if hasattr(choice, 'group_name'):
+                        if 'consider_start' in choice.group_name.lower():
+                            return True
+                break
+        
+        return False
+        
+    except Exception as e:
+        print(f"Error checking consider start ColorType: {e}")
+        return False
+
+
+def _apply_color_to_object_simple(obj, color):
+    """Simple color application to object"""
+    if not obj or not color:
+        return
+    
+    try:
+        # Create or get material
+        mat_name = f"4D_Color_{obj.name}"
+        if mat_name in bpy.data.materials:
+            mat = bpy.data.materials[mat_name]
+        else:
+            mat = bpy.data.materials.new(name=mat_name)
+            mat.use_nodes = True
+            bsdf = mat.node_tree.nodes.get("Principled BSDF")
+            if bsdf:
+                bsdf.inputs[0].default_value = (*color[:3], 1.0)  # RGB + Alpha
+        
+        # Apply material to object
+        if obj.data.materials:
+            obj.data.materials[0] = mat
+        else:
+            obj.data.materials.append(mat)
+            
+    except Exception as e:
+        print(f"❌ Simple color application error: {e}")
+
+
+def _apply_ColorType_to_object(obj, colortype_data):
+    """Apply ColorType configuration to object with full feature support"""
+    if not obj or not colortype_data:
+        return
+    
+    try:
+        # Get ColorType settings
+        color = colortype_data.get('color', (1.0, 1.0, 1.0, 1.0))
+        transparency = colortype_data.get('transparency', 1.0)
+        
+        # Create ColorType material
+        mat_name = f"4D_ColorType_{obj.name}"
+        if mat_name in bpy.data.materials:
+            mat = bpy.data.materials[mat_name]
+        else:
+            mat = bpy.data.materials.new(name=mat_name)
+            mat.use_nodes = True
+            
+            # Setup material nodes
+            bsdf = mat.node_tree.nodes.get("Principled BSDF")
+            if bsdf:
+                bsdf.inputs[0].default_value = color  # Base Color
+                bsdf.inputs[21].default_value = 1.0 - transparency  # Alpha
+                
+                if transparency < 1.0:
+                    mat.blend_method = 'BLEND'
+                    mat.show_transparent_back = True
+        
+        # Apply material
+        if obj.data and hasattr(obj.data, 'materials'):
+            if obj.data.materials:
+                obj.data.materials[0] = mat
+            else:
+                obj.data.materials.append(mat)
+                
+        # Store ColorType metadata
+        obj['4d_colortype_applied'] = True
+        obj['4d_colortype_data'] = str(colortype_data)
+        
+    except Exception as e:
+        print(f"❌ ColorType application error: {e}")
+
+
+def activate_variance_color_mode():
+    """Activate variance color mode for schedule analysis"""
+    try:
+        props = props_sequence.get_work_schedule_props()
+        props.use_variance_colors = True
+        
+        # Set up variance color tracking
+        if not hasattr(bpy.app, '_4d_variance_mode'):
+            bpy.app._4d_variance_mode = True
+            
+        # Trigger UI refresh
+        for area in bpy.context.screen.areas:
+            if area.type == 'VIEW_3D':
+                area.tag_redraw()
+                
+        print("✅ Variance color mode activated")
+        
+    except Exception as e:
+        print(f"❌ Variance color mode activation error: {e}")
+
+
+def deactivate_variance_color_mode():
+    """Deactivate variance color mode"""
+    try:
+        props = props_sequence.get_work_schedule_props()
+        props.use_variance_colors = False
+        
+        # Clear variance tracking
+        if hasattr(bpy.app, '_4d_variance_mode'):
+            bpy.app._4d_variance_mode = False
+            
+        # Restore original colors
+        _restore_original_object_colors()
+        
+        print("✅ Variance color mode deactivated")
+        
+    except Exception as e:
+        print(f"❌ Variance color mode deactivation error: {e}")
+
+
+def clear_variance_color_mode():
+    """Clear all variance color data"""
+    try:
+        deactivate_variance_color_mode()
+        clear_variance_colors_only()
+        
+        # Clear stored variance data
+        if hasattr(bpy.app, '_4d_variance_data'):
+            delattr(bpy.app, '_4d_variance_data')
+            
+    except Exception as e:
+        print(f"❌ Variance color clearing error: {e}")
+
+
+def clear_variance_colors_only():
+    """Clear only variance colors, keep mode active"""
+    try:
+        # Remove variance materials
+        for mat in bpy.data.materials:
+            if mat.name.startswith("4D_Variance_"):
+                bpy.data.materials.remove(mat)
+                
+        # Clear object variance metadata
+        for obj in bpy.data.objects:
+            if '4d_variance_color' in obj:
+                del obj['4d_variance_color']
+                
+    except Exception as e:
+        print(f"❌ Variance colors clearing error: {e}")
+
+
+def _save_original_object_colors():
+    """Save original object colors before applying variance colors"""
+    try:
+        if not hasattr(bpy.app, '_4d_original_colors'):
+            bpy.app._4d_original_colors = {}
+            
+        for obj in bpy.data.objects:
+            if obj.data and hasattr(obj.data, 'materials') and obj.data.materials:
+                mat = obj.data.materials[0]
+                if mat and mat.use_nodes:
+                    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+                    if bsdf:
+                        original_color = list(bsdf.inputs[0].default_value)
+                        bpy.app._4d_original_colors[obj.name] = {
+                            'material_name': mat.name,
+                            'color': original_color
+                        }
+                        
+    except Exception as e:
+        print(f"❌ Original color saving error: {e}")
+
+
+def _restore_original_object_colors():
+    """Restore original object colors"""
+    try:
+        if not hasattr(bpy.app, '_4d_original_colors'):
+            return
+            
+        for obj_name, color_data in bpy.app._4d_original_colors.items():
+            obj = bpy.data.objects.get(obj_name)
+            if obj and obj.data and hasattr(obj.data, 'materials'):
+                mat_name = color_data.get('material_name')
+                if mat_name and mat_name in bpy.data.materials:
+                    mat = bpy.data.materials[mat_name]
+                    if mat.use_nodes:
+                        bsdf = mat.node_tree.nodes.get("Principled BSDF")
+                        if bsdf:
+                            bsdf.inputs[0].default_value = color_data['color']
+                            
+    except Exception as e:
+        print(f"❌ Original color restoration error: {e}")
+
+
+def _get_variance_color_for_object_real(obj, task):
+    """Get real variance color for object based on task status"""
+    try:
+        if not obj or not task:
+            return (1.0, 1.0, 1.0, 1.0)  # Default white
+        
+        # Get task status and timing
+        actual_start = ifcopenshell.util.sequence.get_actual_start(task)
+        actual_finish = ifcopenshell.util.sequence.get_actual_finish(task) 
+        planned_start = ifcopenshell.util.sequence.get_start_time(task)
+        planned_finish = ifcopenshell.util.sequence.get_finish_time(task)
+        
+        if not planned_start or not planned_finish:
+            return (0.7, 0.7, 0.7, 1.0)  # Gray for no planning data
+        
+        # Calculate variance
+        if actual_start and actual_finish:
+            # Task completed - check if on time
+            if actual_finish <= planned_finish:
+                return (0.0, 1.0, 0.0, 1.0)  # Green - on time
+            else:
+                return (1.0, 0.5, 0.0, 1.0)  # Orange - late completion
+        elif actual_start:
+            # Task in progress
+            current_date = datetime.now()
+            if current_date.date() > planned_finish.date():
+                return (1.0, 0.0, 0.0, 1.0)  # Red - overdue
+            else:
+                return (0.0, 0.0, 1.0, 1.0)  # Blue - in progress
+        else:
+            # Task not started
+            current_date = datetime.now()
+            if current_date.date() > planned_start.date():
+                return (1.0, 1.0, 0.0, 1.0)  # Yellow - delayed start
+            else:
+                return (0.8, 0.8, 0.8, 1.0)  # Light gray - not started
+                
+    except Exception as e:
+        print(f"❌ Variance color calculation error: {e}")
+        return (1.0, 1.0, 1.0, 1.0)
+
+
+def _create_variance_colortype_group():
+    """Create variance-specific ColorType group"""
+    try:
+        props = props_sequence.get_work_schedule_props()
+        
+        # Add variance group
+        variance_group = props.colortype_groups.add()
+        variance_group.name = "Variance Analysis"
+        variance_group.description = "Automatic variance color analysis"
+        variance_group.is_system_group = True
+        
+        # Add variance color types
+        colors = [
+            ("On Time", (0.0, 1.0, 0.0, 1.0), "Tasks completed on schedule"),
+            ("Late", (1.0, 0.5, 0.0, 1.0), "Tasks completed late"),
+            ("Overdue", (1.0, 0.0, 0.0, 1.0), "Tasks overdue"),
+            ("In Progress", (0.0, 0.0, 1.0, 1.0), "Tasks currently in progress"),
+            ("Delayed Start", (1.0, 1.0, 0.0, 1.0), "Tasks with delayed start"),
+            ("Not Started", (0.8, 0.8, 0.8, 1.0), "Tasks not yet started")
+        ]
+        
+        for name, color, desc in colors:
+            colortype = variance_group.color_types.add()
+            colortype.name = name
+            colortype.color = color
+            colortype.description = desc
+            
+        return variance_group
+        
+    except Exception as e:
+        print(f"❌ Variance ColorType group creation error: {e}")
+        return None

@@ -309,17 +309,12 @@ def update_use_active_colortype_group(self: "Task", context):
 def update_selected_colortype_in_active_group(self: "Task", context):
     """Updates the selected colortype in the active group"""
     try:
-        # Validate that the current value is not a numeric string or invalid
+        # CRASH FIX: Avoid calling enum items function during update to prevent recursion
         current_value = self.selected_colortype_in_active_group
         
-        # Get valid enum items to check against
-        valid_items = get_custom_group_colortype_items(self, context)
-        valid_values = [item[0] for item in valid_items]
-        
-        # Check for invalid values
-        if current_value and (current_value.isdigit() or current_value not in valid_values):
-            print(f"🚫 Invalid colortype value '{current_value}' detected, correcting...")
-            # Don't assign anything - let the enum system handle it
+        # Simple validation without calling enum items function
+        if current_value and current_value.isdigit():
+            print(f"🚫 Invalid numeric colortype value '{current_value}' detected, skipping update...")
             return
         
         # Get animation properties to determine active group

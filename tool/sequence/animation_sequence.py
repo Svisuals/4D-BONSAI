@@ -627,3 +627,700 @@ def stop_live_update_timer():
         try: bpy.app.timers.unregister(_live_update_timer)
         except: pass
         _live_update_timer = None
+
+def get_animation_bar_types():
+    """Get available animation bar types for UI"""
+    return [
+        ('PROGRESS', 'Progress Bars', 'Show task progress bars'),
+        ('FULL', 'Full Bars', 'Show full task duration bars'),
+        ('BOTH', 'Both', 'Show both progress and full bars'),
+    ]
+
+def refresh_animation_color_scheme():
+    """Refresh the animation color scheme"""
+    props = props_sequence.get_animation_props()
+    
+    # Update color scheme based on current settings
+    if props.color_scheme == 'DEFAULT':
+        props.color_progress = (0.0, 1.0, 0.0)  # Green
+        props.color_full = (1.0, 0.0, 0.0)      # Red
+    elif props.color_scheme == 'HIGH_CONTRAST':
+        props.color_progress = (0.0, 0.0, 1.0)  # Blue  
+        props.color_full = (1.0, 1.0, 0.0)      # Yellow
+    elif props.color_scheme == 'MONOCHROME':
+        props.color_progress = (0.3, 0.3, 0.3)  # Dark gray
+        props.color_full = (0.7, 0.7, 0.7)      # Light gray
+
+def get_animation_color_scheme():
+    """Get current animation color scheme"""
+    props = props_sequence.get_animation_props()
+    return {
+        'scheme': getattr(props, 'color_scheme', 'DEFAULT'),
+        'progress_color': tuple(getattr(props, 'color_progress', (0.0, 1.0, 0.0))),
+        'full_color': tuple(getattr(props, 'color_full', (1.0, 0.0, 0.0))),
+    }
+
+def _create_empty_pivot_orbit():
+    """Create empty pivot for orbit camera animation"""
+    import bpy
+    import mathutils
+    
+    # Create empty at scene center
+    pivot = bpy.data.objects.new("4D_Orbit_Pivot", None)
+    pivot.empty_display_type = 'SPHERE'
+    pivot.empty_display_size = 2.0
+    
+    # Set location to scene center or selected objects center
+    if bpy.context.selected_objects:
+        # Calculate center of selected objects
+        locations = [obj.location for obj in bpy.context.selected_objects]
+        center = mathutils.Vector((0, 0, 0))
+        for loc in locations:
+            center += mathutils.Vector(loc)
+        center /= len(locations)
+        pivot.location = center
+    else:
+        pivot.location = (0, 0, 0)
+    
+    # Link to scene
+    bpy.context.scene.collection.objects.link(pivot)
+    
+    return pivot
+
+def _create_follow_path_orbit(path_points):
+    """Create follow path orbit animation"""
+    import bpy
+    import bmesh
+    
+    # Create curve from path points
+    curve_data = bpy.data.curves.new('4D_Orbit_Path', 'CURVE')
+    curve_data.dimensions = '3D'
+    curve_obj = bpy.data.objects.new('4D_Orbit_Path', curve_data)
+    
+    # Create spline
+    spline = curve_data.splines.new('BEZIER')
+    spline.bezier_points.add(len(path_points) - 1)
+    
+    # Set points
+    for i, point in enumerate(path_points):
+        spline.bezier_points[i].co = point
+        spline.bezier_points[i].handle_left_type = 'AUTO'
+        spline.bezier_points[i].handle_right_type = 'AUTO'
+    
+    # Make cyclic for orbit
+    spline.use_cyclic_u = True
+    
+    # Link to scene
+    bpy.context.scene.collection.objects.link(curve_obj)
+    
+    return curve_obj
+
+def _create_keyframe_orbit(camera, pivot, radius=10, frames=250):
+    """Create keyframe-based orbit animation"""
+    import bpy
+    import mathutils
+    import math
+    
+    if not camera or not pivot:
+        return False
+    
+    try:
+        # Clear existing animation
+        if camera.animation_data:
+            camera.animation_data_clear()
+        
+        # Set initial position
+        start_frame = bpy.context.scene.frame_start
+        end_frame = start_frame + frames
+        
+        # Create circular orbit keyframes
+        for frame in range(start_frame, end_frame + 1, 10):
+            bpy.context.scene.frame_set(frame)
+            
+            # Calculate orbit position
+            angle = 2 * math.pi * (frame - start_frame) / frames
+            x = pivot.location.x + radius * math.cos(angle)
+            y = pivot.location.y + radius * math.sin(angle)
+            z = pivot.location.z + 5  # Slightly elevated
+            
+            # Set camera location
+            camera.location = (x, y, z)
+            camera.keyframe_insert(data_path="location")
+            
+            # Look at pivot
+            direction = mathutils.Vector(pivot.location) - mathutils.Vector(camera.location)
+            camera.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
+            camera.keyframe_insert(data_path="rotation_euler")
+        
+        # Set interpolation to linear for smooth motion
+        if camera.animation_data and camera.animation_data.action:
+            for fcurve in camera.animation_data.action.fcurves:
+                for keyframe in fcurve.keyframe_points:
+                    keyframe.interpolation = 'LINEAR'
+        
+        print(f"\u2705 Created orbit animation for {camera.name}")
+        return True
+        
+    except Exception as e:
+        print(f"\u274c Error creating orbit animation: {e}")
+        return False
+
+def _create_animated_text(text_content, location, frames_duration=50):
+    """Create animated text object"""
+    import bpy
+    
+    # Create text object
+    text_data = bpy.data.curves.new(name="4D_AnimText", type='FONT')
+    text_data.body = text_content
+    text_data.size = 2.0
+    text_obj = bpy.data.objects.new("4D_AnimText", text_data)
+    
+    # Set location
+    text_obj.location = location
+    
+    # Link to scene
+    bpy.context.scene.collection.objects.link(text_obj)
+    
+    # Animate appearance
+    current_frame = bpy.context.scene.frame_current
+    
+    # Start invisible
+    text_obj.hide_viewport = True
+    text_obj.keyframe_insert(data_path="hide_viewport", frame=current_frame)
+    
+    # Become visible
+    text_obj.hide_viewport = False
+    text_obj.keyframe_insert(data_path="hide_viewport", frame=current_frame + 1)
+    
+    # Fade out
+    text_obj.hide_viewport = True
+    text_obj.keyframe_insert(data_path="hide_viewport", frame=current_frame + frames_duration)
+    
+    return text_obj
+
+def _animate_text_by_type(text_obj, animation_type='FADE'):
+    """Animate text object with different animation types"""
+    import bpy
+    
+    if not text_obj:
+        return False
+    
+    current_frame = bpy.context.scene.frame_current
+    
+    try:
+        if animation_type == 'FADE':
+            # Simple fade in/out
+            text_obj.color = (1, 1, 1, 0)  # Transparent
+            text_obj.keyframe_insert(data_path="color", frame=current_frame)
+            
+            text_obj.color = (1, 1, 1, 1)  # Opaque
+            text_obj.keyframe_insert(data_path="color", frame=current_frame + 10)
+            
+            text_obj.color = (1, 1, 1, 0)  # Transparent
+            text_obj.keyframe_insert(data_path="color", frame=current_frame + 40)
+            
+        elif animation_type == 'SCALE':
+            # Scale animation
+            text_obj.scale = (0.1, 0.1, 0.1)
+            text_obj.keyframe_insert(data_path="scale", frame=current_frame)
+            
+            text_obj.scale = (1.2, 1.2, 1.2)
+            text_obj.keyframe_insert(data_path="scale", frame=current_frame + 10)
+            
+            text_obj.scale = (1.0, 1.0, 1.0)
+            text_obj.keyframe_insert(data_path="scale", frame=current_frame + 20)
+            
+        return True
+        
+    except Exception as e:
+        print(f"Error animating text: {e}")
+        return False
+
+def add_product_frame_enhanced(product, start_frame, finish_frame):
+    """Enhanced version of add_product_frame with additional features"""
+    import bpy
+    import bonsai.tool as tool
+    
+    obj = tool.Ifc.get_object(product)
+    if not obj:
+        return False
+    
+    try:
+        # Enhanced frame addition with better interpolation
+        obj.hide_viewport = True
+        obj.hide_render = True
+        obj.keyframe_insert(data_path="hide_viewport", frame=start_frame - 1)
+        obj.keyframe_insert(data_path="hide_render", frame=start_frame - 1)
+        
+        # Show object during active period
+        obj.hide_viewport = False
+        obj.hide_render = False
+        obj.keyframe_insert(data_path="hide_viewport", frame=start_frame)
+        obj.keyframe_insert(data_path="hide_render", frame=start_frame)
+        obj.keyframe_insert(data_path="hide_viewport", frame=finish_frame)
+        obj.keyframe_insert(data_path="hide_render", frame=finish_frame)
+        
+        # Hide after completion
+        obj.hide_viewport = True
+        obj.hide_render = True
+        obj.keyframe_insert(data_path="hide_viewport", frame=finish_frame + 1)
+        obj.keyframe_insert(data_path="hide_render", frame=finish_frame + 1)
+        
+        # Set interpolation to constant
+        if obj.animation_data and obj.animation_data.action:
+            for fcurve in obj.animation_data.action.fcurves:
+                if fcurve.data_path in ["hide_viewport", "hide_render"]:
+                    for keyframe in fcurve.keyframe_points:
+                        keyframe.interpolation = 'CONSTANT'
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error in enhanced product frame: {e}")
+        return False
+
+def add_product_frame_full_range(product, task):
+    """Add product frame for full task range with sophisticated timing"""
+    import bpy
+    import bonsai.tool as tool
+    import ifcopenshell.util.sequence
+    
+    obj = tool.Ifc.get_object(product)
+    if not obj or not task:
+        return False
+    
+    try:
+        # Get task timing
+        task_start_date = ifcopenshell.util.sequence.derive_date(task, "ScheduleStart", is_earliest=True)
+        task_finish_date = ifcopenshell.util.sequence.derive_date(task, "ScheduleFinish", is_latest=True)
+        
+        if not (task_start_date and task_finish_date):
+            return False
+        
+        # Calculate frames based on full date range
+        from . import utils_sequence
+        schedule_start, schedule_finish = utils_sequence.get_schedule_date_range()
+        
+        if not (schedule_start and schedule_finish):
+            return False
+        
+        total_duration = (schedule_finish - schedule_start).total_seconds()
+        task_start_progress = (task_start_date - schedule_start).total_seconds() / total_duration
+        task_finish_progress = (task_finish_date - schedule_start).total_seconds() / total_duration
+        
+        start_frame = int(bpy.context.scene.frame_start + task_start_progress * (bpy.context.scene.frame_end - bpy.context.scene.frame_start))
+        finish_frame = int(bpy.context.scene.frame_start + task_finish_progress * (bpy.context.scene.frame_end - bpy.context.scene.frame_start))
+        
+        return add_product_frame_enhanced(product, start_frame, finish_frame)
+        
+    except Exception as e:
+        print(f"Error in full range product frame: {e}")
+        return False
+
+def apply_visibility_animation():
+    """Apply visibility animation to all scheduled products"""
+    import bpy
+    import bonsai.tool as tool
+    import ifcopenshell.util.sequence
+    
+    try:
+        ifc = tool.Ifc.get()
+        if not ifc:
+            return False
+        
+        # Get active work schedule
+        from . import props_sequence
+        props = props_sequence.get_work_schedule_props()
+        if not props.active_work_schedule_id:
+            return False
+        
+        work_schedule = ifc.by_id(props.active_work_schedule_id)
+        root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
+        
+        processed_count = 0
+        
+        def process_tasks_recursive(tasks):
+            nonlocal processed_count
+            for task in tasks:
+                task_outputs = ifcopenshell.util.sequence.get_task_outputs(task, is_deep=False)
+                for output in task_outputs:
+                    if add_product_frame_full_range(output, task):
+                        processed_count += 1
+                
+                nested_tasks = ifcopenshell.util.sequence.get_nested_tasks(task)
+                if nested_tasks:
+                    process_tasks_recursive(nested_tasks)
+        
+        process_tasks_recursive(root_tasks)
+        
+        print(f"Applied visibility animation to {processed_count} products")
+        return processed_count > 0
+        
+    except Exception as e:
+        print(f"Error applying visibility animation: {e}")
+        return False
+
+def calculate_using_duration(task):
+    """Calculate frames using task duration"""
+    import ifcopenshell.util.sequence
+    import ifcopenshell.util.date
+    import bpy
+    
+    try:
+        task_time = task.TaskTime if task else None
+        if not task_time or not task_time.ScheduleDuration:
+            return None, None
+        
+        # Parse duration
+        duration_str = task_time.ScheduleDuration
+        duration = ifcopenshell.util.date.ifc2datetime(duration_str)
+        
+        if not duration:
+            return None, None
+        
+        # Convert duration to frames (assuming 1 day = 30 frames)
+        duration_days = duration.days + duration.seconds / 86400.0
+        duration_frames = int(duration_days * 30)
+        
+        # Get start date
+        task_start_date = ifcopenshell.util.sequence.derive_date(task, "ScheduleStart", is_earliest=True)
+        if not task_start_date:
+            return None, None
+        
+        # Calculate frame position
+        from . import utils_sequence
+        schedule_start, schedule_finish = utils_sequence.get_schedule_date_range()
+        if not (schedule_start and schedule_finish):
+            return None, None
+        
+        total_duration = (schedule_finish - schedule_start).total_seconds()
+        start_progress = (task_start_date - schedule_start).total_seconds() / total_duration
+        
+        total_frames = bpy.context.scene.frame_end - bpy.context.scene.frame_start
+        start_frame = int(bpy.context.scene.frame_start + start_progress * total_frames)
+        finish_frame = start_frame + duration_frames
+        
+        return start_frame, finish_frame
+        
+    except Exception as e:
+        print(f"Error calculating duration frames: {e}")
+        return None, None
+
+def calculate_using_frames(start_frame, duration_frames):
+    """Calculate using explicit frame values"""
+    import bpy
+    
+    try:
+        # Validate frame range
+        start_frame = max(bpy.context.scene.frame_start, min(bpy.context.scene.frame_end, start_frame))
+        finish_frame = max(bpy.context.scene.frame_start, min(bpy.context.scene.frame_end, start_frame + duration_frames))
+        
+        return start_frame, finish_frame
+        
+    except Exception as e:
+        print(f"Error calculating explicit frames: {e}")
+        return None, None
+
+def calculate_using_multiplier(base_start, base_duration, multiplier):
+    """Calculate frames using a multiplier"""
+    try:
+        adjusted_duration = int(base_duration * multiplier)
+        return calculate_using_frames(base_start, adjusted_duration)
+        
+    except Exception as e:
+        print(f"Error calculating multiplier frames: {e}")
+        return None, None
+
+def debug_ColorType_application():
+    """Debug ColorType application process"""
+    import bpy
+    import bonsai.tool as tool
+    
+    try:
+        # Get active work schedule
+        from . import props_sequence
+        props = props_sequence.get_work_schedule_props()
+        if not props.active_work_schedule_id:
+            print("❌ No active work schedule for ColorType debug")
+            return False
+        
+        work_schedule = tool.Ifc.get().by_id(props.active_work_schedule_id)
+        print(f"🔍 ColorType Debug for schedule: {work_schedule.Name}")
+        
+        # Check task properties
+        tprops = props_sequence.get_task_tree_props()
+        if not tprops or not hasattr(tprops, 'tasks'):
+            print("❌ No task properties available")
+            return False
+        
+        colortype_tasks = 0
+        total_tasks = 0
+        
+        for task in tprops.tasks:
+            total_tasks += 1
+            use_active = getattr(task, 'use_active_colortype_group', False)
+            colortype_groups = getattr(task, 'ColorType_groups', '')
+            
+            if use_active or colortype_groups:
+                colortype_tasks += 1
+                print(f"  Task {task.name}: active={use_active}, groups='{colortype_groups}'")
+        
+        print(f"🎨 ColorType Summary: {colortype_tasks}/{total_tasks} tasks have ColorType configuration")
+        return colortype_tasks > 0
+        
+    except Exception as e:
+        print(f"❌ ColorType debug error: {e}")
+        return False
+
+
+def add_product_frame_full_range(product, start_frame, finish_frame):
+    """Add product frame with full range visibility support"""
+    obj = tool.Ifc.get_object(product)
+    if not obj:
+        return
+    
+    # Set full range visibility
+    obj.hide_viewport = False
+    obj.keyframe_insert(data_path="hide_viewport", frame=start_frame)
+    obj.keyframe_insert(data_path="hide_viewport", frame=finish_frame)
+    
+    # Add render visibility keyframes
+    obj.hide_render = False
+    obj.keyframe_insert(data_path="hide_render", frame=start_frame)
+    obj.keyframe_insert(data_path="hide_render", frame=finish_frame)
+    
+    # Mark object as animated for 4D
+    obj['is_4d_animated'] = True
+    obj['4d_start_frame'] = start_frame
+    obj['4d_finish_frame'] = finish_frame
+
+
+def calculate_using_frames(task, frames_per_day=30):
+    """Calculate task timing using frame-based approach"""
+    if not task:
+        return None, None
+    
+    # Get task timing from IFC
+    start_time = ifcopenshell.util.sequence.get_start_time(task)
+    finish_time = ifcopenshell.util.sequence.get_finish_time(task)
+    
+    if not start_time or not finish_time:
+        return None, None
+    
+    # Convert to frames (assuming frames_per_day = 30)
+    start_frame = 1  # Default start
+    duration_days = (finish_time - start_time).days if hasattr(finish_time - start_time, 'days') else 1
+    finish_frame = start_frame + (duration_days * frames_per_day)
+    
+    return start_frame, finish_frame
+
+
+def calculate_using_multiplier(task, multiplier=1.0):
+    """Calculate task timing using a multiplier for speed adjustment"""
+    start_frame, finish_frame = calculate_using_frames(task)
+    
+    if start_frame is None or finish_frame is None:
+        return None, None
+    
+    # Apply multiplier to duration
+    duration = finish_frame - start_frame
+    new_duration = int(duration * multiplier)
+    
+    return start_frame, start_frame + new_duration
+
+
+def add_bar(task, start_frame, finish_frame):
+    """Add animation bar for task timeline"""
+    try:
+        # Create bar object
+        bpy.ops.mesh.primitive_cube_add(size=2)
+        bar_obj = bpy.context.active_object
+        bar_obj.name = f"TaskBar_{task.Name or task.id()}"
+        
+        # Scale and position bar
+        duration = finish_frame - start_frame
+        bar_obj.scale = (duration * 0.1, 0.1, 0.1)
+        bar_obj.location = (start_frame * 0.1, 0, 0)
+        
+        # Add material
+        mat = bpy.data.materials.new(name=f"TaskMat_{task.id()}")
+        mat.use_nodes = True
+        bsdf = mat.node_tree.nodes.get("Principled BSDF")
+        if bsdf:
+            bsdf.inputs[0].default_value = (0.2, 0.6, 1.0, 1.0)  # Blue
+        
+        bar_obj.data.materials.append(mat)
+        bar_obj['task_id'] = task.id()
+        
+        return bar_obj
+        
+    except Exception as e:
+        print(f"❌ Bar creation error: {e}")
+        return None
+
+
+def add_text(text_content, location=(0, 0, 0)):
+    """Add 3D text object"""
+    try:
+        # Create text object
+        bpy.ops.object.text_add(location=location)
+        text_obj = bpy.context.active_object
+        text_obj.data.body = str(text_content)
+        
+        # Configure text properties
+        text_obj.data.size = 0.5
+        text_obj.data.extrude = 0.1
+        
+        return text_obj
+        
+    except Exception as e:
+        print(f"❌ Text creation error: {e}")
+        return None
+
+
+def animate_color(obj, start_color, end_color, start_frame, end_frame):
+    """Animate object color transition"""
+    try:
+        if not obj or not obj.data or not obj.data.materials:
+            return
+            
+        mat = obj.data.materials[0]
+        if not mat.use_nodes:
+            return
+            
+        bsdf = mat.node_tree.nodes.get("Principled BSDF")
+        if not bsdf:
+            return
+        
+        # Set start color
+        bsdf.inputs[0].default_value = start_color
+        bsdf.inputs[0].keyframe_insert(data_path="default_value", frame=start_frame)
+        
+        # Set end color
+        bsdf.inputs[0].default_value = end_color
+        bsdf.inputs[0].keyframe_insert(data_path="default_value", frame=end_frame)
+        
+    except Exception as e:
+        print(f"❌ Color animation error: {e}")
+
+
+def animate_scale(obj, start_scale, end_scale, start_frame, end_frame):
+    """Animate object scale transition"""
+    try:
+        if not obj:
+            return
+            
+        # Set start scale
+        obj.scale = start_scale
+        obj.keyframe_insert(data_path="scale", frame=start_frame)
+        
+        # Set end scale
+        obj.scale = end_scale
+        obj.keyframe_insert(data_path="scale", frame=end_frame)
+        
+    except Exception as e:
+        print(f"❌ Scale animation error: {e}")
+
+
+def create_plane(location=(0, 0, 0), size=2.0):
+    """Create a plane object"""
+    try:
+        bpy.ops.mesh.primitive_plane_add(location=location, size=size)
+        plane = bpy.context.active_object
+        return plane
+    except Exception as e:
+        print(f"❌ Plane creation error: {e}")
+        return None
+
+
+def create_task_bar_data(task):
+    """Create task bar data structure"""
+    try:
+        start_time = ifcopenshell.util.sequence.get_start_time(task)
+        finish_time = ifcopenshell.util.sequence.get_finish_time(task)
+        
+        if not start_time or not finish_time:
+            return None
+            
+        return {
+            'task_id': task.id(),
+            'task_name': task.Name or f"Task {task.id()}",
+            'start_time': start_time,
+            'finish_time': finish_time,
+            'duration': (finish_time - start_time).days if hasattr(finish_time - start_time, 'days') else 1,
+            'status': getattr(task, 'TaskStatus', 'NOTSTARTED')
+        }
+        
+    except Exception as e:
+        print(f"❌ Task bar data creation error: {e}")
+        return None
+
+
+def place_bar(bar_data, y_position=0):
+    """Place task bar in 3D space"""
+    try:
+        if not bar_data:
+            return
+            
+        # Calculate position based on time
+        start_frame = 1  # Default start
+        duration_frames = bar_data['duration'] * 30  # 30 frames per day
+        
+        # Create or get bar object
+        bar_name = f"Bar_{bar_data['task_id']}"
+        if bar_name in bpy.data.objects:
+            bar_obj = bpy.data.objects[bar_name]
+        else:
+            bar_obj = add_bar(bar_data, start_frame, start_frame + duration_frames)
+            if bar_obj:
+                bar_obj.name = bar_name
+        
+        if bar_obj:
+            bar_obj.location.y = y_position
+            
+    except Exception as e:
+        print(f"❌ Bar placement error: {e}")
+
+
+def set_material(obj, material_name):
+    """Set material for object"""
+    try:
+        if not obj:
+            return
+            
+        mat = bpy.data.materials.get(material_name)
+        if not mat:
+            mat = bpy.data.materials.new(name=material_name)
+            mat.use_nodes = True
+            
+        if obj.data.materials:
+            obj.data.materials[0] = mat
+        else:
+            obj.data.materials.append(mat)
+            
+    except Exception as e:
+        print(f"❌ Material setting error: {e}")
+
+
+def shift_object(obj, offset):
+    """Shift object by offset vector"""
+    try:
+        if obj and hasattr(offset, '__len__') and len(offset) >= 3:
+            obj.location.x += offset[0]
+            obj.location.y += offset[1] 
+            obj.location.z += offset[2]
+    except Exception as e:
+        print(f"❌ Object shifting error: {e}")
+
+
+def get_animation_materials():
+    """Get all materials used for animation"""
+    try:
+        animation_materials = []
+        for mat in bpy.data.materials:
+            if mat.name.startswith("4D_") or '4d_' in mat.name.lower():
+                animation_materials.append(mat)
+        return animation_materials
+    except Exception as e:
+        print(f"❌ Animation materials retrieval error: {e}")
+        return []

@@ -30,6 +30,7 @@ from typing import Any
 import bonsai.tool as tool
 from . import props_sequence
 from . import utils_sequence
+from . import animation_sequence
 
 
 def get_active_work_schedule():
@@ -886,9 +887,520 @@ def get_direct_task_outputs(task: ifcopenshell.entity_instance) -> list[ifcopens
     
     return outputs
 
+def enable_editing_work_calendar_times(work_calendar: ifcopenshell.entity_instance) -> None:
+    """Enable editing work calendar times"""
+    props = props_sequence.get_work_calendar_props()
+    props.active_work_calendar_id = work_calendar.id()
+    props.editing_type = "WORKTIMES"
+
+def load_work_calendar_attributes(work_calendar: ifcopenshell.entity_instance) -> dict:
+    """Load work calendar attributes into UI"""
+    import bonsai.bim.helper
+    
+    props = props_sequence.get_work_calendar_props()
+    props.work_calendar_attributes.clear()
+    return bonsai.bim.helper.import_attributes(work_calendar, props.work_calendar_attributes)
+
+def enable_editing_work_calendar(work_calendar: ifcopenshell.entity_instance) -> None:
+    """Enable editing work calendar"""
+    props = props_sequence.get_work_calendar_props()
+    props.active_work_calendar_id = work_calendar.id()
+    props.editing_type = "ATTRIBUTES"
+
+def disable_editing_work_calendar() -> None:
+    """Disable editing work calendar"""
+    props = props_sequence.get_work_calendar_props()
+    props.active_work_calendar_id = 0
+
+def get_work_calendar_attributes() -> dict:
+    """Get work calendar attributes from UI"""
+    import bonsai.bim.helper
+    
+    props = props_sequence.get_work_calendar_props()
+    return bonsai.bim.helper.export_attributes(props.work_calendar_attributes)
+
+def load_work_time_attributes(work_time: ifcopenshell.entity_instance) -> None:
+    """Load work time attributes into UI"""
+    import bonsai.bim.helper
+    
+    props = props_sequence.get_work_calendar_props()
+    props.work_time_attributes.clear()
+    bonsai.bim.helper.import_attributes(work_time, props.work_time_attributes)
+
+def enable_editing_work_time(work_time: ifcopenshell.entity_instance) -> None:
+    """Enable editing work time with recurrence pattern support"""
+    def initialise_recurrence_components(props):
+        if len(props.day_components) == 0:
+            for i in range(0, 31):
+                new = props.day_components.add()
+                new.name = str(i + 1)
+        if len(props.weekday_components) == 0:
+            for d in ["M", "T", "W", "T", "F", "S", "S"]:
+                new = props.weekday_components.add()
+                new.name = d
+        if len(props.month_components) == 0:
+            for m in ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]:
+                new = props.month_components.add()
+                new.name = m
+
+    def load_recurrence_pattern_data(work_time, props):
+        props.position = 0
+        props.interval = 0
+        props.occurrences = 0
+        props.start_time = ""
+        props.end_time = ""
+        
+        for component in props.day_components:
+            component.is_specified = False
+        for component in props.weekday_components:
+            component.is_specified = False
+        for component in props.month_components:
+            component.is_specified = False
+            
+        if not work_time.RecurrencePattern:
+            return
+            
+        recurrence_pattern = work_time.RecurrencePattern
+        for attribute in ["Position", "Interval", "Occurrences"]:
+            if getattr(recurrence_pattern, attribute):
+                setattr(props, attribute.lower(), getattr(recurrence_pattern, attribute))
+                
+        for component in recurrence_pattern.DayComponent or []:
+            props.day_components[component - 1].is_specified = True
+        for component in recurrence_pattern.WeekdayComponent or []:
+            props.weekday_components[component - 1].is_specified = True
+        for component in recurrence_pattern.MonthComponent or []:
+            props.month_components[component - 1].is_specified = True
+
+    props = props_sequence.get_work_calendar_props()
+    initialise_recurrence_components(props)
+    load_recurrence_pattern_data(work_time, props)
+    props.active_work_time_id = work_time.id()
+    props.editing_type = "WORKTIMES"
+
+def get_work_time_attributes() -> dict:
+    """Get work time attributes with date parsing"""
+    import bonsai.bim.module.sequence.helper as helper
+    import bonsai.bim.helper
+    from typing import Any
+    from bonsai.bim.prop import Attribute
+
+    def callback(attributes: dict[str, Any], prop: Attribute) -> bool:
+        if "Start" in prop.name or "Finish" in prop.name:
+            if prop.is_null:
+                attributes[prop.name] = None
+                return True
+            attributes[prop.name] = helper.parse_datetime(prop.string_value)
+            return True
+        return False
+
+    props = props_sequence.get_work_calendar_props()
+    return bonsai.bim.helper.export_attributes(props.work_time_attributes, callback)
+
+def get_recurrence_pattern_attributes(recurrence_pattern):
+    """Get recurrence pattern attributes for work time"""
+    props = props_sequence.get_work_calendar_props()
+    attributes = {
+        "Interval": props.interval if props.interval > 0 else None,
+        "Occurrences": props.occurrences if props.occurrences > 0 else None,
+    }
+    
+    applicable_data = {
+        "DAILY": ["Interval", "Occurrences"],
+        "WEEKLY": ["WeekdayComponent", "Interval", "Occurrences"],
+        "MONTHLY_BY_DAY_OF_MONTH": ["DayComponent", "Interval", "Occurrences"],
+        "MONTHLY_BY_POSITION": ["WeekdayComponent", "Position", "Interval", "Occurrences"],
+        "BY_DAY_COUNT": ["Interval", "Occurrences"],
+        "BY_WEEKDAY_COUNT": ["WeekdayComponent", "Interval", "Occurrences"],
+        "YEARLY_BY_DAY_OF_MONTH": ["DayComponent", "MonthComponent", "Interval", "Occurrences"],
+        "YEARLY_BY_POSITION": ["WeekdayComponent", "MonthComponent", "Position", "Interval", "Occurrences"],
+    }
+    
+    if "Position" in applicable_data[recurrence_pattern.RecurrenceType]:
+        attributes["Position"] = props.position if props.position != 0 else None
+    if "DayComponent" in applicable_data[recurrence_pattern.RecurrenceType]:
+        attributes["DayComponent"] = [i + 1 for i, c in enumerate(props.day_components) if c.is_specified]
+    if "WeekdayComponent" in applicable_data[recurrence_pattern.RecurrenceType]:
+        attributes["WeekdayComponent"] = [i + 1 for i, c in enumerate(props.weekday_components) if c.is_specified]
+    if "MonthComponent" in applicable_data[recurrence_pattern.RecurrenceType]:
+        attributes["MonthComponent"] = [i + 1 for i, c in enumerate(props.month_components) if c.is_specified]
+    
+    return attributes
+
+def disable_editing_work_time() -> None:
+    """Disable editing work time"""
+    props = props_sequence.get_work_calendar_props()
+    props.active_work_time_id = 0
+
+def get_recurrence_pattern_times():
+    """Get recurrence pattern times from UI"""
+    from dateutil import parser
+    from datetime import datetime
+    
+    props = props_sequence.get_work_calendar_props()
+    try:
+        start_time = parser.parse(props.start_time)
+        end_time = parser.parse(props.end_time)
+        return start_time, end_time
+    except:
+        return None
+
+def reset_time_period() -> None:
+    """Reset time period in UI"""
+    props = props_sequence.get_work_calendar_props()
+    props.start_time = ""
+    props.end_time = ""
+
+def get_active_work_time():
+    """Get the active work time being edited"""
+    import bonsai.tool as tool
+    
+    props = props_sequence.get_work_calendar_props()
+    if not props.active_work_time_id:
+        return None
+    return tool.Ifc.get().by_id(props.active_work_time_id)
+
+def enable_editing_task_calendar(task: ifcopenshell.entity_instance) -> None:
+    """Enable editing task calendar"""
+    props = props_sequence.get_work_schedule_props()
+    props.active_task_id = task.id()
+    props.editing_task_type = "CALENDAR"
+
+def enable_editing_task_sequence() -> None:
+    """Enable editing task sequence"""
+    props = props_sequence.get_work_schedule_props()
+    props.editing_task_type = "SEQUENCE"
+
+def disable_editing_task_time() -> None:
+    """Disable editing task time"""
+    props = props_sequence.get_work_schedule_props()
+    props.active_task_id = 0
+    props.active_task_time_id = 0
+
+def load_rel_sequence_attributes(rel_sequence: ifcopenshell.entity_instance) -> None:
+    """Load relationship sequence attributes"""
+    import bonsai.bim.helper
+    
+    props = props_sequence.get_work_schedule_props()
+    props.sequence_attributes.clear()
+    bonsai.bim.helper.import_attributes(rel_sequence, props.sequence_attributes)
+
+def enable_editing_rel_sequence_attributes(rel_sequence: ifcopenshell.entity_instance) -> None:
+    """Enable editing relationship sequence attributes"""
+    props = props_sequence.get_work_schedule_props()
+    props.active_sequence_id = rel_sequence.id()
+    props.editing_sequence_type = "ATTRIBUTES"
+
+def load_lag_time_attributes(lag_time: ifcopenshell.entity_instance) -> None:
+    """Load lag time attributes"""
+    import bonsai.bim.helper
+    import ifcopenshell.util.date
+    from typing import Any, Union, Literal
+    from bonsai.bim.prop import Attribute
+    
+    def callback(name: str, prop: Union[Attribute, None], data: dict[str, Any]) -> None | Literal[True]:
+        if name == "LagValue":
+            prop = props_sequence.get_work_schedule_props().lag_time_attributes.add()
+            prop.name = name
+            prop.is_null = data[name] is None
+            prop.is_optional = False
+            prop.data_type = "string"
+            prop.string_value = (
+                "" if prop.is_null else ifcopenshell.util.date.datetime2ifc(data[name].wrappedValue, "IfcDuration")
+            )
+            return True
+
+    props = props_sequence.get_work_schedule_props()
+    props.lag_time_attributes.clear()
+    bonsai.bim.helper.import_attributes(lag_time, props.lag_time_attributes, callback)
+
+def enable_editing_sequence_lag_time(rel_sequence: ifcopenshell.entity_instance) -> None:
+    """Enable editing sequence lag time"""
+    props = props_sequence.get_work_schedule_props()
+    props.active_sequence_id = rel_sequence.id()
+    props.editing_sequence_type = "LAG_TIME"
+
+def get_rel_sequence_attributes() -> dict:
+    """Get relationship sequence attributes"""
+    import bonsai.bim.helper
+    
+    props = props_sequence.get_work_schedule_props()
+    return bonsai.bim.helper.export_attributes(props.sequence_attributes)
+
+def disable_editing_rel_sequence() -> None:
+    """Disable editing relationship sequence"""
+    props = props_sequence.get_work_schedule_props()
+    props.active_sequence_id = 0
+
+def get_lag_time_attributes() -> dict:
+    """Get lag time attributes"""
+    import bonsai.bim.helper
+    
+    props = props_sequence.get_work_schedule_props()
+    return bonsai.bim.helper.export_attributes(props.lag_time_attributes)
+
+def refresh_task_output_counts() -> None:
+    """Refresh task output counts for UI display"""
+    import bonsai.tool as tool
+    import ifcopenshell.util.sequence
+    
+    try:
+        tprops = props_sequence.get_task_tree_props()
+    except Exception:
+        return
+        
+    for item in getattr(tprops, "tasks", []):
+        try:
+            task = tool.Ifc.get().by_id(item.ifc_definition_id)
+            count = len(ifcopenshell.util.sequence.get_task_outputs(task, is_deep=False)) if task else 0
+            if hasattr(item, "outputs_count"):
+                setattr(item, "outputs_count", count)
+        except Exception:
+            continue
+
+def disable_selecting_deleted_task() -> None:
+    """Disable selecting deleted task in UI"""
+    props = props_sequence.get_work_schedule_props()
+    if props.active_task_id not in [
+        task.ifc_definition_id for task in props_sequence.get_task_tree_props().tasks
+    ]:
+        props.active_task_id = 0
+        props.active_task_time_id = 0
+
+def enable_editing_task_attributes(task: ifcopenshell.entity_instance) -> None:
+    """Enable editing task attributes"""
+    props = props_sequence.get_work_schedule_props()
+    props.active_task_id = task.id()
+    props.editing_task_type = "ATTRIBUTES"
+
+def disable_editing_task() -> None:
+    """Disable editing task"""
+    props = props_sequence.get_work_schedule_props()
+    props.active_task_id = 0
+    props.active_task_time_id = 0
+    props.editing_task_type = ""
+
+def enable_editing_task_time(task: ifcopenshell.entity_instance) -> None:
+    """Enable editing task time"""
+    props = props_sequence.get_work_schedule_props()
+    props.active_task_id = task.id()
+    if task.TaskTime:
+        props.active_task_time_id = task.TaskTime.id()
+    props.editing_task_type = "TASKTIME"
+
+def copy_work_schedule(work_schedule: ifcopenshell.entity_instance) -> None:
+    """Creates a deep copy of the given work schedule, including all its tasks and relationships."""
+    import ifcopenshell
+    import ifcopenshell.api
+    import ifcopenshell.util.sequence
+    import ifcopenshell.guid
+    import bonsai.tool as tool
+    
+    file = tool.Ifc.get()
+    if not work_schedule or not file:
+        print("Error: Invalid work schedule or IFC file.")
+        return
+
+    # Use the modern clone API if available
+    try:
+        import ifcopenshell.api.clone
+        new_schedule = ifcopenshell.api.run("clone.clone_deep", file, element=work_schedule)
+        original_name = getattr(work_schedule, "Name", "Unnamed Schedule")
+        new_schedule.Name = f"Copy of {original_name}"
+        print(f"Successfully copied schedule using modern clone.clone_deep API.")
+        return new_schedule
+    except (ImportError, ModuleNotFoundError) as e:
+        print(f"clone.clone_deep not available. Falling back to manual copy.")
+    except Exception as e:
+        print(f"Error with clone.clone_deep. Falling back to manual copy: {e}")
+
+    # Fallback: Manual deep copy
+    def _create_entity_copy(ifc_file, entity: ifcopenshell.entity_instance):
+        """Creates a copy of an IFC entity with a new unique ID."""
+        if not entity:
+            return None
+        try:
+            entity_info = entity.get_info()
+            
+            # Remove fields that must be unique for the new entity
+            if 'id' in entity_info:
+                del entity_info['id']
+            if 'GlobalId' in entity_info:
+                entity_info['GlobalId'] = ifcopenshell.guid.new()
+            
+            # Create new entity with copied data
+            new_entity = ifc_file.create_entity(entity.is_a(), **entity_info)
+            print(f"✅ Copied entity: '{getattr(entity, 'Name', 'Unnamed')}' - Original ID: {entity.id()} → New ID: {new_entity.id()}")
+            return new_entity
+            
+        except Exception as e:
+            print(f"❌ Error copying entity {entity} - {e}")
+            return None
+
+    def _copy_task_recursive(original_task, new_parent=None):
+        """Recursively copy tasks and their nested structure."""
+        try:
+            # Copy the task itself
+            new_task = _create_entity_copy(file, original_task)
+            if not new_task:
+                return None
+
+            # Handle task time if it exists
+            if original_task.TaskTime:
+                new_task_time = _create_entity_copy(file, original_task.TaskTime)
+                if new_task_time:
+                    new_task.TaskTime = new_task_time
+
+            # Copy nested tasks
+            nested_tasks = ifcopenshell.util.sequence.get_nested_tasks(original_task)
+            for nested_task in nested_tasks:
+                _copy_task_recursive(nested_task, new_task)
+
+            return new_task
+
+        except Exception as e:
+            print(f"❌ Error in recursive task copy: {e}")
+            return None
+
+    try:
+        # Create copy of the work schedule
+        new_schedule = _create_entity_copy(file, work_schedule)
+        if not new_schedule:
+            print("❌ Failed to create work schedule copy")
+            return None
+
+        # Copy all root tasks
+        root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
+        for task in root_tasks:
+            _copy_task_recursive(task)
+
+        print(f"✅ Successfully copied work schedule: {new_schedule.Name}")
+        return new_schedule
+
+    except Exception as e:
+        print(f"❌ Error in work schedule copy: {e}")
+        return None
+
+def load_work_schedule_attributes(work_schedule: ifcopenshell.entity_instance) -> None:
+    """Load work schedule attributes into UI"""
+    import bonsai.tool as tool
+    import bonsai.bim.helper
+    from typing import Any, Union, Literal
+    from bonsai.bim.prop import Attribute
+    
+    schema = tool.Ifc.schema()
+    entity = schema.declaration_by_name("IfcWorkSchedule").as_entity()
+    assert entity
+
+    def callback(name: str, prop: Union[Attribute, None], data: dict[str, Any]) -> None | Literal[True]:
+        if name in ["CreationDate", "StartTime", "FinishTime"]:
+            assert prop
+            prop.string_value = "" if prop.is_null else str(data[name])
+            return True
+        else:
+            attr = entity.attribute_by_index(entity.attribute_index(name))
+            if not attr.type_of_attribute()._is("IfcDuration"):
+                return
+            assert prop
+            from . import utils_sequence
+            utils_sequence.add_duration_prop(prop, data[name])
+
+    props = props_sequence.get_work_schedule_props()
+    props.work_schedule_attributes.clear()
+    bonsai.bim.helper.import_attributes(work_schedule, props.work_schedule_attributes, callback)
+
+def enable_editing_work_plan_schedules(work_plan) -> None:
+    """Enable editing work plan schedules"""
+    if work_plan:
+        props = props_sequence.get_work_plan_props()
+        props.active_work_plan_id = work_plan.id()
+        props.editing_type = "SCHEDULES"
+
+def load_work_plan_attributes(work_plan: ifcopenshell.entity_instance) -> None:
+    """Load work plan attributes"""
+    import bonsai.bim.helper
+    from typing import Any, Union, Literal
+    from bonsai.bim.prop import Attribute
+    
+    def callback(name: str, prop: Union[Attribute, None], data: dict[str, Any]) -> None | Literal[True]:
+        if name in ["CreationDate", "StartTime", "FinishTime"]:
+            assert prop
+            prop.string_value = "" if prop.is_null else str(data[name])
+            return True
+    
+    props = props_sequence.get_work_plan_props()
+    props.work_plan_attributes.clear()
+    bonsai.bim.helper.import_attributes(work_plan, props.work_plan_attributes, callback)
+
+def enable_editing_work_plan(work_plan) -> None:
+    """Enable editing work plan"""
+    if work_plan:
+        props = props_sequence.get_work_plan_props()
+        props.active_work_plan_id = work_plan.id()
+        props.editing_type = "ATTRIBUTES"
+
+def disable_editing_work_plan() -> None:
+    """Disable editing work plan"""
+    props = props_sequence.get_work_plan_props()
+    props.active_work_plan_id = 0
+
+def get_work_plan_attributes() -> dict:
+    """Get work plan attributes"""
+    import bonsai.bim.module.sequence.helper as helper
+    import bonsai.bim.helper
+    from typing import Any
+    from bonsai.bim.prop import Attribute
+    
+    def callback(attributes: dict[str, Any], prop: Attribute) -> bool:
+        if "Date" in prop.name or "Time" in prop.name:
+            if prop.is_null:
+                attributes[prop.name] = None
+                return True
+            attributes[prop.name] = helper.parse_datetime(prop.string_value)
+            return True
+        elif prop.special_type == "DURATION":
+            from . import utils_sequence
+            return utils_sequence.export_duration_prop(prop, attributes)
+        return False
+
+    props = props_sequence.get_work_plan_props()
+    return bonsai.bim.helper.export_attributes(props.work_plan_attributes, callback)
 
 
+def _add(total, new_value):
+    """Internal utility method to safely add values"""
+    if total is None:
+        return new_value
+    if new_value is None:
+        return total
+    return total + new_value
 
 
-
-
+def get_all_tasks_recursive_target(work_schedule=None, flatten=True):
+    """Recursively get all tasks from work schedule with optional flattening"""
+    if work_schedule is None:
+        work_schedule = get_active_work_schedule()
+    
+    if not work_schedule:
+        return []
+    
+    all_tasks = []
+    
+    def collect_tasks_recursive(task_list):
+        """Recursively collect all tasks"""
+        for task in task_list:
+            all_tasks.append(task)
+            # Get nested tasks if any
+            nested_tasks = ifcopenshell.util.sequence.get_nested_tasks(task)
+            if nested_tasks:
+                collect_tasks_recursive(nested_tasks)
+    
+    # Get root level tasks
+    root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
+    collect_tasks_recursive(root_tasks)
+    
+    if flatten:
+        return all_tasks
+    else:
+        # Return structured hierarchy (not implemented in original)
+        return all_tasks

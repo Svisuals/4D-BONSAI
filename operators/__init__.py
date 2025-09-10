@@ -229,6 +229,11 @@ classes = (
     color_scheme_operators.VerifyCustomGroupsExclusion,
     color_scheme_operators.ShowcolortypeUIState,
     color_scheme_operators.BIM_OT_cleanup_colortype_groups,
+    color_scheme_operators.SearchCustomColorTypeGroup,
+    color_scheme_operators.CopyCustomColorTypeGroup,
+    color_scheme_operators.PasteCustomColorTypeGroup,
+    color_scheme_operators.SetCustomColorTypeGroupNull,
+    color_scheme_operators.ShowCustomColorTypeGroupInfo,
 
     # from animation_operators.py
     animation_operators.CreateAnimation,

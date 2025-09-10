@@ -488,3 +488,210 @@ def clear_schedule_variance():
             area.tag_redraw()
             if area.spaces.active:
                 area.spaces.active.shading.color_type = 'OBJECT'
+
+def _create_variance_colortype_group():
+    """Create variance colortype node group for materials"""
+    import bpy
+    
+    group_name = "BonsaiVarianceColorType"
+    
+    # Remove existing group if it exists
+    if group_name in bpy.data.node_groups:
+        bpy.data.node_groups.remove(bpy.data.node_groups[group_name])
+    
+    # Create new node group
+    group = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
+    
+    # Create group input and output
+    group_input = group.nodes.new('NodeGroupInput')
+    group_output = group.nodes.new('NodeGroupOutput')
+    
+    # Add input socket for variance value
+    group.interface.new_socket(name="Variance", in_out='INPUT', socket_type='NodeSocketFloat')
+    group.interface.new_socket(name="Color", in_out='OUTPUT', socket_type='NodeSocketColor')
+    
+    # Create ColorRamp node for variance visualization
+    color_ramp = group.nodes.new('ShaderNodeValToRGB')
+    color_ramp.location = (200, 0)
+    
+    # Configure color ramp for variance (red=behind, yellow=on time, green=ahead)
+    color_ramp.color_ramp.elements[0].color = (1.0, 0.0, 0.0, 1.0)  # Red
+    color_ramp.color_ramp.elements[1].color = (0.0, 1.0, 0.0, 1.0)  # Green
+    
+    # Add middle element for yellow
+    color_ramp.color_ramp.elements.new(0.5)
+    color_ramp.color_ramp.elements[1].color = (1.0, 1.0, 0.0, 1.0)  # Yellow
+    
+    # Connect nodes
+    group.links.new(group_input.outputs['Variance'], color_ramp.inputs['Fac'])
+    group.links.new(color_ramp.outputs['Color'], group_output.inputs['Color'])
+    
+    return group
+
+def _save_original_object_colors():
+    """Save original object colors before applying variance colors"""
+    import bpy
+    import bonsai.tool as tool
+    
+    original_colors = {}
+    
+    for obj in bpy.context.scene.objects:
+        if obj.type == 'MESH' and tool.Ifc.get_entity(obj):
+            # Save original color
+            original_colors[obj.name] = {
+                'color': tuple(obj.color),
+                'hide_viewport': obj.hide_viewport,
+                'hide_render': obj.hide_render
+            }
+    
+    # Store in scene custom properties
+    bpy.context.scene['BIM_OriginalColors'] = str(original_colors)
+    
+    return original_colors
+
+def _restore_original_object_colors():
+    """Restore original object colors from saved data"""
+    import bpy
+    import ast
+    
+    try:
+        original_colors_str = bpy.context.scene.get('BIM_OriginalColors', '{}')
+        original_colors = ast.literal_eval(original_colors_str)
+        
+        for obj_name, color_data in original_colors.items():
+            obj = bpy.data.objects.get(obj_name)
+            if obj:
+                obj.color = color_data.get('color', (0.8, 0.8, 0.8, 1.0))
+                obj.hide_viewport = color_data.get('hide_viewport', False)
+                obj.hide_render = color_data.get('hide_render', False)
+                
+    except Exception as e:
+        print(f"Warning: Could not restore original colors: {e}")
+        
+        # Fallback: reset all objects to default
+        for obj in bpy.context.scene.objects:
+            if obj.type == 'MESH':
+                obj.color = (0.8, 0.8, 0.8, 1.0)
+                obj.hide_viewport = False
+                obj.hide_render = False
+
+def _clean_ColorType_snapshot_data():
+    """Clean old ColorType snapshot data"""
+    import bpy
+    
+    # Remove old ColorType data from scene
+    keys_to_remove = []
+    for key in bpy.context.scene.keys():
+        if 'colortype' in key.lower() or 'variance' in key.lower():
+            keys_to_remove.append(key)
+    
+    for key in keys_to_remove:
+        try:
+            del bpy.context.scene[key]
+        except:
+            pass
+    
+    # Clear node groups
+    groups_to_remove = []
+    for group in bpy.data.node_groups:
+        if 'variance' in group.name.lower() or 'colortype' in group.name.lower():
+            groups_to_remove.append(group)
+    
+    for group in groups_to_remove:
+        try:
+            bpy.data.node_groups.remove(group)
+        except:
+            pass
+
+def _apply_ColorType_to_object(obj, color, force_update=True):
+    """Apply ColorType to object with material support"""
+    import bpy
+    import bonsai.tool as tool
+    
+    if not obj or obj.type != 'MESH':
+        return False
+    
+    try:
+        # Apply viewport color
+        obj.color = color[:4] if len(color) >= 4 else tuple(color[:3]) + (1.0,)
+        
+        # Apply material color if using material preview
+        if obj.data.materials:
+            for material in obj.data.materials:
+                if material and material.use_nodes:
+                    # Find Principled BSDF node
+                    principled = None
+                    for node in material.node_tree.nodes:
+                        if node.type == 'BSDF_PRINCIPLED':
+                            principled = node
+                            break
+                    
+                    if principled:
+                        principled.inputs['Base Color'].default_value = color[:4]
+        
+        if force_update:
+            obj.update_tag()
+            
+        return True
+        
+    except Exception as e:
+        print(f"Error applying ColorType to {obj.name}: {e}")
+        return False
+
+def _force_complete_task_snapshot(task, current_frame):
+    """Force complete a task snapshot at current frame"""
+    import bpy
+    import bonsai.tool as tool
+    
+    try:
+        # Get task outputs (products)
+        task_outputs = ifcopenshell.util.sequence.get_task_outputs(task, is_deep=False)
+        
+        for output in task_outputs:
+            obj = tool.Ifc.get_object(output)
+            if obj and obj.type == 'MESH':
+                # Set visibility keyframes
+                obj.hide_viewport = False
+                obj.hide_render = False
+                
+                obj.keyframe_insert(data_path="hide_viewport", frame=current_frame)
+                obj.keyframe_insert(data_path="hide_render", frame=current_frame)
+                
+                # Set color to indicate completion
+                completed_color = (0.0, 1.0, 0.0, 1.0)  # Green
+                obj.color = completed_color
+                obj.keyframe_insert(data_path="color", frame=current_frame)
+                
+        print(f"✅ Forced complete snapshot for task: {getattr(task, 'Name', 'Unnamed')}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error forcing task snapshot: {e}")
+        return False
+
+def _clean_and_update_ColorType_snapshot_for_schedule(work_schedule):
+    """Clean and update ColorType snapshot for schedule"""
+    import bpy
+    
+    try:
+        # Clear existing ColorType data
+        _clean_ColorType_snapshot_data()
+        
+        # Rebuild ColorType for current schedule
+        if work_schedule:
+            # Get all tasks from schedule
+            all_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
+            
+            # Process each task
+            for task in all_tasks:
+                _force_complete_task_snapshot(task, bpy.context.scene.frame_current)
+            
+            # Update variance color scheme
+            activate_variance_color_mode()
+            
+        print(f"✅ ColorType snapshot updated for schedule: {getattr(work_schedule, 'Name', 'Unnamed')}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error updating ColorType snapshot: {e}")
+        return False
