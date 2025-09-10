@@ -1,5 +1,21 @@
-# File: .../sequence/operators/__init__.py
-# Description: Central registration point for all sequence operators.
+# Bonsai - OpenBIM Blender Add-on
+"""Operator Classes for the 4D Sequence UI.
+
+This module contains all the bpy.types.Operator classes that provide
+interactivity to the 4D scheduling panel. These classes handle actions
+triggered by user input, such as button clicks or search operations.
+
+Main operators include:
+- SearchCustomColorTypeGroup: Implements search functionality for ColorType groups.
+- CopyCustomColorTypeGroup: Copies the selected group name to the clipboard.
+- PasteCustomColorTypeGroup: Pastes a group name from the clipboard.
+- SetCustomColorTypeGroupNull: Clears the current group selection.
+- ShowCustomColorTypeGroupInfo: Displays details about the selected group.
+
+These operators interact with the core logic and properties defined in other
+modules of the 'sequence' package.
+"""
+
 
 import bpy
 from . import camera_operators

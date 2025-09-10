@@ -1,7 +1,7 @@
 # Bonsai - OpenBIM Blender Add-on
-# Copyright (C) 2020, 2021 Dion Moult <dion@thinkmoult.com>
+# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2022 Yassine Oualid <yassine@sigmadimensions.com>, 2025 Federico Eraso <feraso@svisuals.net>
 #
-# This file is part of Bonsai.
+# This file is part of Bonsai.	
 #
 # Bonsai is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,12 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with Bonsai.  If not, see <http://www.gnu.org/licenses/>.
 
+# pyright: reportAttributeAccessIssue=false
 
-"""
-DEPRECATION NOTICE:
-This file contained a duplicate BIMCameraOrbitProperties class that has been 
-consolidated into camera_hud.py for better maintainability.
 
-The actual implementation is now in camera_hud.py and is imported through 
-__init__.py. This file can be deleted in a future refactoring.
-"""
+
+from .main_sequence import Sequence

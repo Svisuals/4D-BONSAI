@@ -1,3 +1,4 @@
+# Bonsai - OpenBIM Blender Add-on
 """User Interface (UI) Panels for 4D BIM Scheduling - Modular Organization.
 
 This package contains the Panel (bpy.types.Panel) and UIList (bpy.types.UIList) 

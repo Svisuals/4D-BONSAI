@@ -1,20 +1,20 @@
 # Bonsai - OpenBIM Blender Add-on
-# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2021-2022 Yassine Oualid <yassine@sigmadimensions.com>
-#
-# This file is part of Bonsai.
-#
-# Bonsai is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Bonsai is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Bonsai.  If not, see <http://www.gnu.org/licenses/>.
+"""Generation of 3D Visual Elements for 4D Animation.
+
+This module is responsible for creating dynamic, non-IFC objects that
+enhance the 4D visualization. These elements provide context and data
+directly within the 3D viewport during the animation.
+
+Main visual components include:
+-   **Animated 3D Texts:** Creates and animates text objects to display live
+    schedule data such as the current date, week, day count, and overall
+    progress. This system also handles parenting these texts to the camera
+    to function as a 3D Heads-Up Display (HUD).
+-   **3D Gantt Bars:** Generates and animates 3D plane objects that visually
+    represent task durations over time in the 3D space.
+-   **GPU HUD Integration:** Contains logic to trigger the creation and update
+    of the 2D GPU-based schedule HUD for high-performance data display.
+"""
 
 import bpy
 import os

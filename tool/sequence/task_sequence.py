@@ -1,0 +1,894 @@
+# Bonsai - OpenBIM Blender Add-on
+# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2022 Yassine Oualid <yassine@sigmadimensions.com>
+#
+# This file is part of Bonsai.
+#
+# Bonsai is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Bonsai is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Bonsai.  If not, see <http://www.gnu.org/licenses/>.
+
+
+
+import bpy
+import ifcopenshell
+import ifcopenshell.util.sequence
+import ifcopenshell.util.date
+import ifcopenshell.util.element
+import json
+import re
+from datetime import datetime
+from typing import Any
+import bonsai.tool as tool
+from . import props_sequence
+from . import utils_sequence
+
+
+def get_active_work_schedule():
+    """Gets the currently active work schedule from props."""
+    props = props_sequence.get_work_schedule_props()
+    if not props.active_work_schedule_id:
+        return None
+    return tool.Ifc.get().by_id(props.active_work_schedule_id)
+
+
+def get_task_outputs(task: ifcopenshell.entity_instance):
+    """Gets task outputs, respecting the nested output setting."""
+    props = props_sequence.get_work_schedule_props()
+    is_deep = getattr(props, 'show_nested_outputs', False)
+    return ifcopenshell.util.sequence.get_task_outputs(task, is_deep)
+
+
+def get_task_inputs(task: ifcopenshell.entity_instance):
+    """Gets task inputs, respecting the nested input setting."""
+    props = props_sequence.get_work_schedule_props()
+    is_deep = getattr(props, 'show_nested_inputs', False)  
+    return ifcopenshell.util.sequence.get_task_inputs(task, is_deep)
+
+
+def load_task_outputs(outputs):
+    """Load task outputs into UI props."""
+    props = props_sequence.get_work_schedule_props()
+    props.task_outputs.clear()
+    for output in outputs:
+        new_output = props.task_outputs.add()
+        new_output.ifc_definition_id = output.id()
+        new_output.name = output.Name or "Unnamed Output"
+
+
+def load_task_inputs(inputs):
+    """Load task inputs into UI props."""
+    props = props_sequence.get_work_schedule_props()
+    props.task_inputs.clear()
+    for input_item in inputs:
+        new_input = props.task_inputs.add()
+        new_input.ifc_definition_id = input_item.id()
+        new_input.name = input_item.Name or "Unnamed Input"
+
+
+def load_task_resources(task: ifcopenshell.entity_instance):
+    """Load task resources into UI props."""
+    props = props_sequence.get_work_schedule_props()
+    props.task_resources.clear()
+    try:
+        resources = ifcopenshell.util.sequence.get_task_resources(task)
+        for resource in resources:
+            new_resource = props.task_resources.add()
+            new_resource.ifc_definition_id = resource.id()
+            new_resource.name = resource.Name or "Unnamed Resource"
+    except Exception as e:
+        print(f"Error loading task resources: {e}")
+
+
+
+def update_task_ICOM(task: ifcopenshell.entity_instance) -> None:
+    """Refreshes the ICOM data (Outputs, Inputs, Resources) of the panel for the active task."""
+    props = props_sequence.get_work_schedule_props()
+    if task:
+        outputs = get_task_outputs(task) or []
+        load_task_outputs(outputs)
+        inputs = get_task_inputs(task) or []
+        load_task_inputs(inputs)
+        load_task_resources(task)
+    else:
+        props.task_outputs.clear()
+        props.task_inputs.clear()
+        props.task_resources.clear()
+
+
+    def load_task_tree(work_schedule: ifcopenshell.entity_instance) -> None:
+        props = props_sequence.get_task_tree_props()
+        props.tasks.clear()
+        schedule_props = props_sequence.get_work_schedule_props()
+        contracted_tasks = json.loads(schedule_props.contracted_tasks)
+
+        root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
+        filtered_root_tasks = get_filtered_tasks(root_tasks)
+        related_objects_ids = get_sorted_tasks_ids(filtered_root_tasks)
+
+        for related_object_id in related_objects_ids:
+            create_new_task_li(related_object_id, 0, contracted_tasks)
+
+
+    def get_sorted_tasks_ids(tasks: list[ifcopenshell.entity_instance]) -> list[int]:
+        props = props_sequence.get_work_schedule_props()
+
+        def get_sort_key(task):
+            column_type, name = props.sort_column.split(".")
+            if column_type == "IfcTask":
+                return task.get_info(task)[name] or ""
+            elif column_type == "IfcTaskTime" and task.TaskTime:
+                return task.TaskTime.get_info(task)[name] if task.TaskTime.get_info(task)[name] else ""
+            return task.Identification or ""
+
+        def natural_sort_key(i, _nsre=re.compile("([0-9]+)")):
+            s = sort_keys[i]
+            return [int(text) if text.isdigit() else text.lower() for text in _nsre.split(s)]
+
+        if props.sort_column:
+            sort_keys = {task.id(): get_sort_key(task) for task in tasks}
+            related_object_ids = sorted(sort_keys, key=natural_sort_key)
+        else:
+            related_object_ids = [task.id() for task in tasks]
+        if props.is_sort_reversed:
+            related_object_ids.reverse()
+        return related_object_ids
+
+ 
+    def get_filtered_tasks(tasks: list[ifcopenshell.entity_instance]) -> list[ifcopenshell.entity_instance]:
+        """
+        Filtra una lista de tareas (y sus hijos) basándose en las reglas activas.
+        """
+        props = props_sequence.get_work_schedule_props()
+        try:
+            filter_rules = [r for r in getattr(props, "filters").rules if r.is_active]
+        except Exception:
+            return tasks
+
+        if not filter_rules:
+            return tasks
+
+        filter_logic_is_and = getattr(props.filters, "logic", 'AND') == 'AND'
+
+    def get_task_value(task, column_identifier):
+        if not task or not column_identifier:
+            return None
+        column_name = column_identifier.split('||')[0]
+        if column_name == "Special.OutputsCount":
+            try:
+                return len(ifcopenshell.util.sequence.get_task_outputs(task, is_deep=False))
+            except Exception:
+                return 0
+        if column_name in ("Special.VarianceStatus", "Special.VarianceDays"):
+            ws_props = props_sequence.get_work_schedule_props()
+            source_a = ws_props.variance_source_a
+            source_b = ws_props.variance_source_b
+            if source_a == source_b: return None
+            finish_attr_a = f"{source_a.capitalize()}Finish"
+            finish_attr_b = f"{source_b.capitalize()}Finish"
+            date_a = ifcopenshell.util.sequence.derive_date(task, finish_attr_a, is_latest=True)
+            date_b = ifcopenshell.util.sequence.derive_date(task, finish_attr_b, is_latest=True)
+            if date_a and date_b:
+                delta = date_b.date() - date_a.date()
+                variance_days = delta.days
+                if column_name == "Special.VarianceDays":
+                    return variance_days
+                else:
+                    if variance_days > 0: return f"Delayed (+{variance_days}d)"
+                    elif variance_days < 0: return f"Ahead ({variance_days}d)"
+                    else: return "On Time"
+            return "N/A"
+        try:
+            ifc_class, attr_name = column_name.split('.', 1)
+            if ifc_class == "IfcTask": return getattr(task, attr_name, None)
+            elif ifc_class == "IfcTaskTime":
+                task_time = getattr(task, "TaskTime", None)
+                return getattr(task_time, attr_name, None) if task_time else None
+        except Exception:
+            return None
+        return None
+
+    def task_matches_filters(task):
+        results = []
+        for rule in filter_rules:
+            task_value = get_task_value(task, rule.column)
+            data_type = getattr(rule, 'data_type', 'string')
+            op = rule.operator
+            match = False
+            if op == 'EMPTY': match = task_value is None or str(task_value).strip() == ""
+            elif op == 'NOT_EMPTY': match = task_value is not None and str(task_value).strip() != ""
+            else:
+                try:
+                    if data_type == 'integer':
+                        rule_value = rule.value_integer
+                        task_value_num = int(task_value)
+                        if op == 'EQUALS': match = task_value_num == rule_value
+                        elif op == 'NOT_EQUALS': match = task_value_num != rule_value
+                        elif op == 'GREATER': match = task_value_num > rule_value
+                        elif op == 'LESS': match = task_value_num < rule_value
+                        elif op == 'GTE': match = task_value_num >= rule_value
+                        elif op == 'LTE': match = task_value_num <= rule_value
+                    elif data_type in ('float', 'real'):
+                        rule_value = rule.value_float
+                        task_value_num = float(task_value)
+                        if op == 'EQUALS': match = task_value_num == rule_value
+                        elif op == 'NOT_EQUALS': match = task_value_num != rule_value
+                        elif op == 'GREATER': match = task_value_num > rule_value
+                        elif op == 'LESS': match = task_value_num < rule_value
+                        elif op == 'GTE': match = task_value_num >= rule_value
+                        elif op == 'LTE': match = task_value_num <= rule_value
+                    elif data_type == 'boolean':
+                        rule_value = bool(rule.value_boolean)
+                        task_value_bool = bool(task_value)
+                        if op == 'EQUALS': match = task_value_bool == rule_value
+                        elif op == 'NOT_EQUALS': match = task_value_bool != rule_value
+                    elif data_type == 'date':
+                        task_date = bonsai.bim.module.sequence.helper.parse_datetime(str(task_value))
+                        rule_date = bonsai.bim.module.sequence.helper.parse_datetime(rule.value_string)
+                        if task_date and rule_date:
+                            if op == 'EQUALS': match = task_date.date() == rule_date.date()
+                            elif op == 'NOT_EQUALS': match = task_date.date() != rule_date.date()
+                            elif op == 'GREATER': match = task_date > rule_date
+                            elif op == 'LESS': match = task_date < rule_date
+                            elif op == 'GTE': match = task_date >= rule_date
+                            elif op == 'LTE': match = task_date <= rule_date
+                    elif data_type == 'variance_status':
+                        rule_value = rule.value_variance_status
+                        task_value_str = str(task_value) if task_value is not None else ""
+                        if op == 'EQUALS': match = rule_value in task_value_str
+                        elif op == 'NOT_EQUALS': match = rule_value not in task_value_str
+                        elif op == 'CONTAINS': match = rule_value in task_value_str
+                        elif op == 'NOT_CONTAINS': match = rule_value not in task_value_str
+                    else: # string, enums, etc.
+                        rule_value = (rule.value_string or "").lower()
+                        task_value_str = (str(task_value) if task_value is not None else "").lower()
+                        if op == 'CONTAINS': match = rule_value in task_value_str
+                        elif op == 'NOT_CONTAINS': match = rule_value not in task_value_str
+                        elif op == 'EQUALS': match = rule_value == task_value_str
+                        elif op == 'NOT_EQUALS': match = rule_value != task_value_str
+                except (ValueError, TypeError, AttributeError):
+                    match = False
+            results.append(match)
+        if not results: return True
+        return all(results) if filter_logic_is_and else any(results)
+
+    filtered_list = []
+    for task in tasks:
+        nested_tasks = ifcopenshell.util.sequence.get_nested_tasks(task)
+        filtered_children = get_filtered_tasks(nested_tasks) if nested_tasks else []
+        if task_matches_filters(task) or len(filtered_children) > 0:
+            filtered_list.append(task)
+    return filtered_list
+
+
+def create_new_task_li(related_object_id: int, level_index: int, contracted_tasks: list) -> None:
+    task = tool.Ifc.get().by_id(related_object_id)
+    props = props_sequence.get_task_tree_props()
+    new = props.tasks.add()
+    new.ifc_definition_id = related_object_id
+    new.is_expanded = related_object_id not in contracted_tasks
+    new.level_index = level_index
+    if task.IsNestedBy:
+        new.has_children = True
+        if new.is_expanded:
+            for child_related_object_id in get_sorted_tasks_ids(ifcopenshell.util.sequence.get_nested_tasks(task)):
+                create_new_task_li(child_related_object_id, level_index + 1, contracted_tasks)
+
+
+def _load_task_date_properties(item, task, date_type_prefix):
+    """Helper to load a pair of dates (e.g., ScheduleStart/Finish) for a task item."""
+    prop_prefix = date_type_prefix.lower()
+    start_attr, finish_attr = f"{date_type_prefix}Start", f"{date_type_prefix}Finish"
+    item_start, item_finish = ("start", "finish") if prop_prefix == "schedule" else (f"{prop_prefix}_start", f"{prop_prefix}_finish")
+    derived_start, derived_finish = f"derived_{item_start}", f"derived_{item_finish}"
+    task_time = getattr(task, "TaskTime", None)
+    if task_time and (getattr(task_time, start_attr, None) or getattr(task_time, finish_attr, None)):
+        start_val = getattr(task_time, start_attr, None)
+        finish_val = getattr(task_time, finish_attr, None)
+        setattr(item, item_start, ifcopenshell.util.date.canonicalise_time(ifcopenshell.util.date.ifc2datetime(start_val)) if start_val else "-")
+        setattr(item, item_finish, ifcopenshell.util.date.canonicalise_time(ifcopenshell.util.date.ifc2datetime(finish_val)) if finish_val else "-")
+        setattr(item, derived_start, "")
+        setattr(item, derived_finish, "")
+    else:
+        d_start = ifcopenshell.util.sequence.derive_date(task, start_attr, is_earliest=True)
+        d_finish = ifcopenshell.util.sequence.derive_date(task, finish_attr, is_latest=True)
+        setattr(item, derived_start, ifcopenshell.util.date.canonicalise_time(d_start) if d_start else "")
+        setattr(item, derived_finish, ifcopenshell.util.date.canonicalise_time(d_finish) if d_finish else "")
+        setattr(item, item_start, "-")
+        setattr(item, item_finish, "-")
+
+
+def load_task_properties() -> None:
+    from . import visuals_sequence
+    props = props_sequence.get_work_schedule_props()
+    task_props = props_sequence.get_task_tree_props()
+    tasks_with_visual_bar = visuals_sequence.get_task_bar_list()
+    props.is_task_update_enabled = False
+
+    for item in task_props.tasks:
+        task = tool.Ifc.get().by_id(item.ifc_definition_id)
+        item.name = task.Name or "Unnamed"
+        item.identification = task.Identification or "XXX"
+        item.has_bar_visual = item.ifc_definition_id in tasks_with_visual_bar
+        if props.highlighted_task_id:
+            item.is_predecessor = props.highlighted_task_id in [rel.RelatedProcess.id() for rel in task.IsPredecessorTo]
+            item.is_successor = props.highlighted_task_id in [rel.RelatingProcess.id() for rel in task.IsSuccessorFrom]
+        calendar = ifcopenshell.util.sequence.derive_calendar(task)
+        if ifcopenshell.util.sequence.get_calendar(task):
+            item.calendar = calendar.Name or "Unnamed" if calendar else ""
+        else:
+            item.calendar = ""
+            item.derived_calendar = calendar.Name or "Unnamed" if calendar else ""
+
+        _load_task_date_properties(item, task, "Schedule")
+        _load_task_date_properties(item, task, "Actual")
+        _load_task_date_properties(item, task, "Early")
+        _load_task_date_properties(item, task, "Late")
+
+        task_time = task.TaskTime
+        if task_time and task_time.ScheduleDuration:
+            item.duration = str(ifcopenshell.util.date.readable_ifc_duration(task_time.ScheduleDuration))
+        else:
+            derived_start = ifcopenshell.util.sequence.derive_date(task, "ScheduleStart", is_earliest=True)
+            derived_finish = ifcopenshell.util.sequence.derive_date(task, "ScheduleFinish", is_latest=True)
+            if derived_start and derived_finish:
+                derived_duration = ifcopenshell.util.sequence.count_working_days(derived_start, derived_finish, calendar)
+                item.derived_duration = str(ifcopenshell.util.date.readable_ifc_duration(f"P{derived_duration}D"))
+            else:
+                item.derived_duration = ""
+            item.duration = "-"
+    try:
+        refresh_task_output_counts()
+    except Exception:
+        pass
+    props.is_task_update_enabled = True
+
+
+def refresh_task_output_counts() -> None:
+    """
+    Recalcula y guarda (si existe) el conteo de Outputs por tarea en el árbol actual.
+    """
+    try:
+        tprops = props_sequence.get_task_tree_props()
+    except Exception:
+        return
+    for item in getattr(tprops, "tasks", []):
+        try:
+            task = tool.Ifc.get().by_id(item.ifc_definition_id)
+            count = len(ifcopenshell.util.sequence.get_task_outputs(task, is_deep=False)) if task else 0
+            if hasattr(item, "outputs_count"):
+                setattr(item, "outputs_count", count)
+        except Exception:
+            continue
+
+
+def expand_task(task: ifcopenshell.entity_instance) -> None:
+    props = props_sequence.get_work_schedule_props()
+    contracted_tasks = json.loads(props.contracted_tasks)
+    contracted_tasks.remove(task.id())
+    props.contracted_tasks = json.dumps(contracted_tasks)
+
+
+def contract_task(task: ifcopenshell.entity_instance) -> None:
+    props = props_sequence.get_work_schedule_props()
+    contracted_tasks = json.loads(props.contracted_tasks)
+    contracted_tasks.append(task.id())
+    props.contracted_tasks = json.dumps(contracted_tasks)
+
+
+def expand_all_tasks() -> None:
+    props = props_sequence.get_work_schedule_props()
+    props.contracted_tasks = json.dumps([])
+
+
+def contract_all_tasks() -> None:
+    props = props_sequence.get_work_schedule_props()
+    tprops = props_sequence.get_task_tree_props()
+    contracted_tasks = json.loads(props.contracted_tasks)
+    for task_item in tprops.tasks:
+        if task_item.is_expanded:
+            contracted_tasks.append(task_item.ifc_definition_id)
+    props.contracted_tasks = json.dumps(contracted_tasks)
+
+
+def get_checked_tasks() -> list[ifcopenshell.entity_instance]:
+    return [
+        tool.Ifc.get().by_id(task.ifc_definition_id) for task in props_sequence.get_task_tree_props().tasks if task.is_selected
+    ] or []
+
+
+def get_task_inputs(task: ifcopenshell.entity_instance) -> list[ifcopenshell.entity_instance]:
+    props = props_sequence.get_work_schedule_props()
+    is_deep = props.show_nested_inputs
+    return ifcopenshell.util.sequence.get_task_inputs(task, is_deep)
+
+
+def get_task_outputs(task: ifcopenshell.entity_instance) -> list[ifcopenshell.entity_instance]:
+    props = props_sequence.get_work_schedule_props()
+    is_deep = props.show_nested_outputs
+    return ifcopenshell.util.sequence.get_task_outputs(task, is_deep)
+
+
+def get_direct_nested_tasks(task: ifcopenshell.entity_instance) -> list[ifcopenshell.entity_instance]:
+    return ifcopenshell.util.sequence.get_nested_tasks(task)
+
+
+def get_direct_task_outputs(task: ifcopenshell.entity_instance) -> list[ifcopenshell.entity_instance]:
+    return ifcopenshell.util.sequence.get_direct_task_outputs(task)
+
+
+def load_task_inputs(inputs: list[ifcopenshell.entity_instance]) -> None:
+    props = props_sequence.get_work_schedule_props()
+    props.task_inputs.clear()
+    for input_item in inputs:
+        new = props.task_inputs.add()
+        new.ifc_definition_id = input_item.id()
+        new.name = input_item.Name or "Unnamed"
+
+
+def load_task_outputs(outputs: list[ifcopenshell.entity_instance]) -> None:
+    props = props_sequence.get_work_schedule_props()
+    props.task_outputs.clear()
+    if outputs:
+        for output in outputs:
+            new = props.task_outputs.add()
+            new.ifc_definition_id = output.id()
+            new.name = output.Name or "Unnamed"
+
+
+def load_task_resources(task: ifcopenshell.entity_instance) -> None:
+    props = props_sequence.get_work_schedule_props()
+    rprops = tool.Resource.get_resource_props()
+    props.task_resources.clear()
+    rprops.is_resource_update_enabled = False
+    for resource in get_task_resources(task) or []:
+        new = props.task_resources.add()
+        new.ifc_definition_id = resource.id()
+        new.name = resource.Name or "Unnamed"
+        new.schedule_usage = resource.Usage.ScheduleUsage or 0 if resource.Usage else 0
+    rprops.is_resource_update_enabled = True
+
+
+def get_task_resources(task: ifcopenshell.entity_instance | None) -> list[ifcopenshell.entity_instance] | None:
+    if not task:
+        return
+    props = props_sequence.get_work_schedule_props()
+    is_deep = props.show_nested_resources
+    return ifcopenshell.util.sequence.get_task_resources(task, is_deep)
+
+
+def apply_selection_from_checkboxes():
+    """
+    Selects the 3D objects of all tasks marked with the checkbox in the viewport.
+    """
+    try:
+        tprops = props_sequence.get_task_tree_props()
+        if not tprops:
+            return
+
+        selected_tasks_pg = [task_pg for task_pg in tprops.tasks if getattr(task_pg, 'is_selected', False)]
+        bpy.ops.object.select_all(action='DESELECT')
+        if not selected_tasks_pg:
+            return
+
+        objects_to_select = []
+        for task_pg in selected_tasks_pg:
+            task_ifc = tool.Ifc.get().by_id(task_pg.ifc_definition_id)
+            if not task_ifc:
+                continue
+            outputs = get_task_outputs(task_ifc)
+            for product in outputs:
+                obj = tool.Ifc.get_object(product)
+                if obj:
+                    objects_to_select.append(obj)
+        if objects_to_select:
+            for obj in objects_to_select:
+                obj.select_set(True)
+            bpy.context.view_layer.objects.active = objects_to_select[0]
+    except Exception as e:
+        print(f"Error applying selection from checkboxes: {e}")
+
+def get_task_attributes() -> dict[str, Any]:
+    import bonsai.bim.module.sequence.helper as helper
+    from typing import Any
+    from bonsai.bim.prop import Attribute
+    import bonsai.bim.helper
+    
+    def callback(attributes: dict[str, Any], prop: Attribute) -> bool:
+        if "Date" in prop.name or "Time" in prop.name:
+            attributes[prop.name] = None if prop.is_null else helper.parse_datetime(prop.string_value)
+            return True
+        elif prop.name == "Duration" or prop.name == "TotalFloat":
+            attributes[prop.name] = None if prop.is_null else helper.parse_duration(prop.string_value)
+            return True
+        return False
+    
+    props = props_sequence.get_task_tree_props()
+    return bonsai.bim.helper.export_attributes(props.task_attributes, callback)
+
+def load_task_attributes(task: ifcopenshell.entity_instance) -> None:
+    from typing import Any, Union, Literal
+    from bonsai.bim.prop import Attribute
+    import bonsai.bim.helper
+    
+    def callback(name: str, prop: Union[Attribute, None], data: dict[str, Any]) -> None | Literal[True]:
+        if name in ["ScheduleStart", "ScheduleFinish", "ActualStart", "ActualFinish"]:
+            assert prop
+            prop.string_value = "" if prop.is_null else data[name]
+            return True
+    
+    props = props_sequence.get_task_tree_props()
+    props.task_attributes.clear()
+    bonsai.bim.helper.import_attributes(task, props.task_attributes, callback)
+
+def get_active_task() -> ifcopenshell.entity_instance:
+    import bonsai.tool as tool
+    
+    props = props_sequence.get_task_tree_props()
+    if not props.active_task_id:
+        return None
+    return tool.Ifc.get().by_id(props.active_task_id)
+
+def get_task_attribute_value(attribute_name: str) -> Any:
+    props = props_sequence.get_task_tree_props()
+    for attribute in props.task_attributes:
+        if attribute.name == attribute_name:
+            return attribute.get_value()
+    return None
+
+def get_task_time(task: ifcopenshell.entity_instance) -> ifcopenshell.entity_instance | None:
+    """Get the task time object associated with a task"""
+    import bonsai.tool as tool
+    
+    if not task or not hasattr(task, 'TaskTime'):
+        return None
+    return task.TaskTime
+
+def get_task_time_attributes() -> dict[str, Any]:
+    import bonsai.bim.module.sequence.helper as helper
+    from typing import Any
+    from bonsai.bim.prop import Attribute
+    import bonsai.bim.helper
+    
+    def callback(attributes: dict[str, Any], prop: Attribute) -> bool:
+        if "Date" in prop.name or "Time" in prop.name:
+            attributes[prop.name] = None if prop.is_null else helper.parse_datetime(prop.string_value)
+            return True
+        elif prop.name == "Duration" or prop.name == "TotalFloat":
+            attributes[prop.name] = None if prop.is_null else helper.parse_duration(prop.string_value)
+            return True
+        return False
+    
+    props = props_sequence.get_task_tree_props()
+    return bonsai.bim.helper.export_attributes(props.task_time_attributes, callback)
+
+def load_task_time_attributes(task_time: ifcopenshell.entity_instance) -> None:
+    from typing import Any, Union, Literal
+    from bonsai.bim.prop import Attribute
+    import bonsai.bim.helper
+    
+    def callback(name: str, prop: Union[Attribute, None], data: dict[str, Any]) -> None | Literal[True]:
+        if name in ["ScheduleStart", "ScheduleFinish", "ScheduleDuration", "ActualStart", "ActualFinish", "ActualDuration"]:
+            assert prop
+            prop.string_value = "" if prop.is_null else data[name]
+            return True
+    
+    props = props_sequence.get_task_tree_props()
+    props.task_time_attributes.clear()
+    bonsai.bim.helper.import_attributes(task_time, props.task_time_attributes, callback)
+
+def has_duration(task: ifcopenshell.entity_instance) -> bool:
+    """Check if a task has a duration defined"""
+    task_time = get_task_time(task)
+    if not task_time:
+        return False
+    
+    return bool(
+        getattr(task_time, 'ScheduleDuration', None) or 
+        getattr(task_time, 'ActualDuration', None)
+    )
+
+def get_work_schedule(task: ifcopenshell.entity_instance) -> ifcopenshell.entity_instance | None:
+    """Get the work schedule that contains a task"""
+    
+    def get_ancestor_ids(task):
+        """Recursively get all ancestor task IDs"""
+        ids = []
+        if hasattr(task, 'Nests') and task.Nests:
+            for rel in task.Nests:
+                if hasattr(rel, 'RelatingObject') and rel.RelatingObject:
+                    parent = rel.RelatingObject
+                    ids.append(parent.id())
+                    ids.extend(get_ancestor_ids(parent))
+        return ids
+
+    # Check if task is directly in a work schedule
+    if hasattr(task, 'Nests') and task.Nests:
+        for rel in task.Nests:
+            if hasattr(rel, 'RelatingObject') and rel.RelatingObject:
+                relating_obj = rel.RelatingObject
+                if relating_obj.is_a('IfcWorkSchedule'):
+                    return relating_obj
+    
+    # Check ancestor tasks
+    ancestor_ids = get_ancestor_ids(task)
+    import bonsai.tool as tool
+    ifc = tool.Ifc.get()
+    
+    for ancestor_id in ancestor_ids:
+        ancestor = ifc.by_id(ancestor_id)
+        if ancestor.is_a('IfcWorkSchedule'):
+            return ancestor
+    
+    return None
+
+def get_highlighted_task() -> ifcopenshell.entity_instance | None:
+    """Get the currently highlighted task in the UI"""
+    props = props_sequence.get_task_tree_props()
+    if not hasattr(props, 'highlighted_task_id') or not props.highlighted_task_id:
+        return None
+    
+    import bonsai.tool as tool
+    return tool.Ifc.get().by_id(props.highlighted_task_id)
+
+def get_checked_tasks() -> list[ifcopenshell.entity_instance]:
+    """Get all tasks that are currently checked in the UI"""
+    props = props_sequence.get_task_tree_props()
+    tasks = []
+    
+    import bonsai.tool as tool
+    ifc = tool.Ifc.get()
+    
+    for task_item in props.tasks:
+        if getattr(task_item, 'is_selected', False):
+            task = ifc.by_id(task_item.ifc_definition_id)
+            if task:
+                tasks.append(task)
+    
+    return tasks
+
+def refresh_task_resources():
+    """Refresh the task resources display for the active task"""
+    props = props_sequence.get_task_tree_props()
+    if props.active_task_id:
+        import bonsai.tool as tool
+        task = tool.Ifc.get().by_id(props.active_task_id)
+        if task:
+            load_task_resources(task)
+
+def load_task_resources(task: ifcopenshell.entity_instance):
+    """Load resources for a specific task"""
+    props = props_sequence.get_work_schedule_props()
+    rprops = props_sequence.get_status_props()
+    
+    props.task_resources.clear()
+    rprops.is_resource_update_enabled = False
+    
+    for resource in get_task_resources(task) or []:
+        new = props.task_resources.add()
+        new.ifc_definition_id = resource.id()
+        new.name = resource.Name or "Unnamed"
+        new.schedule_usage = resource.Usage.ScheduleUsage or 0 if resource.Usage else 0
+    
+    rprops.is_resource_update_enabled = True
+
+def get_sorted_tasks_ids(tasks: list[ifcopenshell.entity_instance]) -> list[int]:
+    """Sort tasks by their properties and return sorted IDs"""
+    
+    def get_sort_key(task):
+        props = props_sequence.get_task_tree_props()
+        sort_column = getattr(props, 'sort_column', 'Name')
+        
+        if sort_column == 'Name':
+            return task.Name or ''
+        elif sort_column == 'Identification':
+            return getattr(task, 'Identification', '') or ''
+        elif sort_column == 'ScheduleStart':
+            task_time = get_task_time(task)
+            if task_time:
+                return getattr(task_time, 'ScheduleStart', '') or ''
+            return ''
+        elif sort_column == 'ScheduleFinish':
+            task_time = get_task_time(task)
+            if task_time:
+                return getattr(task_time, 'ScheduleFinish', '') or ''
+            return ''
+        else:
+            return ''
+    
+    # Sort tasks
+    sorted_tasks = sorted(tasks, key=get_sort_key)
+    
+    # Get reverse order if needed
+    props = props_sequence.get_task_tree_props()
+    if getattr(props, 'is_sort_reversed', False):
+        sorted_tasks.reverse()
+    
+    return [task.id() for task in sorted_tasks]
+
+def get_filtered_tasks(tasks: list[ifcopenshell.entity_instance]) -> list[ifcopenshell.entity_instance]:
+    """Filter tasks based on current filter settings"""
+    props = props_sequence.get_task_tree_props()
+    
+    if not getattr(props, 'filter_value', ''):
+        return tasks
+    
+    filter_value = props.filter_value.lower()
+    filter_column = getattr(props, 'filter_column', 'Name')
+    
+    def get_task_value(task, column_identifier):
+        if column_identifier == 'Name':
+            return (task.Name or '').lower()
+        elif column_identifier == 'Identification':
+            return (getattr(task, 'Identification', '') or '').lower()
+        elif column_identifier == 'ScheduleStart':
+            task_time = get_task_time(task)
+            if task_time:
+                return str(getattr(task_time, 'ScheduleStart', '') or '').lower()
+            return ''
+        elif column_identifier == 'ScheduleFinish':
+            task_time = get_task_time(task)
+            if task_time:
+                return str(getattr(task_time, 'ScheduleFinish', '') or '').lower()
+            return ''
+        else:
+            return ''
+    
+    filtered_tasks = []
+    for task in tasks:
+        task_value = get_task_value(task, filter_column)
+        if filter_value in task_value:
+            filtered_tasks.append(task)
+    
+    return filtered_tasks
+
+def get_selected_task_ids():
+    """Get IDs of all selected tasks in the task tree"""
+    props = props_sequence.get_task_tree_props()
+    selected_ids = []
+    
+    for task_item in props.tasks:
+        if getattr(task_item, 'is_selected', False):
+            selected_ids.append(task_item.ifc_definition_id)
+    
+    return selected_ids
+
+def load_product_related_tasks(product):
+    """Load tasks related to a specific product"""
+    import bonsai.tool as tool
+    
+    if not product:
+        return
+    
+    # Get tasks that use this product as input or output
+    consuming_tasks, producing_tasks = get_tasks_for_product(product)
+    
+    # Load these tasks into UI properties if needed
+    props = props_sequence.get_task_tree_props()
+    
+    # Clear existing product-related tasks
+    props.product_related_tasks.clear()
+    
+    # Add consuming tasks
+    for task in consuming_tasks:
+        new_task = props.product_related_tasks.add()
+        new_task.ifc_definition_id = task.id()
+        new_task.name = task.Name or "Unnamed Task"
+        new_task.relationship_type = "CONSUMES"
+    
+    # Add producing tasks  
+    for task in producing_tasks:
+        new_task = props.product_related_tasks.add()
+        new_task.ifc_definition_id = task.id()
+        new_task.name = task.Name or "Unnamed Task"
+        new_task.relationship_type = "PRODUCES"
+
+def validate_task_object(task, operation_name="operation"):
+    """Validate that a task object is valid for operations"""
+    if not task:
+        raise ValueError(f"Task is None for {operation_name}")
+    
+    if not hasattr(task, 'is_a') or not task.is_a('IfcTask'):
+        raise ValueError(f"Object is not an IfcTask for {operation_name}")
+    
+    return True
+
+def load_task_inputs(inputs: list[ifcopenshell.entity_instance]) -> None:
+    """Load task inputs into the UI properties"""
+    props = props_sequence.get_work_schedule_props()
+    props.task_inputs.clear()
+    
+    for input_product in inputs:
+        new = props.task_inputs.add()
+        new.ifc_definition_id = input_product.id()
+        new.name = input_product.Name or "Unnamed Input"
+
+def load_task_outputs(outputs: list[ifcopenshell.entity_instance]) -> None:
+    """Load task outputs into the UI properties"""
+    props = props_sequence.get_work_schedule_props()
+    props.task_outputs.clear()
+    
+    for output_product in outputs:
+        new = props.task_outputs.add()
+        new.ifc_definition_id = output_product.id()
+        new.name = output_product.Name or "Unnamed Output"
+
+def load_task_properties() -> None:
+    """Load properties for the active task"""
+    props = props_sequence.get_task_tree_props()
+    if not props.active_task_id:
+        return
+    
+    import bonsai.tool as tool
+    task = tool.Ifc.get().by_id(props.active_task_id)
+    if not task:
+        return
+    
+    # Load task attributes
+    load_task_attributes(task)
+    
+    # Load task time if available
+    task_time = get_task_time(task)
+    if task_time:
+        load_task_time_attributes(task_time)
+    
+    # Load task resources
+    load_task_resources(task)
+    
+    # Load inputs and outputs
+    inputs = get_task_inputs(task)
+    outputs = get_task_outputs(task)
+    load_task_inputs(inputs)
+    load_task_outputs(outputs)
+
+def get_task_inputs(task: ifcopenshell.entity_instance) -> list[ifcopenshell.entity_instance]:
+    """Get input products for a task"""
+    inputs = []
+    
+    # Check for IfcRelAssignsToProcess relationships where task consumes products
+    for rel in getattr(task, 'HasAssignments', []):
+        if rel.is_a('IfcRelAssignsToProcess'):
+            for related_object in rel.RelatedObjects:
+                if related_object.is_a('IfcProduct'):
+                    inputs.append(related_object)
+    
+    return inputs
+
+def get_direct_nested_tasks(task: ifcopenshell.entity_instance) -> list[ifcopenshell.entity_instance]:
+    """Get direct nested tasks (not recursive)"""
+    nested_tasks = []
+    
+    if hasattr(task, 'IsNestedBy'):
+        for rel in task.IsNestedBy:
+            for nested_task in rel.RelatedObjects:
+                if nested_task.is_a('IfcTask'):
+                    nested_tasks.append(nested_task)
+    
+    return nested_tasks
+
+def get_direct_task_outputs(task: ifcopenshell.entity_instance) -> list[ifcopenshell.entity_instance]:
+    """Get direct outputs of a task (products it produces)"""
+    outputs = []
+    
+    # Check IfcRelAssignsToProcess where task produces products  
+    for rel in getattr(task, 'OperatesOn', []):
+        for related_object in rel.RelatedObjects:
+            if related_object.is_a('IfcProduct'):
+                outputs.append(related_object)
+    
+    return outputs
+
+
+
+
+
+
+
