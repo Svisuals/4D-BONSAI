@@ -19,7 +19,7 @@
 import bpy
 import json
 import bonsai.tool as tool
-from bonsai.bim.module.sequence.data import SequenceData, AnimationColorSchemeData
+from ..data import SequenceData, AnimationColorSchemeData
 from mathutils import Color
 from bpy.types import PropertyGroup
 from bpy.props import (
@@ -143,7 +143,7 @@ class UnifiedColorTypeManager:
     def get_all_predefined_types(context) -> list:
         """Gets all PredefinedTypes from loaded tasks to ensure ColorTypes exist for them."""
         try:
-            from bonsai.bim.module.sequence.data import SequenceData
+            from ..data import SequenceData
             if not SequenceData.is_loaded:
                 SequenceData.load()
             
@@ -228,7 +228,7 @@ class UnifiedColorTypeManager:
         
         # 1. Get the current PredefinedType of the task from the cached data.
         try:
-            from bonsai.bim.module.sequence.data import SequenceData
+            from ..data import SequenceData
             tid = getattr(task_pg, "ifc_definition_id", None)
             task_data = (SequenceData.data.get("tasks", {}) or {}).get(tid)
             predef_type = (task_data.get("PredefinedType") or "NOTDEFINED") if task_data else "NOTDEFINED"
@@ -639,8 +639,6 @@ def get_custom_group_colortype_items(self, context):
         anim_props = tool.Sequence.get_animation_props()
         selected_group = getattr(anim_props, "task_colortype_group_selector", "")
         
-        print(f"🔍 get_custom_group_colortype_items called for task {getattr(self, 'ifc_definition_id', 'unknown')}")
-        print(f"🔍 selected_group: '{selected_group}'")
         
         if selected_group and selected_group != "DEFAULT":
             # Direct and flexible reading from JSON
@@ -662,9 +660,9 @@ def get_custom_group_colortype_items(self, context):
             for i, name in enumerate(sorted(colortype_names)):
                 items.append((name, name, f"colortype from {selected_group}", i + 1))
             
-            print(f"🔍 Found {len(colortype_names)} colortypes: {colortype_names}")
         else:
-            print(f"🔍 No valid group selected: '{selected_group}'")
+            # No valid group selected, provide default empty option
+            pass
     
     # If there are no profiles, ensure that at least the null option exists to avoid enum errors.
     except Exception as e:
@@ -685,7 +683,6 @@ def get_custom_group_colortype_items(self, context):
     if not items:
         items.append(("", "<none>", "No colortypes available", 0))
     
-    print(f"🔍 Final items returned: {[(item[0], item[1]) for item in items]}")
     
     # CRITICAL: Ensure empty option is ALWAYS first and present
     if not any(item[0] == "" for item in items):
@@ -706,7 +703,6 @@ def get_custom_group_colortype_items(self, context):
     else:
         final_items = [("", "<none>", "No colortype selected", 0)] + non_empty_items
     
-    print(f"🔍 FINAL SORTED items: {[(item[0], item[1]) for item in final_items]}")
     return final_items
 
 def update_color_full(self, context):
@@ -997,7 +993,7 @@ def update_legend_hud_on_group_change(self, context):
         # Cuando se activa/desactiva un grupo, es crucial actualizar el snapshot
         # del estado de la UI. El modo "Live Color Updates" depende de este
         # snapshot para saber qué perfiles aplicar.
-        from .operators.schedule_task_operators import snapshot_all_ui_state
+        from ..operators.schedule_task_operators import snapshot_all_ui_state
         snapshot_all_ui_state(context)
 
         print(f"🔄 GROUP CHANGE CALLBACK: Group '{self.group}' enabled changed to: {self.enabled}")
@@ -1008,7 +1004,7 @@ def update_legend_hud_on_group_change(self, context):
         # ... (código para actualizar el HUD de la leyenda) ...
 
         # Invalidar caché del legend HUD para refrescar
-        from bonsai.bim.module.sequence.hud_overlay import invalidate_legend_hud_cache, refresh_hud
+        from ..hud import invalidate_legend_hud_cache, refresh_hud
         invalidate_legend_hud_cache()
 
         # Forzar un redibujado del viewport. Esto es crucial para que el 

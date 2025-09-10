@@ -23,7 +23,8 @@ from . import data_manager_hud_overlay as data_manager
 
 
 class TextHUD:
-    def __init__(self):
+    def __init__(self, font_id):
+        self.font_id = font_id
         pass
 
     def calculate_position(self, viewport_width, viewport_height, settings):
@@ -56,7 +57,7 @@ class TextHUD:
 
             return x, y, align_x, align_y
     
-    def draw(self, data, text_settings, viewport_width, viewport_height, font_id):
+    def draw(self, data, text_settings, viewport_width, viewport_height):
         """
         Dibuja el HUD de texto con toda su lógica.
         """
@@ -76,9 +77,9 @@ class TextHUD:
 
         if lines_to_draw:
             font_size = int(text_settings.get('scale', 1.0) * 16)
-            blf.size(font_id, font_size)
+            blf.size(self.font_id, font_size)
             
-            line_dims = [blf.dimensions(font_id, line) for line in lines_to_draw]
+            line_dims = [blf.dimensions(self.font_id, line) for line in lines_to_draw]
             max_width = max(w for w, h in line_dims) if line_dims else 0
             total_text_height = sum(h for w, h in line_dims) + max(0, len(lines_to_draw) - 1) * (text_settings.get('spacing', 0.02) * viewport_height)
             
@@ -98,11 +99,11 @@ class TextHUD:
                 if text_align_x == 'RIGHT':
                     text_x = text_base_x - padding_h
                     # NOTA: Llamamos a las funciones desde 'draw_utils'
-                    draw_utils.draw_text_with_shadow(font_id, line, text_x, current_y, text_settings, 'RIGHT')
+                    draw_utils.draw_text_with_shadow(self.font_id, line, text_x, current_y, text_settings, 'RIGHT')
                 else:
                     text_x = text_base_x + padding_h
                     # NOTA: Llamamos a las funciones desde 'draw_utils'
-                    draw_utils.draw_text_with_shadow(font_id, line, text_x, current_y, text_settings, 'LEFT')
+                    draw_utils.draw_text_with_shadow(self.font_id, line, text_x, current_y, text_settings, 'LEFT')
                 
                 if i < len(lines_to_draw) - 1:
                     current_y -= ((text_settings.get('spacing', 0.02) * viewport_height) + line_dims[i + 1][1])

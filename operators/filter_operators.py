@@ -13,12 +13,12 @@ from typing import TYPE_CHECKING
 
 # --- Bloque de importaciones y fallbacks ---
 try:
-    from .prop import update_filter_column
-    from . import prop
+    from ..prop import update_filter_column
+    from .. import prop
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop.filter import update_filter_column
-        import bonsai.bim.module.sequence.prop as prop
+        from ..prop.filter import update_filter_column
+        from .. import prop as prop
     except Exception:
         def update_filter_column(*args, **kwargs): pass
         class PropFallback:

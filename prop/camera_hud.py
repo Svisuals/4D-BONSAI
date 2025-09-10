@@ -31,6 +31,10 @@ from bpy.props import (
 )
 from typing import TYPE_CHECKING
 
+# Import callback functions
+from .callbacks_prop import toggle_3d_text_visibility
+from . import callbacks_prop
+
 # ============================================================================
 # CAMERA AND HUD CALLBACK FUNCTIONS
 # ============================================================================
@@ -56,13 +60,28 @@ def update_schedule_display_parent_constraint(context):
         scene = _bpy.context.scene
 
     force_world_origin = False
-
-    # Check for persistent world origin anchor mode
     try:
-        wprops = tool.Sequence.get_work_schedule_props()
+        # Explicit object-level override
+        if parent_empty.get('anchor_mode') == 'WORLD_ORIGIN':
+            force_world_origin = True
+        # Scene-level persistence (survives object deletion/recreation)
+        elif scene and scene.get('hud_anchor_mode') == 'WORLD_ORIGIN':
+            force_world_origin = True
+        else:
+            # Heuristic: active camera is a snapshot camera
+            active_cam = getattr(scene, 'camera', None)
+            if active_cam and (active_cam.get('is_snapshot_camera') or
+                               active_cam.get('camera_context') == 'snapshot' or
+                               'Snapshot_Camera' in getattr(active_cam, 'name', '')):
+                force_world_origin = True
+    except Exception:
+        pass
+        
+    # Also check for persistent world origin anchor mode
+    try:
         camera_props = tool.Sequence.get_camera_orbit_props()
-        force_world_origin = getattr(camera_props, 'force_world_origin_anchor', False)
-        if force_world_origin:
+        if getattr(camera_props, 'force_world_origin_anchor', False):
+            force_world_origin = True
             print("🔒 Persistent anchor mode active - forcing world origin anchoring")
     except Exception:
         pass
@@ -71,7 +90,29 @@ def update_schedule_display_parent_constraint(context):
     parent_empty.constraints.clear()
 
     if force_world_origin:
-        print("🌍 Schedule Display Parent: Anchored to world origin (no constraints)")
+        # Clear constraints and pin to world origin
+        try:
+            parent_empty.constraints.clear()
+        except Exception:
+            try:
+                for c in list(parent_empty.constraints):
+                    parent_empty.constraints.remove(c)
+            except Exception:
+                pass
+        try:
+            parent_empty.location = (0.0, 0.0, 0.0)
+            parent_empty.rotation_euler = (0.0, 0.0, 0.0)
+            parent_empty.scale = (1.0, 1.0, 1.0)
+        except Exception:
+            pass
+        # Persist intent
+        try:
+            parent_empty['anchor_mode'] = 'WORLD_ORIGIN'
+            if scene is not None:
+                scene['hud_anchor_mode'] = 'WORLD_ORIGIN'
+        except Exception:
+            pass
+        print("🌍 Schedule Display Parent: Anchored to world origin (0,0,0)")
         return
 
     # Get active camera from camera settings
@@ -115,7 +156,7 @@ def update_gpu_hud_visibility(self, context):
             getattr(self, "enable_3d_legend_hud", False)
         )
 
-        from bonsai.bim.module.sequence import hud_overlay
+        from .. import hud as hud_overlay
 
         def deferred_update():
             try:
@@ -158,6 +199,56 @@ def update_hud_gpu(self, context):
             bpy.app.timers.register(refresh_hud, first_interval=0.05)
     except Exception:
         pass
+
+def force_hud_refresh(self, context):
+    """Improved callback that forces HUD update with delay"""
+    try:
+        def delayed_refresh():
+            try:
+                # Ensure handlers are registered
+                from .. import hud as hud_overlay
+                
+                # CRITICAL: Also update 3D Legend HUD when Legend HUD settings change
+                try:
+                    print(f"🔍 Checking if 3D Legend HUD should auto-update...")
+                    enable_3d_legend = getattr(self, 'enable_3d_legend_hud', False)
+                    print(f"  📋 enable_3d_legend_hud: {enable_3d_legend}")
+                    
+                    if enable_3d_legend:
+                        # Check if 3D Legend HUD exists
+                        hud_exists = any(obj.get("is_3d_legend_hud", False) for obj in bpy.data.objects)
+                        print(f"  📋 3D Legend HUD exists in scene: {hud_exists}")
+                        
+                        if hud_exists:
+                            print("🔄 AUTO-UPDATING 3D Legend HUD due to Legend HUD setting change")
+                            try:
+                                bpy.ops.bim.setup_3d_legend_hud()
+                                print("✅ 3D Legend HUD auto-updated successfully")
+                            except Exception as e:
+                                print(f"⚠️ Could not auto-update 3D Legend HUD: {e}")
+                        else:
+                            print("ℹ️ 3D Legend HUD enabled but doesn't exist - will be created when needed")
+                    else:
+                        print("ℹ️ 3D Legend HUD is disabled - no auto-update needed")
+                except Exception as e:
+                    print(f"⚠️ Error checking 3D Legend HUD auto-update: {e}")
+                
+                # Rest of the refresh logic
+                if hasattr(hud_overlay, 'refresh_hud'):
+                    hud_overlay.refresh_hud()
+                elif hasattr(hud_overlay, 'schedule_hud'):
+                    hud_overlay.schedule_hud.invalidate_cache()
+                    
+            except Exception as e:
+                print(f"❌ Error in delayed HUD refresh: {e}")
+                import traceback
+                traceback.print_exc()
+            return None
+            
+        if not bpy.app.timers.is_registered(delayed_refresh):
+            bpy.app.timers.register(delayed_refresh, first_interval=0.1)
+    except Exception as e:
+        print(f"❌ Error scheduling HUD refresh: {e}")
 
 def update_animation_camera_visibility(self, context):
     """Toggles the visibility of animation cameras and their related objects in the viewport."""
@@ -237,7 +328,7 @@ def force_hud_refresh(self, context):
         def delayed_refresh():
             try:
                 # Ensure handlers are registered
-                import bonsai.bim.module.sequence.hud_overlay as hud_overlay
+                from .. import hud as hud_overlay
                 
                 # CRITICAL: Also update 3D Legend HUD when Legend HUD settings change
                 try:
@@ -253,7 +344,7 @@ def force_hud_refresh(self, context):
                         if hud_exists:
                             print("🔄 AUTO-UPDATING 3D Legend HUD due to Legend HUD setting change")
                             try:
-                                bpy.ops.bim.create_3d_legend_hud()
+                                bpy.ops.bim.setup_3d_legend_hud()
                                 print("✅ 3D Legend HUD auto-updated successfully")
                             except Exception as e:
                                 print(f"⚠️ Could not auto-update 3D Legend HUD: {e}")
@@ -376,12 +467,28 @@ def update_legend_3d_hud_constraint(context):
         scene = _bpy.context.scene
 
     force_world_origin = False
-
-    # Check for persistent world origin anchor mode
+    try:
+        # Explicit object-level override
+        if hud_empty.get('anchor_mode') == 'WORLD_ORIGIN':
+            force_world_origin = True
+        # Scene-level persistence (survives object deletion/recreation)
+        elif scene and scene.get('hud_anchor_mode') == 'WORLD_ORIGIN':
+            force_world_origin = True
+        else:
+            # Heuristic: active camera is a snapshot camera
+            active_cam = getattr(scene, 'camera', None)
+            if active_cam and (active_cam.get('is_snapshot_camera') or
+                               active_cam.get('camera_context') == 'snapshot' or
+                               'Snapshot_Camera' in getattr(active_cam, 'name', '')):
+                force_world_origin = True
+    except Exception:
+        pass
+        
+    # Also check for persistent world origin anchor mode
     try:
         camera_props = tool.Sequence.get_camera_orbit_props()
-        force_world_origin = getattr(camera_props, 'force_world_origin_anchor', False)
-        if force_world_origin:
+        if getattr(camera_props, 'force_world_origin_anchor', False):
+            force_world_origin = True
             print("🔒 Persistent anchor mode active - forcing world origin anchoring for 3D Legend HUD")
     except Exception:
         pass
@@ -390,7 +497,29 @@ def update_legend_3d_hud_constraint(context):
     hud_empty.constraints.clear()
 
     if force_world_origin:
-        print("🌍 3D Legend HUD: Anchored to world origin (no constraints)")
+        # Clear constraints and pin to world origin
+        try:
+            hud_empty.constraints.clear()
+        except Exception:
+            try:
+                for c in list(hud_empty.constraints):
+                    hud_empty.constraints.remove(c)
+            except Exception:
+                pass
+        try:
+            hud_empty.location = (0.0, 0.0, 0.0)
+            hud_empty.rotation_euler = (0.0, 0.0, 0.0)
+            hud_empty.scale = (1.0, 1.0, 1.0)
+        except Exception:
+            pass
+        # Persist intent
+        try:
+            hud_empty['anchor_mode'] = 'WORLD_ORIGIN'
+            if scene is not None:
+                scene['hud_anchor_mode'] = 'WORLD_ORIGIN'
+        except Exception:
+            pass
+        print("🌍 3D Legend HUD: Anchored to world origin (0,0,0)")
         return
 
     # Get active camera from camera settings
@@ -465,6 +594,21 @@ class BIMCameraOrbitProperties(PropertyGroup):
         min=1.0,
         description="Camera far clipping distance",
     )
+    
+    # Camera look at settings
+    look_at_mode: EnumProperty(
+        name="Look At",
+        items=[
+            ("AUTO", "Auto (active WorkSchedule area)", "Use bbox center of active WorkSchedule"),
+            ("OBJECT", "Object", "Select object/Empty as target"),
+        ],
+        default="AUTO",
+    )
+    look_at_object: PointerProperty(
+        name="Target",
+        type=bpy.types.Object,
+        description="Object to look at during camera animation",
+    )
 
     # Animation and snapshot camera selection
     active_animation_camera: PointerProperty(
@@ -521,6 +665,21 @@ class BIMCameraOrbitProperties(PropertyGroup):
         update=update_gpu_hud_visibility,
     )
     
+    # 3D HUD Render toggle
+    show_3d_schedule_texts: BoolProperty(
+        name="Show 3D HUD Render",
+        description="Toggle visibility of the 3D objects used as a Heads-Up Display (HUD) for rendering",
+        default=False,
+        update=lambda self, context: toggle_3d_text_visibility(self, context),
+    )
+    
+    # 3D HUD Render expandable section
+    expand_3d_hud_render: BoolProperty(
+        name="Expand 3D HUD Render",
+        default=False,
+        description="Show/hide 3D HUD Render settings"
+    )
+    
     # HUD content toggles
     hud_show_date: BoolProperty(
         name="Date", 
@@ -556,6 +715,28 @@ class BIMCameraOrbitProperties(PropertyGroup):
         default=False,
         description="Show/hide Schedule HUD settings"
     )
+    
+    # Schedule HUD content controls (from v57)
+    hud_show_date: BoolProperty(
+        name="Date", 
+        default=True, 
+        update=force_hud_refresh
+    )
+    hud_show_week: BoolProperty(
+        name="Week", 
+        default=True, 
+        update=force_hud_refresh
+    )
+    hud_show_day: BoolProperty(
+        name="Day", 
+        default=False, 
+        update=force_hud_refresh
+    )
+    hud_show_progress: BoolProperty(
+        name="Progress", 
+        default=False, 
+        update=force_hud_refresh
+    )
     expand_timeline_hud: BoolProperty(
         name="Expand Timeline HUD",
         default=False,
@@ -571,17 +752,12 @@ class BIMCameraOrbitProperties(PropertyGroup):
     hud_position: EnumProperty(
         name="Position",
         items=[
-            ("TOP_LEFT", "Top Left", "Display HUD in the top-left corner"),
-            ("TOP_CENTER", "Top Center", "Display HUD in the top-center"),
-            ("TOP_RIGHT", "Top Right", "Display HUD in the top-right corner"),
-            ("MIDDLE_LEFT", "Middle Left", "Display HUD in the middle-left"),
-            ("CENTER", "Center", "Display HUD in the center"),
-            ("MIDDLE_RIGHT", "Middle Right", "Display HUD in the middle-right"),
-            ("BOTTOM_LEFT", "Bottom Left", "Display HUD in the bottom-left corner"),
-            ("BOTTOM_CENTER", "Bottom Center", "Display HUD in the bottom-center"),
-            ("BOTTOM_RIGHT", "Bottom Right", "Display HUD in the bottom-right corner"),
+            ("TOP_RIGHT", "Top Right", ""),
+            ("TOP_LEFT", "Top Left", ""),
+            ("BOTTOM_RIGHT", "Bottom Right", ""),
+            ("BOTTOM_LEFT", "Bottom Left", ""),
         ],
-        default="TOP_LEFT",
+        default="BOTTOM_LEFT",
         update=force_hud_refresh,
     )
     hud_scale_factor: FloatProperty(
@@ -1051,7 +1227,7 @@ class BIMCameraOrbitProperties(PropertyGroup):
         name="Enable 3D Legend HUD",
         description="Create 3D text objects in the scene for the legend instead of GPU overlay",
         default=False,
-        update=update_gpu_hud_visibility,
+        update=lambda self, context: callbacks_prop.update_gpu_hud_visibility(self, context),
     )
 
     # 3D Legend positioning
@@ -1088,6 +1264,67 @@ class BIMCameraOrbitProperties(PropertyGroup):
         name="Always Face Camera",
         description="Make 3D legend text always face the active camera",
         default=True,
+        update=force_hud_refresh,
+    )
+
+    legend_3d_hud_distance: FloatProperty(
+        name="3D HUD Distance",
+        description="Distance from camera to place 3D Legend HUD elements",
+        default=2.2,
+        min=0.1,
+        max=20.0,
+        precision=2,
+        update=force_hud_refresh,
+    )
+
+    legend_hud_scale: FloatProperty(
+        name="Legend HUD Scale",
+        description="Scale factor for 3D Legend HUD elements",
+        default=1.0,
+        min=0.1,
+        max=5.0,
+        precision=2,
+        update=force_hud_refresh,
+    )
+
+    legend_3d_hud_pos_x: FloatProperty(
+        name="HUD Position X",
+        description="Horizontal position in camera space",
+        default=-3.6,
+        min=-10.0,
+        max=10.0,
+        precision=2,
+        update=force_hud_refresh,
+    )
+    
+    legend_3d_hud_pos_y: FloatProperty(
+        name="HUD Position Y", 
+        description="Vertical position in camera space",
+        default=1.4,
+        min=-10.0,
+        max=10.0,
+        precision=2,
+        update=force_hud_refresh,
+    )
+
+    legend_3d_hud_scale: FloatProperty(
+        name="HUD Scale",
+        description="Overall scale of the 3D Legend HUD",
+        default=1.0,
+        min=0.1,
+        max=5.0,
+        precision=2,
+        update=force_hud_refresh,
+    )
+    
+    # Panel Settings
+    legend_3d_panel_width: FloatProperty(
+        name="Panel Width",
+        description="Width of the legend panel",
+        default=2.2,
+        min=0.5,
+        max=10.0,
+        precision=2,
         update=force_hud_refresh,
     )
 
@@ -1159,6 +1396,290 @@ class BIMCameraOrbitProperties(PropertyGroup):
         update=lambda self, context: update_legend_3d_hud_constraint(context)
     )
 
+    # ==================== LEGEND HUD PROPERTIES (from v57) ====================
+    expand_legend_hud: BoolProperty(
+        name="Expand Legend HUD",
+        description="Show/hide Legend HUD settings",
+        default=False
+    )
+    
+    enable_legend_hud: BoolProperty(
+        name="Enable Legend HUD",
+        description="Display legend HUD with active animation colortypes and their colors",
+        default=False,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_position: EnumProperty(
+        name="Position",
+        description="Screen position of the legend HUD",
+        items=[
+            ('TOP_LEFT', "Top Left", "Position at the top-left corner"),
+            ('TOP_RIGHT', "Top Right", "Position at the top-right corner"),
+            ('BOTTOM_LEFT', "Bottom Left", "Position at the bottom-left corner"),
+            ('BOTTOM_RIGHT', "Bottom Right", "Position at the bottom-right corner"),
+        ],
+        default="TOP_LEFT",
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_margin_horizontal: FloatProperty(
+        name="Horizontal Margin",
+        description="Horizontal margin from screen edges",
+        default=0.05,
+        min=0.0,
+        max=0.5,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_margin_vertical: FloatProperty(
+        name="Vertical Margin",
+        description="Vertical margin from screen edges",
+        default=0.5,
+        min=0.0,
+        max=0.5,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_orientation: EnumProperty(
+        name="Orientation",
+        description="Layout orientation of legend items",
+        items=[
+            ("VERTICAL", "Vertical", "Stack items vertically"),
+            ("HORIZONTAL", "Horizontal", "Arrange items horizontally"),
+        ],
+        default="VERTICAL",
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_scale: FloatProperty(
+        name="Scale",
+        description="Overall scale factor for legend HUD",
+        default=1.0,
+        min=0.1,
+        max=3.0,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_background_color: FloatVectorProperty(
+        name="Background Color",
+        description="Background color of legend HUD",
+        default=(0.0, 0.0, 0.0, 0.8),
+        min=0.0,
+        max=1.0,
+        size=4,
+        subtype="COLOR",
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_border_radius: FloatProperty(
+        name="Border Radius",
+        description="Corner rounding radius for legend background",
+        default=5.0,
+        min=0.0,
+        max=50.0,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_padding_horizontal: FloatProperty(
+        name="Horizontal Padding",
+        description="Horizontal padding inside legend background",
+        default=12.0,
+        min=0.0,
+        max=50.0,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_padding_vertical: FloatProperty(
+        name="Vertical Padding",
+        description="Vertical padding inside legend background",
+        default=8.0,
+        min=0.0,
+        max=50.0,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_item_spacing: FloatProperty(
+        name="Item Spacing",
+        description="Spacing between legend items",
+        default=8.0,
+        min=0.0,
+        max=30.0,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_text_color: FloatVectorProperty(
+        name="Text Color",
+        description="Color of legend text",
+        default=(1.0, 1.0, 1.0, 1.0),
+        min=0.0,
+        max=1.0,
+        size=4,
+        subtype="COLOR",
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_show_title: BoolProperty(
+        name="Show Title",
+        description="Display title at the top of legend",
+        default=True,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_title_text: StringProperty(
+        name="Title Text",
+        description="Text to display as legend title",
+        default="Legend",
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_title_color: FloatVectorProperty(
+        name="Title Color",
+        description="Color of legend title text",
+        default=(1.0, 1.0, 1.0, 1.0),
+        min=0.0,
+        max=1.0,
+        size=4,
+        subtype="COLOR",
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_color_indicator_size: FloatProperty(
+        name="Color Indicator Size",
+        description="Size of color indicator squares",
+        default=12.0,
+        min=4.0,
+        max=32.0,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_text_shadow_enabled: BoolProperty(
+        name="Text Shadow",
+        description="Enable text shadow for better visibility",
+        default=True,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_text_shadow_color: FloatVectorProperty(
+        name="Shadow Color",
+        description="Color of text shadow",
+        default=(0.0, 0.0, 0.0, 0.8),
+        min=0.0,
+        max=1.0,
+        size=4,
+        subtype="COLOR",
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_text_shadow_offset_x: FloatProperty(
+        name="Shadow Offset X",
+        description="Horizontal offset of text shadow",
+        default=1.0,
+        min=-10.0,
+        max=10.0,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_text_shadow_offset_y: FloatProperty(
+        name="Shadow Offset Y",
+        description="Vertical offset of text shadow",
+        default=-1.0,
+        min=-10.0,
+        max=10.0,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_auto_scale: BoolProperty(
+        name="Auto Scale",
+        description="Automatically scale legend to fit content",
+        default=True,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_max_width: FloatProperty(
+        name="Max Width",
+        description="Maximum width as proportion of viewport width",
+        default=0.3,
+        min=0.1,
+        max=0.8,
+        update=force_hud_refresh,
+    )
+    
+    # ==================== LEGEND HUD COLOR COLUMNS ====================
+    legend_hud_show_start_column: BoolProperty(
+        name="Show Start Colors",
+        description="Display start state colors column",
+        default=False,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_show_active_column: BoolProperty(
+        name="Show Active Colors",
+        description="Display active/in-progress state colors column",
+        default=True,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_show_end_column: BoolProperty(
+        name="Show End Colors",
+        description="Display end/finished state colors column",
+        default=False,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_show_start_title: BoolProperty(
+        name="Show 'Start' Title",
+        description="Display 'Start' column title",
+        default=False,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_show_active_title: BoolProperty(
+        name="Show 'Active' Title", 
+        description="Display 'Active' column title",
+        default=False,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_show_end_title: BoolProperty(
+        name="Show 'End' Title",
+        description="Display 'End' column title", 
+        default=False,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_column_spacing: FloatProperty(
+        name="Column Spacing",
+        description="Spacing between color columns",
+        default=16.0,
+        min=4.0,
+        max=50.0,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_title_font_size: FloatProperty(
+        name="Title Font Size",
+        description="Font size for the legend title",
+        default=16.0,
+        min=8.0,
+        max=48.0,
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_visible_colortypes: StringProperty(
+        name="Hidden colortypes",
+        description="Comma-separated list of colortype names to hide in legend (all colortypes visible by default)",
+        default="",
+        update=force_hud_refresh,
+    )
+    
+    legend_hud_colortype_scroll_offset: IntProperty(
+        name="colortype List Scroll Offset",
+        description="Current scroll position in the colortype list",
+        default=0,
+        min=0,
+    )
+
     # Camera orbit controls
     orbit_speed: FloatProperty(
         name="Orbit Speed",
@@ -1177,6 +1698,162 @@ class BIMCameraOrbitProperties(PropertyGroup):
         max=100.0,
         precision=1,
     )
+    
+    orbit_radius_mode: EnumProperty(
+        name="Radius Mode",
+        items=[
+            ("AUTO", "Auto (from bbox)", "Compute radius from WorkSchedule bbox"),
+            ("MANUAL", "Manual", "Use manual radius value")
+        ],
+        default="AUTO",
+        description="Mode for determining camera orbit radius",
+    )
+    
+    # Additional orbit properties
+    orbit_mode: EnumProperty(
+        name="Orbit Mode",
+        items=[
+            ("NONE", "None (Static)", "No orbit animation"),
+            ("CIRCLE_360", "Circle 360°", "Full circular orbit"),
+            ("PINGPONG", "Ping-Pong", "Back and forth over an arc"),
+        ],
+        default="CIRCLE_360",
+        description="Type of orbit animation to perform",
+    )
+    
+    orbit_height: FloatProperty(
+        name="Height (Z offset)",
+        description="Height offset for camera orbit path",
+        default=8.0,
+        min=-100.0,
+        max=100.0,
+        precision=2,
+    )
+    
+    orbit_start_angle_deg: FloatProperty(
+        name="Start Angle (deg)",
+        description="Starting angle for orbit animation in degrees",
+        default=0.0,
+        min=0.0,
+        max=360.0,
+        precision=1,
+    )
+    
+    orbit_direction: EnumProperty(
+        name="Direction",
+        items=[
+            ("CCW", "CCW", "Counter-clockwise"),
+            ("CW", "CW", "Clockwise")
+        ],
+        default="CCW",
+        description="Direction of orbit rotation",
+    )
+    
+    # Path shape and custom path properties
+    orbit_path_shape: EnumProperty(
+        name="Path Shape",
+        items=[
+            ('CIRCLE', "Circle (Generated)", "The add-on creates a perfect circle"),
+            ('CUSTOM', "Custom Path", "Use your own curve object as the path"),
+        ],
+        default='CIRCLE',
+        description="Shape of the orbit path",
+    )
+    
+    custom_orbit_path: PointerProperty(
+        name="Custom Path",
+        type=bpy.types.Object,
+        description="Custom curve object to use as orbit path",
+        poll=lambda self, obj: obj.type == 'CURVE',
+    )
+    
+    # Interpolation properties
+    interpolation_mode: EnumProperty(
+        name="Interpolation",
+        items=[
+            ('LINEAR', "Linear (Constant Speed)", "Constant, mechanical speed"),
+            ('BEZIER', "Bezier (Smooth)", "Smooth ease-in and ease-out for a natural feel"),
+        ],
+        default='LINEAR',
+        description="Interpolation method for camera movement",
+    )
+    
+    bezier_smoothness_factor: FloatProperty(
+        name="Smoothness Factor",
+        description="Controls the intensity of the ease-in/ease-out. Higher values create a more gradual transition",
+        default=0.35,
+        min=0.0,
+        max=2.0,
+        precision=3,
+    )
+    
+    # Animation method and duration
+    orbit_path_method: EnumProperty(
+        name="Path Method",
+        items=[
+            ("FOLLOW_PATH", "Follow Path (editable)", "Bezier circle + Follow Path"),
+            ("KEYFRAMES", "Keyframes (lightweight)", "Animate location directly")
+        ],
+        default="FOLLOW_PATH",
+        description="Method used to animate camera along orbit path",
+    )
+    
+    orbit_use_4d_duration: BoolProperty(
+        name="Use 4D total frames",
+        description="If enabled, orbit spans the whole 4D animation range",
+        default=True,
+    )
+    
+    orbit_duration_frames: FloatProperty(
+        name="Orbit Duration (frames)",
+        description="Duration of orbit animation in frames",
+        default=250.0,
+        min=1.0,
+        max=10000.0,
+    )
+    
+    # UI and visibility toggles
+    hide_orbit_path: BoolProperty(
+        name="Hide Orbit Path",
+        description="Hide the visible orbit path (Bezier Circle) in the viewport and render",
+        default=False,
+    )
+    
+    hide_all_animation_cameras: BoolProperty(
+        name="Hide All Animation Cameras",
+        description="Hide all animation cameras in the viewport",
+        default=False,
+    )
+    
+    hide_all_snapshot_cameras: BoolProperty(
+        name="Hide All Snapshot Cameras", 
+        description="Hide all snapshot cameras in the viewport",
+        default=False,
+    )
+    
+    # HUD distance property
+    hud_distance: FloatProperty(
+        name="Distance",
+        description="Distance from camera to place HUD elements",
+        default=3.0,
+        min=0.5,
+        max=50.0,
+        precision=1,
+    )
+    
+    # Legend HUD scroll and visibility properties
+    legend_hud_colortype_scroll_offset: IntProperty(
+        name="Legend Scroll Offset",
+        description="Scroll offset for legend colortype display",
+        default=0,
+        min=0,
+    )
+    
+    legend_hud_visible_colortypes: StringProperty(
+        name="Visible Colortypes",
+        description="Comma-separated list of visible colortype names",
+        default="",
+    )
 
     # Type checking
     if TYPE_CHECKING:
@@ -1193,6 +1870,10 @@ class BIMCameraOrbitProperties(PropertyGroup):
         expand_schedule_hud: bool
         expand_timeline_hud: bool
         expand_legend_hud: bool
+        hud_show_date: bool
+        hud_show_week: bool
+        hud_show_day: bool
+        hud_show_progress: bool
         hud_position: str
         hud_scale_factor: float
         hud_margin_horizontal: float
@@ -1251,6 +1932,61 @@ class BIMCameraOrbitProperties(PropertyGroup):
         legend_3d_scale: float
         legend_3d_spacing: float
         legend_3d_always_face_camera: bool
+        legend_3d_hud_distance: float
+        legend_hud_scale: float
+        legend_3d_hud_pos_x: float
+        legend_3d_hud_pos_y: float
+        legend_3d_hud_scale: float
+        legend_3d_panel_width: float
         force_world_origin_anchor: bool
         orbit_speed: float
         orbit_radius: float
+        orbit_radius_mode: str
+        orbit_mode: str
+        orbit_height: float
+        orbit_start_angle_deg: float
+        orbit_direction: str
+        orbit_path_shape: str
+        custom_orbit_path: bpy.types.Object
+        interpolation_mode: str
+        bezier_smoothness_factor: float
+        orbit_path_method: str
+        orbit_use_4d_duration: bool
+        orbit_duration_frames: float
+        hide_orbit_path: bool
+        hide_all_animation_cameras: bool
+        hide_all_snapshot_cameras: bool
+        hud_distance: float
+        legend_hud_colortype_scroll_offset: int
+        legend_hud_visible_colortypes: str
+        
+        # Legend HUD properties from v57
+        enable_legend_hud: bool
+        legend_hud_position: str
+        legend_hud_margin_horizontal: float
+        legend_hud_margin_vertical: float
+        legend_hud_orientation: str
+        legend_hud_background_color: tuple[float, float, float, float]
+        legend_hud_border_radius: float
+        legend_hud_padding_horizontal: float
+        legend_hud_padding_vertical: float
+        legend_hud_item_spacing: float
+        legend_hud_text_color: tuple[float, float, float, float]
+        legend_hud_show_title: bool
+        legend_hud_title_text: str
+        legend_hud_title_color: tuple[float, float, float, float]
+        legend_hud_color_indicator_size: float
+        legend_hud_text_shadow_enabled: bool
+        legend_hud_text_shadow_color: tuple[float, float, float, float]
+        legend_hud_text_shadow_offset_x: float
+        legend_hud_text_shadow_offset_y: float
+        legend_hud_auto_scale: bool
+        legend_hud_max_width: float
+        legend_hud_show_start_column: bool
+        legend_hud_show_active_column: bool
+        legend_hud_show_end_column: bool
+        legend_hud_show_start_title: bool
+        legend_hud_show_active_title: bool
+        legend_hud_show_end_title: bool
+        legend_hud_column_spacing: float
+        legend_hud_title_font_size: float

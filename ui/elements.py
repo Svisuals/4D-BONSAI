@@ -23,7 +23,7 @@ import bpy
 import re
 from bpy.types import UIList
 import bonsai.tool as tool
-from bonsai.bim.module.sequence.data import SequenceData
+from ..data import SequenceData
 from typing import Any, Optional
 
 class BIM_UL_animation_group_stack(UIList):

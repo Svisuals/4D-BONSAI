@@ -31,10 +31,10 @@ from . import drawing_utils_hud_overlay as draw_utils
 
 class TimelineHUD:
 
-    def __init__(self):
-        self.font_id = 0
+    def __init__(self, font_id):
+        self.font_id = font_id
 
-    def draw(self, data, settings, viewport_width, viewport_height, font_id):
+    def draw(self, data, settings, viewport_width, viewport_height):
         """Timeline HUD estilo Synchro 4D Pro con una sola barra background"""
         """Synchro 4D Pro style Timeline HUD with a single background bar"""
         print(f"\n🎬 === TIMELINE HUD DRAW START ===")
@@ -42,8 +42,7 @@ class TimelineHUD:
         print(f"🎬 Settings enabled: {settings.get('enabled', False)}")
         print(f"🎬 Data received: {list(data.keys()) if data else 'None'}")
         print(f"🎬 Is snapshot: {data.get('is_snapshot', False) if data else 'Unknown'}")
-        print(f"🎬 Font ID at start: {font_id}")
-        self.font_id = font_id
+    
         
         # Verificar datos necesarios - CORREGIDO: usar rangos seleccionados
         full_start = data.get('full_schedule_start')
@@ -185,7 +184,7 @@ class TimelineHUD:
             if self.font_id == 0:
                 try:
                     # Verificar si hay fuentes disponibles
-                    font_dir = bpy.utils.system_resource('DATAFILES', "fonts")
+                    font_dir = bpy.utils.system_resource('DATAFILES', path="fonts")
                     available_fonts = blf.load(os.path.join(font_dir, "droidsans.ttf"))
                     if available_fonts != -1:
                         self.font_id = available_fonts

@@ -15,7 +15,7 @@ their centralized registration and unregistration in Blender.
 
 
 import bpy
-<<<<<<< HEAD
+
 
 # 1. Importar todas las clases desde los nuevos módulos de UI
 from .animation_ui import (
@@ -85,7 +85,7 @@ def unregister():
     """Des-registra todas las clases de UI en orden inverso."""
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
-=======
+
 from . import elements
 from . import panels_workplan
 from . import panels_schedule
@@ -111,4 +111,3 @@ MODULES = [
     panels_schedule,
     panels_animation,   
 ]
->>>>>>> a1ba380f1f277fd470bd00ca3d8feb4edeacbb21

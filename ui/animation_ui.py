@@ -21,7 +21,7 @@
 import bpy
 from bpy.types import Panel
 import bonsai.tool as tool
-from bonsai.bim.module.sequence.data import AnimationColorSchemeData
+from ..data import AnimationColorSchemeData
 
 
 
@@ -347,7 +347,7 @@ class BIM_PT_animation_tools(Panel):
             delete_col.operator("bim.delete_snapshot_camera", text="Delete Snapshot Camera", icon="TRASH")
 
             row.prop(camera_props, "active_snapshot_camera", text="")
-            row.prop(camera_props, "hide_all_snapshot_cameras", text="", icon='HIDE_ON' if camera_props.hide_all_snapshot_cameras else 'HIDE_OFF')
+            row.prop(camera_props, "show_snapshot_cameras", text="", icon='HIDE_OFF' if camera_props.show_snapshot_cameras else 'HIDE_ON')
         except Exception:
             pass
 
@@ -444,7 +444,7 @@ class BIM_PT_animation_tools(Panel):
         # El selector ahora ocupa la mayor parte del espacio restante, empujando el botón de ocultar a la derecha.
         # Seleccionar una cámara del desplegable ahora la convertirá automáticamente en la cámara activa de la escena.
         row.prop(camera_props, "active_animation_camera", text="")
-        row.prop(camera_props, "hide_all_animation_cameras", text="", icon='HIDE_ON' if camera_props.hide_all_animation_cameras else 'HIDE_OFF')
+        row.prop(camera_props, "show_animation_cameras", text="", icon='HIDE_OFF' if camera_props.show_animation_cameras else 'HIDE_ON')
 
     def draw_camera_hud_settings(self, layout):
         """Dibuja los paneles de configuración para ambos HUDs."""

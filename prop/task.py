@@ -23,7 +23,7 @@ import ifcopenshell.util.attribute
 import ifcopenshell.util.date
 import bonsai.tool as tool
 import bonsai.core.sequence as core
-from bonsai.bim.module.sequence.data import SequenceData, refresh as refresh_sequence_data
+from ..data import SequenceData, refresh as refresh_sequence_data
 from bpy.types import PropertyGroup
 from bpy.props import (
     PointerProperty,
@@ -46,7 +46,7 @@ try:
     )
 except ImportError:
     # Fallback for when running from the original location
-    from bonsai.bim.module.sequence.prop.animation import (
+    from .animation import (
         get_animation_color_schemes_items,
         get_custom_group_colortype_items,
         UnifiedColorTypeManager

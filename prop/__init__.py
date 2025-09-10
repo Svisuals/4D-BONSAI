@@ -12,46 +12,49 @@ This package contains PropertyGroup classes organized thematically:
 All PropertyGroups maintain full compatibility with the original prop.py implementation.
 """
 
-<<<<<<< HEAD
-
 
 import bpy
 from bpy.props import PointerProperty
 
-# --- 1. Importar todo de cada módulo para que sea accesible desde 'prop' ---
-# Usamos 'import *' para poner todas las clases y funciones directamente
-# en el espacio de nombres de 'prop', lo que resuelve la importación circular.
+# Import classes from specific modules to avoid duplicates
+from .misc import BIMTaskTypeColor, IFCStatus, BIMStatusProperties
+from .calendar import WorkCalendar, RecurrenceComponent, BIMWorkCalendarProperties, DatePickerProperties, BIMDateTextProperties
+from .filter import TaskFilterRule, BIMTaskFilterProperties, SavedFilterSet
+from .task import TaskcolortypeGroupChoice, Task, TaskResource, TaskProduct, BIMTaskTreeProperties
+from .schedule import WorkPlan, BIMWorkPlanProperties, BIMWorkScheduleProperties
+from .animation import AnimationColorSchemes, AnimationColorTypeGroupItem, BIMAnimationProperties
+from .camera_hud import BIMCameraOrbitProperties
 
-from .color_manager_prop import *
-from .callbacks_prop import *
-from .enums_prop import *
-from .task_prop import *
-from .schedule_prop import *
-from .animation_prop import *
-from .camera_prop import *
-from .ui_helpers_prop import *
-
+# Import manager and callback functions
+from .color_manager_prop import UnifiedColorTypeManager
+from .filter import update_filter_column
+from .camera_hud import update_schedule_display_parent_constraint
 
 # --- 2. Crear una tupla con todas las clases a registrar ---
 classes = (
-    # De task_prop.py
+    # Miscellaneous
+    BIMTaskTypeColor, IFCStatus, BIMStatusProperties,
+    
+    # Calendar
+    WorkCalendar, RecurrenceComponent, BIMWorkCalendarProperties,
+    DatePickerProperties, BIMDateTextProperties,
+    
+    # Task filtering
     TaskFilterRule, BIMTaskFilterProperties, SavedFilterSet,
+    
+    # Tasks
     TaskcolortypeGroupChoice, Task, TaskResource, TaskProduct,
     BIMTaskTreeProperties,
     
-    # De schedule_prop.py
+    # Schedules
     WorkPlan, BIMWorkPlanProperties, BIMWorkScheduleProperties,
-    WorkCalendar, RecurrenceComponent, BIMWorkCalendarProperties,
     
-    # De animation_prop.py
-    BIMTaskTypeColor, AnimationColorSchemes, AnimationColorTypeGroupItem,
+    # Animation
+    AnimationColorSchemes, AnimationColorTypeGroupItem,
     BIMAnimationProperties,
     
-    # De camera_prop.py
+    # Camera
     BIMCameraOrbitProperties,
-    
-    # De ui_helpers_prop.py
-    IFCStatus, BIMStatusProperties, DatePickerProperties, BIMDateTextProperties,
 )
 
 # --- 3. Funciones de registro y desregistro para todo el paquete ---
@@ -72,54 +75,6 @@ def unregister():
 
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
-=======
-# Import all PropertyGroups to make them available when importing from prop
-from .animation import (
-    UnifiedColorTypeManager,
-    AnimationColorSchemes,
-    AnimationColorTypeGroupItem,
-    BIMAnimationProperties,
-    monitor_predefined_type_change,
-    safe_set_selected_colortype_in_active_group
-)
-
-from .camera_hud import (
-    BIMCameraOrbitProperties
-)
-
-from .task import (
-    TaskcolortypeGroupChoice,
-    Task,
-    TaskResource,
-    TaskProduct,
-    BIMTaskTreeProperties
-)
-
-from .schedule import (
-    WorkPlan,
-    BIMWorkPlanProperties,
-    BIMWorkScheduleProperties
-)
-
-from .filter import (
-    TaskFilterRule,
-    BIMTaskFilterProperties,
-    SavedFilterSet
-)
-
-from .calendar import (
-    WorkCalendar,
-    RecurrenceComponent,
-    BIMWorkCalendarProperties,
-    DatePickerProperties,
-    BIMDateTextProperties
-)
-
-from .misc import (
-    BIMTaskTypeColor,
-    IFCStatus,
-    BIMStatusProperties
-)
 
 # Export all classes for easy importing
 __all__ = [
@@ -161,4 +116,4 @@ __all__ = [
     'IFCStatus',
     'BIMStatusProperties'
 ]
->>>>>>> a1ba380f1f277fd470bd00ca3d8feb4edeacbb21
+

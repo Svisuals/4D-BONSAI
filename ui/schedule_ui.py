@@ -25,7 +25,7 @@ from typing import Any
 import bonsai.tool as tool
 import bonsai.bim.helper
 from bonsai.bim.helper import draw_attributes
-from bonsai.bim.module.sequence.data import (
+from ..data import (
     WorkScheduleData,
     SequenceData,
     TaskICOMData,
@@ -531,7 +531,7 @@ class BIM_PT_work_schedules(Panel):
 
         # Ensures that the active task has its DEFAULT group synchronized when drawn
         try:
-            from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+            from ..prop import UnifiedColorTypeManager
 
             tprops = tool.Sequence.get_task_tree_props()
             if tprops.tasks and self.props.active_task_index < len(tprops.tasks):

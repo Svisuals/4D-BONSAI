@@ -29,7 +29,7 @@ import ifcopenshell.util.attribute
 import ifcopenshell.util.date
 import bonsai.tool as tool
 import bonsai.core.sequence as core
-from bonsai.bim.module.sequence.data import SequenceData, AnimationColorSchemeData, refresh as refresh_sequence_data
+from ..data import SequenceData, AnimationColorSchemeData, refresh as refresh_sequence_data
 import bonsai.bim.module.resource.data
 import bonsai.bim.module.pset.data
 from mathutils import Color
@@ -1057,7 +1057,7 @@ def updateTaskPredefinedType(self: "Task", context: bpy.types.Context) -> None:
         # 1. Get the new PredefinedType value directly from the task.
         #    This is more robust than searching the attribute collection.
         try:
-            from bonsai.bim.module.sequence.data import SequenceData
+            from ..data import SequenceData
             task_data = SequenceData.data["tasks"][self.ifc_definition_id]
             new_predefined_type = task_data.get("PredefinedType", "NOTDEFINED") or "NOTDEFINED"
         except Exception:
@@ -1200,7 +1200,7 @@ def update_task_colortype_group_selector(self, context):
             print(f"📄 Custom group selected: {self.task_colortype_group_selector}")
             
             # Load profiles from this group into the UI to make them available
-            from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+            from ..prop import UnifiedColorTypeManager
             UnifiedColorTypeManager.load_colortypes_into_collection(self, context, self.task_colortype_group_selector)
             
             # OPTIONALLY sync to ColorType_groups for editing if user wants
@@ -1559,7 +1559,7 @@ def update_gpu_hud_visibility(self, context):
             getattr(self, "enable_3d_legend_hud", False)
         )
 
-        from bonsai.bim.module.sequence import hud_overlay
+        from .. import hud as hud_overlay
 
         def deferred_update():
             try:
@@ -1703,7 +1703,7 @@ def force_hud_refresh(self, context):
         def delayed_refresh():
             try:
                 # Ensure handlers are registered
-                import bonsai.bim.module.sequence.hud_overlay as hud_overlay
+                from .. import hud as hud_overlay
                 
                 # CRITICAL: Also update 3D Legend HUD when Legend HUD settings change
                 try:
@@ -1983,7 +1983,7 @@ def update_legend_hud_on_group_change(self, context):
         # ... (código para actualizar el HUD de la leyenda) ...
 
         # Invalidar caché del legend HUD para refrescar
-        from bonsai.bim.module.sequence.hud_overlay import invalidate_legend_hud_cache, refresh_hud
+        from ..hud import invalidate_legend_hud_cache, refresh_hud
         invalidate_legend_hud_cache()
 
         # Forzar un redibujado del viewport. Esto es crucial para que el 

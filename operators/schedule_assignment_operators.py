@@ -9,16 +9,16 @@ import bonsai.tool as tool
 import bonsai.core.sequence as core
 
 try:
-    from .prop import update_filter_column
-    from . import prop
+    from ..prop import update_filter_column
+    from .. import prop
     from .ui import calculate_visible_columns_count
     from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop.filter import update_filter_column
-        import bonsai.bim.module.sequence.prop as prop
-        from bonsai.bim.module.sequence.ui import calculate_visible_columns_count
-        from bonsai.bim.module.sequence.schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
+        from ..prop.filter import update_filter_column
+        from .. import prop as prop
+        from ..ui import calculate_visible_columns_count
+        from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
     except Exception:
         def update_filter_column(*args, **kwargs):
             pass

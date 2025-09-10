@@ -25,7 +25,7 @@ from typing import Any
 import bonsai.tool as tool
 import bonsai.bim.helper
 from bonsai.bim.helper import draw_attributes
-from bonsai.bim.module.sequence.data import SequenceData, WorkScheduleData, TaskICOMData
+from ..data import SequenceData, WorkScheduleData, TaskICOMData
 
 # Importamos la UIList de tasks desde nuestro nuevo módulo
 from .elements import BIM_UL_tasks

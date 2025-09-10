@@ -20,7 +20,7 @@
 
 
 import bonsai.tool as tool
-from bonsai.bim.module.sequence.data import SequenceData, AnimationColorSchemeData
+from ..data import SequenceData, AnimationColorSchemeData
 from .color_manager_prop import UnifiedColorTypeManager
 
 
@@ -117,8 +117,6 @@ def get_custom_group_colortype_items(self, context):
         anim_props = tool.Sequence.get_animation_props()
         selected_group = getattr(anim_props, "task_colortype_group_selector", "")
         
-        print(f"🔍 get_custom_group_colortype_items called for task {getattr(self, 'ifc_definition_id', 'unknown')}")
-        print(f"🔍 selected_group: '{selected_group}'")
         
         if selected_group and selected_group != "DEFAULT":
             # Direct and flexible reading from JSON
@@ -140,9 +138,9 @@ def get_custom_group_colortype_items(self, context):
             for i, name in enumerate(sorted(colortype_names)):
                 items.append((name, name, f"colortype from {selected_group}", i + 1))
             
-            print(f"🔍 Found {len(colortype_names)} colortypes: {colortype_names}")
         else:
-            print(f"🔍 No valid group selected: '{selected_group}'")
+            # No valid group selected, provide default empty option
+            pass
     
     # --- START OF CORRECTION ---
     # If there are no profiles, ensure that at least the null option exists to avoid enum errors.
@@ -165,7 +163,6 @@ def get_custom_group_colortype_items(self, context):
         items.append(("", "<none>", "No colortypes available", 0))
     # --- END OF CORRECTION ---
     
-    print(f"🔍 Final items returned: {[(item[0], item[1]) for item in items]}")
     
     # CRITICAL: Ensure empty option is ALWAYS first and present
     if not any(item[0] == "" for item in items):
@@ -186,7 +183,6 @@ def get_custom_group_colortype_items(self, context):
     else:
         final_items = [("", "<none>", "No colortype selected", 0)] + non_empty_items
     
-    print(f"🔍 FINAL SORTED items: {[(item[0], item[1]) for item in final_items]}")
     return final_items
 
 def get_task_colortype_items(self, context):
@@ -196,11 +192,10 @@ def get_task_colortype_items(self, context):
         anim_props = tool.Sequence.get_animation_props()
         selected_group = getattr(anim_props, "task_colortype_group_selector", "")
         
-        print(f"🔍 Getting colortypes for custom group: '{selected_group}'")
         
         # CRÃ TICO: Solo mostrar perfiles si hay un grupo personalizado seleccionado
         if selected_group and selected_group != "DEFAULT":
-            from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+            from ..prop import UnifiedColorTypeManager
             colortypes = UnifiedColorTypeManager.get_group_colortypes(context, selected_group)
             
             for i, name in enumerate(sorted(colortypes.keys())):
@@ -237,7 +232,7 @@ def get_saved_color_schemes(self, context):
 
 def get_internal_ColorType_sets_enum(self, context):
     """Gets enum of ALL available colortype groups, including DEFAULT."""
-    from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+    from ..prop import UnifiedColorTypeManager
     try:
         # Get all groups directly from the source
         all_groups = sorted(list(UnifiedColorTypeManager._read_sets_json(context).keys()))
@@ -269,7 +264,7 @@ def get_all_groups_enum(self, context):
 
 def get_user_created_groups_enum(self, context):
     """Returns EnumProperty items for user-created groups, excluding 'DEFAULT'."""
-    from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+    from ..prop import UnifiedColorTypeManager
     try:
         user_groups = UnifiedColorTypeManager.get_user_created_groups(context)
         if user_groups:

@@ -155,15 +155,15 @@ class SnapshotWithcolortypes(tool.Ifc.Operator, bpy.types.Operator):
             print("✅ DEBUG: Set is_snapshot_mode flag")
             
             # CRITICAL: Register HUD handler for snapshots
-            from .. import hud_overlay
-            if not hud_overlay.is_hud_enabled():
+            from .. import hud
+            if not hud.is_hud_enabled():
                 print("🎬 SNAPSHOT: Registering HUD handler for Timeline display")
-                hud_overlay.register_hud_handler()
+                hud.register_hud_handler()
             else:
                 print("✅ SNAPSHOT: HUD handler already active")
             
             # Force HUD refresh for snapshot mode
-            hud_overlay.refresh_hud()
+            hud.refresh_hud()
             print("🎬 SNAPSHOT: Forced HUD refresh")
 
             # Get snapshot date

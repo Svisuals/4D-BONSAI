@@ -4,9 +4,9 @@
 import bpy
 import bonsai.tool as tool
 import ifcopenshell.util.sequence
-from .. import hud_overlay
 from datetime import datetime, timedelta
 from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
+from .. import hud as hud_overlay
 
 # === Animation operators ===
 
@@ -203,8 +203,8 @@ class AddAnimationCamera(bpy.types.Operator):
             # For animation cameras, we should try to call the full method if possible
             # but have a fallback to simple creation
             try:
-                from . import tool
-                cam_obj = tool.Sequence.add_animation_camera()
+                from .. import tool as local_tool
+                cam_obj = local_tool.Sequence.add_animation_camera()
             except:
                 # Fallback to simple camera creation
                 cam_data = bpy.data.cameras.new(name="4D_Animation_Camera")
@@ -517,7 +517,7 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
                         all_colortype_names = []
                         for group_item in anim_props.animation_group_stack:
                             group_name = group_item.group
-                            from ..prop.animation import UnifiedColorTypeManager
+                            from ..prop import UnifiedColorTypeManager
                             group_colortypes = UnifiedColorTypeManager.get_group_colortypes(bpy.context, group_name)
                             if group_colortypes:
                                 all_colortype_names.extend(group_colortypes.keys())
@@ -533,7 +533,7 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
                         camera_props.legend_hud_selected_colortypes = set()
                     
                     # Invalidar caché del legend HUD
-                    from bonsai.bim.module.sequence.hud_overlay import invalidate_legend_hud_cache
+                    from ..hud import invalidate_legend_hud_cache
                     invalidate_legend_hud_cache()
                     print("🧹 Active colortype group cleared from HUD Legend")
             except Exception as legend_e:

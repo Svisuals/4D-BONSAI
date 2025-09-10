@@ -25,7 +25,7 @@ try:
 except ImportError:
     # Fallback for when running from the original location
     try:
-        from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
+        from .prop.animation import UnifiedColorTypeManager
     except ImportError:
         # Ultimate fallback - create dummy class
         class UnifiedColorTypeManager:
@@ -103,7 +103,7 @@ def edit_work_schedule(
         # SOLUCIÓN INTELIGENTE: Preservar cronograma original en lugar de resetear automáticamente
         try:
             # Refresh ALL schedule-related data
-            from bonsai.bim.module.sequence.data import SequenceData, WorkScheduleData
+            from ..data import SequenceData, WorkScheduleData
             SequenceData.load()
             WorkScheduleData.load()
             
@@ -293,7 +293,7 @@ def _auto_sync_task_predefined_type(task_id: int, predefined_type: str) -> None:
         # UnifiedColorTypeManager is already imported at module level
 
         # 1. Find the task in UI properties (task_pg)
-        tprops = tool.Sequence.get_task_tree_props()
+        tprops = sequence.get_task_tree_props()
         task_pg = next((t for t in tprops.tasks if t.ifc_definition_id == task_id), None)
 
         if task_pg:
@@ -321,7 +321,7 @@ def edit_task(ifc: type[tool.Ifc], sequence: type[tool.Sequence], task: ifcopens
     ifc.run("sequence.edit_task", task=task, attributes=attributes)
 
     # 2. Reload data from IFC so cache is updated
-    from bonsai.bim.module.sequence.data import SequenceData
+    from ..data import SequenceData
     SequenceData.load() # Complete reload to ensure consistency
     sequence.load_task_properties(task=task)
 

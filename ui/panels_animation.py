@@ -32,7 +32,7 @@ import bonsai.tool as tool
 import bonsai.bim.helper
 from bpy.types import Panel, UIList
 from bonsai.bim.helper import draw_attributes
-from bonsai.bim.module.sequence.data import (
+from ..data import (
     WorkPlansData,
     WorkScheduleData,
     SequenceData,

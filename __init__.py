@@ -20,10 +20,10 @@
 
 import bpy
 
-from . import ui
-from . import prop
+from . import ui, prop, hud
+from . import hud as hud_overlay  # Alias for backward compatibility
 from . import operators
-from .operators import io_operators, camera_operators
+from . import operators as operator
 
 
 classes = (
@@ -51,43 +51,31 @@ classes = (
     ui.BIM_PT_animation_color_schemes,
 )
 
-# --- Optional registration: ClearAnimationAdvanced (guarded) ---
-# Note: ClearAnimationAdvanced is not currently implemented in the refactored version
-# try:
-#     _ADV = operator.ClearAnimationAdvanced
-# except Exception:
-#     _ADV = None
-# if _ADV:
-#     try:
-#         classes = tuple(list(classes) + [_ADV])
-#     except Exception:
-#         pass
-# --- end optional registration ---
+# ClearAnimationAdvanced operator removed - not present in refactored code
 
 
 
 def menu_func_export(self, context):
-    self.layout.operator(io_operators.ExportP6.bl_idname, text="P6 (.xml)")
-    self.layout.operator(io_operators.ExportMSP.bl_idname, text="Microsoft Project (.xml)")
+    self.layout.operator(operators.ExportP6.bl_idname, text="P6 (.xml)")
+    self.layout.operator(operators.ExportMSP.bl_idname, text="Microsoft Project (.xml)")
 
 
 def menu_func_import(self, context):
-    self.layout.operator(io_operators.ImportWorkScheduleCSV.bl_idname, text="Work Schedule (.csv)")
-    self.layout.operator(io_operators.ImportP6.bl_idname, text="P6 (.xml)")
-    self.layout.operator(io_operators.ImportP6XER.bl_idname, text="P6 (.xer)")
-    self.layout.operator(io_operators.ImportPP.bl_idname, text="Powerproject (.pp)")
-    self.layout.operator(io_operators.ImportMSP.bl_idname, text="Microsoft Project (.xml)")
+    self.layout.operator(operators.ImportWorkScheduleCSV.bl_idname, text="Work Schedule (.csv)")
+    self.layout.operator(operators.ImportP6.bl_idname, text="P6 (.xml)")
+    self.layout.operator(operators.ImportP6XER.bl_idname, text="P6 (.xer)")
+    self.layout.operator(operators.ImportPP.bl_idname, text="Powerproject (.pp)")
+    self.layout.operator(operators.ImportMSP.bl_idname, text="Microsoft Project (.xml)")
 
 
 def register():
-    # 1. Registra todas las propiedades delegando en el paquete 'prop'
+    # 1. First register all property groups
     prop.register()
     
-    # 2. Registra todos los operadores
+    # 2. Register all operators
     operators.register()
 
-    
-    # Register all classes for this module
+    # 3. Register UI classes that depend on properties
     try:
         for cls in classes:
             try:
@@ -96,25 +84,11 @@ def register():
                 print(f"Bonsai: Failed to register class {cls.__name__}: {e}")
     except Exception as e:
         print(f"Bonsai: Failed during class registration loop: {e}")
+    
+    # 4. Setup Scene properties after PropertyGroups are registered
 
 
-    # --- NEW: register camera orbit property group and test operators ---
-    try:
-        bpy.utils.register_class(prop.BIMCameraOrbitProperties)
-    except Exception:
-        pass
-    try:
-        bpy.utils.register_class(camera_operators.ResetCameraSettings)
-    except Exception:
-        pass
-
-
-    # --- NEW: dynamically attach camera_orbit pointer after classes are registered ---
-    try:
-        if not hasattr(prop.BIMAnimationProperties, 'camera_orbit'):
-            prop.BIMAnimationProperties.camera_orbit = bpy.props.PointerProperty(type=prop.BIMCameraOrbitProperties)
-    except Exception as _e:
-        print("camera_orbit dynamic attach failed:", _e)
+    # Camera orbit properties are already registered in prop.register()
     bpy.types.Scene.show_saved_ColorTypes_section = bpy.props.BoolProperty(name="Show Saved ColorTypes", default=True)
     bpy.types.Scene.BIMWorkPlanProperties = bpy.props.PointerProperty(type=prop.BIMWorkPlanProperties)
     bpy.types.Scene.BIMWorkScheduleProperties = bpy.props.PointerProperty(type=prop.BIMWorkScheduleProperties)
@@ -182,35 +156,9 @@ except Exception:
 
 
 def unregister():
-    # Unregister operators from operators module first
-    operators.unregister()
+    # Unregister in reverse order of registration
     
-    # Unregister classes in reverse order
-    try:
-        for cls in reversed(classes):
-            try:
-                bpy.utils.unregister_class(cls)
-            except Exception as e:
-                print(f"Bonsai: Failed to unregister class {cls.__name__}: {e}")
-    except Exception as e:
-        print(f"Bonsai: Failed during class unregistration loop: {e}")
-
-    # --- NEW: remove dynamic camera_orbit pointer ---
-    try:
-        if hasattr(prop.BIMAnimationProperties, 'camera_orbit'):
-            delattr(prop.BIMAnimationProperties, 'camera_orbit')
-    except Exception:
-        pass
-    # --- NEW: unregister test operators and camera orbit PG ---
-    try:
-        bpy.utils.unregister_class(camera_operators.ResetCameraSettings)
-    except Exception:
-        pass
-    try:
-        bpy.utils.unregister_class(prop.BIMCameraOrbitProperties)
-    except Exception:
-        pass
-
+    # 1. Remove Scene properties first
     if hasattr(bpy.types.Scene, 'show_saved_ColorTypes_section'):
         del bpy.types.Scene.show_saved_ColorTypes_section
     if hasattr(bpy.types.Scene, 'BIMWorkPlanProperties'):
@@ -229,5 +177,23 @@ def unregister():
         del bpy.types.Scene.BIMAnimationProperties
     if hasattr(bpy.types.TextCurve, 'BIMDateTextProperties'):
         del bpy.types.TextCurve.BIMDateTextProperties
+    
+    # 2. Remove menu items
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
+    
+    # 3. Unregister UI classes
+    try:
+        for cls in reversed(classes):
+            try:
+                bpy.utils.unregister_class(cls)
+            except Exception as e:
+                print(f"Bonsai: Failed to unregister class {cls.__name__}: {e}")
+    except Exception as e:
+        print(f"Bonsai: Failed during class unregistration loop: {e}")
+
+    # 4. Unregister operators
+    operators.unregister()
+    
+    # 5. Unregister all property groups last
+    prop.unregister()

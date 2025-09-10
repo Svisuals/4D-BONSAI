@@ -39,9 +39,9 @@ class ScheduleHUD:
         self.font_id = 0
         self.ensure_valid_font()
         
-        self.text_hud = TextHUD()
-        self.timeline_hud = TimelineHUD()
-        self.legend_hud = LegendHUD()
+        self.text_hud = TextHUD(self.font_id)
+        self.timeline_hud = TimelineHUD(self.font_id)
+        self.legend_hud = LegendHUD(self.font_id)
 
     def ensure_valid_font(self):
         """
@@ -49,7 +49,7 @@ class ScheduleHUD:
         (Esta es tu lógica original completa).
         """
         try:
-            font_path = os.path.join(bpy.utils.system_resource('DATAFILES'), "fonts", "droidsans.ttf")
+            font_path = os.path.join(bpy.utils.system_resource('DATAFILES', path="fonts"), "droidsans.ttf")
             if os.path.exists(font_path):
                 font_id = blf.load(font_path)
                 if font_id != -1:
@@ -58,6 +58,10 @@ class ScheduleHUD:
         except Exception as e:
             print(f"Bonsai HUD: No se pudo cargar la fuente DroidSans, usando default. Error: {e}")
         self.font_id = 0
+
+    def get_active_colortype_legend_data(self, include_hidden=False):
+        """Delegate to the legend_hud instance for 3D Legend HUD compatibility"""
+        return self.legend_hud.get_active_colortype_legend_data(include_hidden)
 
     def draw(self):
         """
@@ -81,14 +85,14 @@ class ScheduleHUD:
 
             # --- Delegar el trabajo a los especialistas ---
             if text_settings.get('enabled', False):
-                self.text_hud.draw(data, text_settings, viewport_width, viewport_height, self.font_id)
+                self.text_hud.draw(data, text_settings, viewport_width, viewport_height)
 
             if timeline_settings.get('enabled', False):
-                self.timeline_hud.draw(data, timeline_settings, viewport_width, viewport_height, self.font_id)
+                self.timeline_hud.draw(data, timeline_settings, viewport_width, viewport_height)
 
             if legend_settings.get('enabled', False):
-                self.legend_hud.draw(data, legend_settings, viewport_width, viewport_height, self.font_id)
-
+                font_id = 0  # Default Blender font
+                self.legend_hud.draw(data, legend_settings, viewport_width, viewport_height, font_id)
         except Exception as e:
             print(f"Bonsai HUD draw error: {e}")
             import traceback

@@ -8,14 +8,14 @@ import bonsai.tool as tool
 
 
 try:
-    from .prop import update_filter_column
-    from . import prop
+    from ..prop import update_filter_column
+    from .. import prop
     from .ui import calculate_visible_columns_count
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop.filter import update_filter_column
-        import bonsai.bim.module.sequence.prop as prop
-        from bonsai.bim.module.sequence.ui import calculate_visible_columns_count
+        from ..prop.filter import update_filter_column
+        from .. import prop as prop
+        from ..ui import calculate_visible_columns_count
     except Exception:
         def update_filter_column(*args, **kwargs):
             pass
@@ -61,20 +61,20 @@ import time
 import calendar
 import isodate
 import bonsai.core.sequence as core
-import bonsai.bim.module.sequence.helper as helper
+from .. import helper as helper
 from .animation_operators import _clear_previous_animation, _get_animation_settings, _compute_product_frames, _ensure_default_group
 try:
     from ..prop.animation import UnifiedColorTypeManager
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
+        from ..prop.animation import UnifiedColorTypeManager
     except Exception:
         UnifiedColorTypeManager = None  # optional
 try:
     from ..prop.task import TaskcolortypeGroupChoice
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop.task import TaskcolortypeGroupChoice
+        from ..prop.task import TaskcolortypeGroupChoice
     except Exception:
         TaskcolortypeGroupChoice = None  # optional
 
@@ -821,7 +821,7 @@ class ClearPreviousAnimation(bpy.types.Operator, tool.Ifc.Operator):
                         camera_props.legend_hud_selected_colortypes = set()
                     
                     # Invalidar caché del legend HUD
-                    from bonsai.bim.module.sequence.hud_overlay import invalidate_legend_hud_cache
+                    from ..hud import invalidate_legend_hud_cache
                     invalidate_legend_hud_cache()
                     print("🧹 Active colortype group cleared from HUD Legend")
             except Exception as legend_e:
@@ -894,7 +894,7 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
                         camera_props.legend_hud_selected_colortypes = set()
                     
                     # Invalidar caché del legend HUD
-                    from bonsai.bim.module.sequence.hud_overlay import invalidate_legend_hud_cache
+                    from ..hud import invalidate_legend_hud_cache
                     invalidate_legend_hud_cache()
                     print("🧹 Active colortype group cleared from HUD Legend")
             except Exception as legend_e:

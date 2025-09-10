@@ -383,11 +383,13 @@ class Setup3DLegendHUD(bpy.types.Operator):
     
     def _get_active_colortype_data(self):
         try:
-            from .. import hud_overlay
-            hud_instance = hud_overlay.schedule_hud if hasattr(hud_overlay, 'schedule_hud') and hud_overlay.schedule_hud else hud_overlay.ScheduleHUD()
-            return hud_instance.get_active_colortype_legend_data(include_hidden=False)
+            from .. import hud
+            # Use the global instance that already exists
+            return hud.schedule_hud.get_active_colortype_legend_data(include_hidden=False)
         except Exception as e:
             print(f"Exception in _get_active_colortype_data: {e}")
+            import traceback
+            traceback.print_exc()
             return []
     
     def _get_synchronized_settings(self, camera_props):
@@ -451,8 +453,8 @@ class Setup3DLegendHUD(bpy.types.Operator):
             parent_empty.empty_display_type = 'PLAIN_AXES'
             parent_empty.empty_display_size = 2
             try:
-                from . import prop
-                prop.update_schedule_display_parent_constraint(bpy.context)
+                from ..prop.camera_hud import update_schedule_display_parent_constraint
+                update_schedule_display_parent_constraint(bpy.context)
             except Exception as e:
                 print(f"Could not configure parent constraints: {e}")
         root = parent_empty
@@ -674,10 +676,10 @@ class EnableScheduleHUD(bpy.types.Operator):
             camera_props = anim_props.camera_orbit
             if not camera_props.enable_text_hud:
                 camera_props.enable_text_hud = True
-            from .. import hud_overlay
-            if not hud_overlay.is_hud_enabled():
-                hud_overlay.register_hud_handler()
-            hud_overlay.refresh_hud()
+            from .. import hud
+            if not hud.is_hud_enabled():
+                hud.register_hud_handler()
+            hud.refresh_hud()
             self.report({'INFO'}, "Schedule HUD enabled")
             return {'FINISHED'}
         except Exception as e:
@@ -696,8 +698,8 @@ class DisableScheduleHUD(bpy.types.Operator):
             camera_props = anim_props.camera_orbit
             if camera_props.enable_text_hud:
                 camera_props.enable_text_hud = False
-            from .. import hud_overlay
-            hud_overlay.unregister_hud_handler()
+            from .. import hud
+            hud.unregister_hud_handler()
             for area in context.screen.areas:
                 if getattr(area, "type", None) == 'VIEW_3D':
                     area.tag_redraw()
@@ -715,8 +717,8 @@ class ToggleScheduleHUD(bpy.types.Operator):
 
     def execute(self, context):
         try:
-            from .. import hud_overlay
-            if hud_overlay.is_hud_enabled():
+            from .. import hud
+            if hud.is_hud_enabled():
                 bpy.ops.bim.disable_schedule_hud()
             else:
                 bpy.ops.bim.enable_schedule_hud()
@@ -733,9 +735,9 @@ class RefreshScheduleHUD(bpy.types.Operator):
 
     def execute(self, context):
         try:
-            from .. import hud_overlay
-            hud_overlay.ensure_hud_handlers()
-            hud_overlay.refresh_hud()
+            from .. import hud
+            hud.ensure_hud_handlers()
+            hud.refresh_hud()
             for window in context.window_manager.windows:
                 for area in window.screen.areas:
                     if area.type == 'VIEW_3D':
@@ -769,9 +771,9 @@ class LegendHudcolortypeScrollDown(bpy.types.Operator):
         anim_props = tool.Sequence.get_animation_props()
         camera_props = anim_props.camera_orbit
         current_offset = getattr(camera_props, 'legend_hud_colortype_scroll_offset', 0)
-        from .. import hud_overlay
-        if hasattr(hud_overlay, 'schedule_hud') and hud_overlay.schedule_hud:
-            all_colortype_data = hud_overlay.schedule_hud.get_active_colortype_legend_data(include_hidden=True)
+        from .. import hud
+        if hasattr(hud, 'schedule_hud') and hud.schedule_hud:
+            all_colortype_data = hud.schedule_hud.get_active_colortype_legend_data(include_hidden=True)
             total_colortypes = len(all_colortype_data) if all_colortype_data else 0
             max_offset = max(0, total_colortypes - 5)
             if current_offset < max_offset:

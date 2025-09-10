@@ -23,7 +23,8 @@ from . import drawing_utils_hud_overlay as draw_utils
 from . import data_manager_hud_overlay as data_manager
 
 class LegendHUD:
-    def __init__(self):
+    def __init__(self, font_id):
+        self.font_id = font_id
         # Inicializa caches aquí
         self._legend_data_cache = None
         self._cached_animation_groups = None
@@ -37,7 +38,6 @@ class LegendHUD:
         print(f"🎨 Viewport: {viewport_width}x{viewport_height}")
         print(f"🎨 Settings enabled: {settings.get('enabled', False)}")
         
-        self.font_id = font_id
         
         try:
             # Obtener perfiles activos del sistema de animación
@@ -173,7 +173,7 @@ class LegendHUD:
             print(f"🎨 Processing active group: {active_group}")
             
             # Get profiles from this group using UnifiedColorTypeManager
-            from .prop import UnifiedColorTypeManager
+            from ..prop.animation import UnifiedColorTypeManager
             
             # SPECIAL CASE: For DEFAULT group in Legend HUD, always ensure full colortype list
             if active_group == "DEFAULT":
@@ -386,7 +386,14 @@ class LegendHUD:
             if align_y == 'TOP': bg_y = base_y - bg_height
             else: bg_y = base_y
 
-            draw_utils.draw_legend_background(bg_x, bg_y, bg_width, bg_height, settings)
+            # Dibujar el fondo directamente con las utilidades
+            background_color = settings.get('background_color', (0.0, 0.0, 0.0, 0.8))
+            border_radius = settings.get('border_radius', 5.0)
+
+            if border_radius > 0:
+                draw_utils.draw_rounded_rect(bg_x, bg_y, bg_width, bg_height, background_color, border_radius)
+            else:
+                draw_utils.draw_gpu_rect(bg_x, bg_y, bg_width, bg_height, background_color)
 
             # --- 5. DRAW CONTENT ---
             content_x = bg_x + padding_h
@@ -444,102 +451,71 @@ class LegendHUD:
             import traceback
             traceback.print_exc()
 
-
-
-
-    def draw_legend_background(self, x: float, y: float, width: float, height: float, settings: dict):
-        """Draws the legend background with configurable effects"""
-        try:
-            background_color = settings.get('background_color', (0.0, 0.0, 0.0, 0.8))
-            border_radius = settings.get('border_radius', 5.0)
-            
-            if border_radius > 0:
-                draw_utils.draw_rounded_rect(x, y, width, height, background_color, border_radius)
-            else:
-                draw_utils.draw_gpu_rect(x, y, width, height, background_color)
-                
-        except Exception as e:
-            print(f"❌ Error drawing legend background: {e}")
-
-
-    def draw_legend_text(self, text: str, x: float, y: float, color: tuple, settings: dict):
-        """Draws legend text with configurable shadow"""
-        try:
-            # Draw shadow if enabled
-            if settings.get('text_shadow_enabled', True):
-                shadow_offset_x = settings.get('text_shadow_offset_x', 1.0)
-                shadow_offset_y = settings.get('text_shadow_offset_y', -1.0)
-                shadow_color = settings.get('text_shadow_color', (0.0, 0.0, 0.0, 0.8))
-                
-                blf.position(self.font_id, x + shadow_offset_x, y + shadow_offset_y, 0)
-                blf.color(self.font_id, *shadow_color)
-                blf.draw(self.font_id, text)
-            
-            # Draw main text
-            blf.position(self.font_id, x, y, 0)
-            blf.color(self.font_id, *color)
-            blf.draw(self.font_id, text)
-            
-        except Exception as e:
-            print(f"❌ Error drawing legend text: {e}")
-
     def draw_column_titles(self, base_x: float, y: float, indicator_size: float, column_spacing: float,
-                           show_start: bool, show_active: bool, show_end: bool, 
-                           show_start_title: bool, show_active_title: bool, show_end_title: bool, settings: dict):
-        """Draws the titles of the Start/Active/End columns"""
+                       show_start: bool, show_active: bool, show_end: bool,
+                       show_start_title: bool, show_active_title: bool, show_end_title: bool, settings: dict):
+        """Draws the titles of the Start/Active/End columns using the centralized drawing utility."""
         try:
-            title_color = settings.get('title_color', (1.0, 1.0, 1.0, 1.0))
+            # Ya no necesitamos 'title_color' aquí porque la función de utils lo obtiene de 'settings'
             current_x = base_x
-            
+
             if show_start and show_start_title:
                 text_width, _ = blf.dimensions(self.font_id, "S")
                 title_x = current_x + (indicator_size - text_width) / 2
-                self.draw_legend_text("S", title_x, y, title_color, settings)
+                # ANTES: self.draw_legend_text(...)
+                # AHORA: Usamos la función de draw_utils, que dibuja el texto Y su sombra.
+                draw_utils.draw_text_with_shadow(self.font_id, "S", title_x, y, settings)
             if show_start:
                 current_x += indicator_size + column_spacing
-                
+
             if show_active and show_active_title:
                 text_width, _ = blf.dimensions(self.font_id, "A")
                 title_x = current_x + (indicator_size - text_width) / 2
-                self.draw_legend_text("A", title_x, y, title_color, settings)
+                # ANTES: self.draw_legend_text(...)
+                # AHORA: Usamos la función de draw_utils
+                draw_utils.draw_text_with_shadow(self.font_id, "A", title_x, y, settings)
             if show_active:
                 current_x += indicator_size + column_spacing
-                
+
             if show_end and show_end_title:
                 text_width, _ = blf.dimensions(self.font_id, "E")
                 title_x = current_x + (indicator_size - text_width) / 2
-                self.draw_legend_text("E", title_x, y, title_color, settings)
-                
+                # ANTES: self.draw_legend_text(...)
+                # AHORA: Usamos la función de draw_utils
+                draw_utils.draw_text_with_shadow(self.font_id, "E", title_x, y, settings)
+
         except Exception as e:
             print(f"❌ Error drawing column titles: {e}")
 
     def draw_colortype_row(self, legend_item: dict, base_x: float, y: float, indicator_size: float, column_spacing: float,
-                         show_start: bool, show_active: bool, show_end: bool, settings: dict):
+                     show_start: bool, show_active: bool, show_end: bool, settings: dict):
         """Draws a profile row with its corresponding colors"""
         try:
             current_x = base_x
-            text_color = settings.get('text_color', (1.0, 1.0, 1.0, 1.0))
+            # Ya no necesitamos 'text_color' aquí, la función utils lo tomará de 'settings'
             _, row_height = blf.dimensions(self.font_id, "X")
-            
+
             # Draw color indicators
             if show_start:
                 draw_utils.draw_color_indicator(current_x, y, indicator_size, legend_item['start_color'])
                 current_x += indicator_size + column_spacing
-                
+
             if show_active:
                 draw_utils.draw_color_indicator(current_x, y, indicator_size, legend_item['active_color'])
                 current_x += indicator_size + column_spacing
-                
+
             if show_end:
                 draw_utils.draw_color_indicator(current_x, y, indicator_size, legend_item['end_color'])
-            
+
             # Calculate X for the text
             text_gap = 8 * settings.get('scale', 1.0)
             num_visible_cols = sum([show_start, show_active, show_end])
             colors_block_width = (num_visible_cols * indicator_size) + max(0, num_visible_cols - 1) * column_spacing
             text_x = base_x + colors_block_width + text_gap
-            
-            self.draw_legend_text(legend_item['name'], text_x, y, text_color, settings)
-            
+
+            # ANTES: self.draw_legend_text(...)
+            # AHORA: Usamos la función de draw_utils, que dibuja el texto y su sombra.
+            draw_utils.draw_text_with_shadow(self.font_id, legend_item['name'], text_x, y, settings)
+
         except Exception as e:
             print(f"❌ Error drawing colortype row: {e}")

@@ -17,7 +17,7 @@
 # along with Bonsai.  If not, see <http://www.gnu.org/licenses/>.
 
 import bpy
-from bonsai.bim.module.sequence.data import SequenceData
+from ..data import SequenceData
 from bpy.types import PropertyGroup
 from bpy.props import (
     StringProperty,
@@ -227,6 +227,12 @@ class TaskFilterRule(PropertyGroup):
 class BIMTaskFilterProperties(PropertyGroup):
     """Stores the complete configuration of the filter system."""
     
+    show_filters: BoolProperty(
+        name="Show Filters",
+        description="Toggle the visibility of the filter panel",
+        default=False
+    )
+    
     rules: CollectionProperty(
         name="Filter Rules",
         type=TaskFilterRule,
@@ -305,6 +311,7 @@ class BIMTaskFilterProperties(PropertyGroup):
     )
 
     if TYPE_CHECKING:
+        show_filters: bool
         rules: bpy.types.bpy_prop_collection_idprop[TaskFilterRule]
         active_rule_index: int
         logic: str

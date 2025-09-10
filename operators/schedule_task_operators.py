@@ -13,7 +13,7 @@ try:
 except (ImportError, ValueError):
     # Fallback si la estructura cambia
     try:
-        from bonsai.bim.module.sequence.prop.animation import safe_set_selected_colortype_in_active_group
+        from ..prop.animation import safe_set_selected_colortype_in_active_group
     except ImportError:
         # Ultimate fallback
         def safe_set_selected_colortype_in_active_group(task_obj, value, skip_validation=False):
@@ -23,14 +23,14 @@ except (ImportError, ValueError):
                 pass
 
 try:
-    from .prop import update_filter_column
-    from . import prop
+    from ..prop import update_filter_column
+    from .. import prop
     from .ui import calculate_visible_columns_count
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop.filter import update_filter_column
-        import bonsai.bim.module.sequence.prop as prop
-        from bonsai.bim.module.sequence.ui import calculate_visible_columns_count
+        from ..prop.filter import update_filter_column
+        from .. import prop as prop
+        from ..ui import calculate_visible_columns_count
     except Exception:
         def update_filter_column(*args, **kwargs):
             pass

@@ -60,7 +60,7 @@ except ImportError:
 
 # Import animation functions from prop module
 try:
-    from ..prop.animation import UnifiedColorTypeManager, get_user_created_groups_enum
+    from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager, get_user_created_groups_enum
 except ImportError:
     # Fallback for when running from the original location
     try:
@@ -76,7 +76,7 @@ except ImportError:
 
 if TYPE_CHECKING:
     from bonsai.bim.prop import Attribute
-    from ..prop import (
+    from bonsai.bim.module.sequence.prop import (
         BIMAnimationProperties,
         BIMStatusProperties,
         BIMTaskTreeProperties,
@@ -151,6 +151,28 @@ class Sequence(bonsai.core.tool.Sequence):
         return False
 
     @classmethod
+    def get_selected_task_ids(cls):
+        """Returns list of task IDs that are currently selected/checked in the UI"""
+        try:
+            tprops = cls.get_task_tree_props()
+            if not tprops:
+                return []
+            
+            selected_ids = []
+            for task_pg in tprops.tasks:
+                if getattr(task_pg, 'is_selected', False):
+                    try:
+                        task_id = int(task_pg.ifc_definition_id)
+                        selected_ids.append(task_id)
+                    except (ValueError, AttributeError):
+                        continue
+            
+            return selected_ids
+        except Exception as e:
+            print(f"❌ Error getting selected task IDs: {e}")
+            return []
+
+    @classmethod
     def is_bonsai_animation_camera(cls, obj):
         """Verifica si un objeto es una cámara específica para los Ajustes de Animación."""
         if not obj or obj.type != 'CAMERA':
@@ -201,7 +223,7 @@ class Sequence(bonsai.core.tool.Sequence):
 
         # --- AUTOMATIC GPU HUD CONFIGURATION ---
         try:
-            anim_props = tool.Sequence.get_animation_props()
+            anim_props = cls.get_animation_props()
             camera_props = anim_props.camera_orbit
 
             # Auto-habilitar HUD GPU si hay cronograma válido
@@ -1809,7 +1831,7 @@ class Sequence(bonsai.core.tool.Sequence):
                     return 0
 
             if column_name in ("Special.VarianceStatus", "Special.VarianceDays"):
-                ws_props = tool.Sequence.get_work_schedule_props()
+                ws_props = cls.get_work_schedule_props()
                 source_a = ws_props.variance_source_a
                 source_b = ws_props.variance_source_b
 
@@ -1886,8 +1908,8 @@ class Sequence(bonsai.core.tool.Sequence):
                             if op == 'EQUALS': match = task_value_bool == rule_value
                             elif op == 'NOT_EQUALS': match = task_value_bool != rule_value
                         elif data_type == 'date':
-                            task_date = bonsai.bim.module.sequence.helper.parse_datetime(str(task_value))
-                            rule_date = bonsai.bim.module.sequence.helper.parse_datetime(rule.value_string)
+                            task_date = helper.parse_datetime(str(task_value))
+                            rule_date = helper.parse_datetime(rule.value_string)
                             if task_date and rule_date:
                                 if op == 'EQUALS': match = task_date.date() == rule_date.date()
                                 elif op == 'NOT_EQUALS': match = task_date.date() != rule_date.date()
@@ -5451,7 +5473,7 @@ class Sequence(bonsai.core.tool.Sequence):
                             print(f"🔄 Copy3D SYNC: Task {task.ifc_definition_id} - '{current_animation_schemes}' -> '{selected_colortype}'")
                             
                             # Usar la función segura para asignar
-                            from ..prop.animation import safe_set_animation_color_schemes
+                            from bonsai.bim.module.sequence.prop.animation import safe_set_animation_color_schemes
                             safe_set_animation_color_schemes(task, selected_colortype)
                             tasks_synced += 1
                         elif selected_colortype:
@@ -6314,7 +6336,7 @@ class Sequence(bonsai.core.tool.Sequence):
             # CRÍTICO: Verificar estado de task_colortype_group_selector después de Copy3D
             print("🔍 Copy3D: Checking task_colortype_group_selector state...")
             try:
-                anim_props = tool.Sequence.get_animation_props()
+                anim_props = cls.get_animation_props()
                 current_group = getattr(anim_props, "task_colortype_group_selector", "")
                 print(f"🔍 Current task_colortype_group_selector: '{current_group}'")
                 
@@ -7309,7 +7331,7 @@ class Sequence(bonsai.core.tool.Sequence):
     def add_group_to_animation_stack():
         """Add a new group to the animation group stack"""
         try:
-            anim_props = tool.Sequence.get_animation_props()
+            anim_props = cls.get_animation_props()
             if not hasattr(anim_props, 'animation_group_stack'):
                 print("❌ animation_group_stack not found in animation properties")
                 return
@@ -7333,7 +7355,7 @@ class Sequence(bonsai.core.tool.Sequence):
     def remove_group_from_animation_stack():
         """Remove the selected group from the animation group stack"""
         try:
-            anim_props = tool.Sequence.get_animation_props()
+            anim_props = cls.get_animation_props()
             if not hasattr(anim_props, 'animation_group_stack'):
                 print("❌ animation_group_stack not found in animation properties")
                 return
@@ -7360,7 +7382,7 @@ class Sequence(bonsai.core.tool.Sequence):
     def move_group_in_animation_stack(direction):
         """Move the selected group up or down in the animation group stack"""
         try:
-            anim_props = tool.Sequence.get_animation_props()
+            anim_props = cls.get_animation_props()
             if not hasattr(anim_props, 'animation_group_stack'):
                 print("❌ animation_group_stack not found in animation properties")
                 return
@@ -7531,7 +7553,7 @@ class SearchCustomColorTypeGroup(bpy.types.Operator):
     search_term: bpy.props.StringProperty(name="Search", default="")
 
     def execute(self, context):
-        props = tool.Sequence.get_animation_props()
+        props = cls.get_animation_props()
         if not self.search_term:
             self.report({'INFO'}, "Enter search term")
             return {'CANCELLED'}
@@ -7565,7 +7587,7 @@ class CopyCustomColorTypeGroup(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        props = tool.Sequence.get_animation_props()
+        props = cls.get_animation_props()
         current_value = getattr(props, "task_ColorType_group_selector", "")
 
         if current_value:
@@ -7583,7 +7605,7 @@ class PasteCustomColorTypeGroup(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        props = tool.Sequence.get_animation_props()
+        props = cls.get_animation_props()
         clipboard_value = context.window_manager.clipboard.strip()
 
         if not clipboard_value:
@@ -7610,15 +7632,15 @@ class SetCustomColorTypeGroupNull(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        props = tool.Sequence.get_animation_props()
+        props = cls.get_animation_props()
 
         # Limpiar la selección
         props.task_ColorType_group_selector = ""
 
         # También limpiar el perfil seleccionado en la tarea activa si existe
         try:
-            tprops = tool.Sequence.get_task_tree_props()
-            wprops = tool.Sequence.get_work_schedule_props()
+            tprops = cls.get_task_tree_props()
+            wprops = cls.get_work_schedule_props()
             if tprops.tasks and wprops.active_task_index < len(tprops.tasks):
                 task = tprops.tasks[wprops.active_task_index]
                 task.selected_ColorType_in_active_group = ""
@@ -7636,7 +7658,7 @@ class ShowCustomColorTypeGroupInfo(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        props = tool.Sequence.get_animation_props()
+        props = cls.get_animation_props()
         current_value = getattr(props, "task_ColorType_group_selector", "")
 
         if current_value:
