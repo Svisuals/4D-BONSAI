@@ -826,7 +826,7 @@ def update_active_task_index(self, context):
     bonsai.bim.module.pset.data.refresh()
 
     if self.editing_task_type == "SEQUENCE":
-        tool.Sequence.load_task_properties()
+        tool.Sequence.load_task_properties(task=None)
 
     try:
         tprops = tool.Sequence.get_task_tree_props()
@@ -1318,7 +1318,7 @@ def updateAssignedResourceUsage(self: "TaskResource", context: object) -> None:
     if resource.Usage and resource.Usage.ScheduleUsage == self.schedule_usage:
         return
     tool.Resource.run_edit_resource_time(resource, attributes={"ScheduleUsage": self.schedule_usage})
-    tool.Sequence.load_task_properties()
+    tool.Sequence.load_task_properties(task=None)
     tool.Resource.load_resource_properties()
     tool.Sequence.refresh_task_resources()
     bonsai.bim.module.resource.data.refresh()

@@ -328,12 +328,17 @@ class BIM_PT_work_schedules(Panel):
         row = saved_filters_box.row(align=True)
 
         # The title is now a button to show/hide the section
-        icon = 'TRIA_DOWN' if props.filters.show_saved_filters else 'TRIA_RIGHT'
-        row.prop(props.filters, "show_saved_filters", text="Saved Filters", icon=icon, emboss=False)
+        # Safe access to show_saved_filters with fallback
+        show_saved = getattr(props.filters, "show_saved_filters", False)
+        icon = 'TRIA_DOWN' if show_saved else 'TRIA_RIGHT'
+        if hasattr(props.filters, "show_saved_filters"):
+            row.prop(props.filters, "show_saved_filters", text="Saved Filters", icon=icon, emboss=False)
+        else:
+            row.label(text="Saved Filters", icon=icon)
         # --- END OF MODIFICATION ---
 
         # The content is only drawn if the section is expanded
-        if props.filters.show_saved_filters:
+        if show_saved:
             saved_filters_box.template_list(
                 "BIM_UL_saved_filter_sets", "",
                 props, "saved_filter_sets",

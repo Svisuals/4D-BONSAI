@@ -492,7 +492,7 @@ class AddTask(bpy.types.Operator, tool.Ifc.Operator):
             ws = tool.Sequence.get_active_work_schedule()
             if ws:
                 tool.Sequence.load_task_tree(ws)
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
         except Exception:
             pass
 
@@ -514,7 +514,7 @@ class AddSummaryTask(bpy.types.Operator, tool.Ifc.Operator):
             ws = tool.Sequence.get_active_work_schedule()
             if ws:
                 tool.Sequence.load_task_tree(ws)
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
         except Exception:
             pass
 
@@ -564,7 +564,7 @@ class RemoveTask(bpy.types.Operator, tool.Ifc.Operator):
             ws = tool.Sequence.get_active_work_schedule()
             if ws:
                 tool.Sequence.load_task_tree(ws)
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
         except Exception:
             pass
 
@@ -591,7 +591,9 @@ class DisableEditingTask(bpy.types.Operator):
         # USAR EL MISMO PATRÓN QUE LOS FILTROS (que funciona correctamente):
         snapshot_all_ui_state(context)  # >>> 1. Guardar estado ANTES de cancelar
         
-        # >>> 2. Ejecutar la operación de cancelar
+        # >>> 2. Ejecutar la operación de cancelar usando llamada directa
+        print("🔍 DEBUG: Llamando core.disable_editing_task con tool.Sequence")
+        # Necesitamos usar core porque disable_editing_task no está en nuestras clases
         core.disable_editing_task(tool.Sequence)
         
         return {"FINISHED"}
@@ -676,7 +678,7 @@ class CopyTask(bpy.types.Operator, tool.Ifc.Operator):
             ws = tool.Sequence.get_active_work_schedule()
             if ws:
                 tool.Sequence.load_task_tree(ws)
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
         except Exception:
             pass
 
@@ -729,7 +731,7 @@ class ReorderTask(bpy.types.Operator, tool.Ifc.Operator):
             ws = tool.Sequence.get_active_work_schedule()
             if ws:
                 tool.Sequence.load_task_tree(ws)
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
         except Exception:
             pass
 

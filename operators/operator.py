@@ -526,7 +526,7 @@ class RemoveTask(bpy.types.Operator, tool.Ifc.Operator):
 
                 tool.Sequence.load_task_tree(ws)
 
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
 
         except Exception:
 
@@ -714,7 +714,7 @@ class CopyTask(bpy.types.Operator, tool.Ifc.Operator):
 
                 tool.Sequence.load_task_tree(ws)
 
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
 
         except Exception:
 
@@ -769,7 +769,7 @@ class ReorderTask(bpy.types.Operator, tool.Ifc.Operator):
 
                 tool.Sequence.load_task_tree(ws)
 
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
 
         except Exception:
 

@@ -530,7 +530,7 @@ class ApplyTaskFilters(bpy.types.Operator):
             ws = tool.Sequence.get_active_work_schedule()
             if ws: 
                 tool.Sequence.load_task_tree(ws)
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
         except Exception as e: 
             print(f"Bonsai WARNING: Task tree reload failed: {e}")
         

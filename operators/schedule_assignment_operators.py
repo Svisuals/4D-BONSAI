@@ -117,7 +117,7 @@ class AssignProduct(bpy.types.Operator, tool.Ifc.Operator):
                 )
             else:
                 core.assign_products(tool.Ifc, tool.Sequence, tool.Spatial, task=tool.Ifc.get().by_id(self.task))
-            tool.Sequence.load_task_properties()
+            tool.Sequence.load_task_properties(task=None)
         finally:
             restore_all_ui_state(context)
 
@@ -142,7 +142,7 @@ class UnassignProduct(bpy.types.Operator, tool.Ifc.Operator):
                 )
             else:
                 core.unassign_products(tool.Ifc, tool.Sequence, tool.Spatial, task=tool.Ifc.get().by_id(self.task))
-            tool.Sequence.load_task_properties()
+            tool.Sequence.load_task_properties(task=None)
             task_ifc = tool.Ifc.get().by_id(self.task)
             tool.Sequence.update_task_ICOM(task_ifc)
         finally:

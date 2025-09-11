@@ -263,7 +263,7 @@ def updateAssignedResourceUsage(self: "TaskResource", context: object) -> None:
     if resource.Usage and resource.Usage.ScheduleUsage == self.schedule_usage:
         return
     tool.Resource.run_edit_resource_time(resource, attributes={"ScheduleUsage": self.schedule_usage})
-    tool.Sequence.load_task_properties()
+    tool.Sequence.load_task_properties(task=None)
 
 def update_task_bar_list(self: "Task", context: bpy.types.Context) -> None:
     props = tool.Sequence.get_work_schedule_props()
