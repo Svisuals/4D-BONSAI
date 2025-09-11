@@ -23,7 +23,7 @@ import ifcopenshell.util.attribute
 import ifcopenshell.util.date
 import bonsai.tool as tool
 import bonsai.core.sequence as core
-from ..data.sequence_data import SequenceData, refresh as refresh_sequence_data
+from ..data import SequenceData, refresh as refresh_sequence_data
 from bpy.types import PropertyGroup
 from bpy.props import (
     PointerProperty,
@@ -309,12 +309,17 @@ def update_use_active_colortype_group(self: "Task", context):
 def update_selected_colortype_in_active_group(self: "Task", context):
     """Updates the selected colortype in the active group"""
     try:
-        # CRASH FIX: Avoid calling enum items function during update to prevent recursion
+        # Validate that the current value is not a numeric string or invalid
         current_value = self.selected_colortype_in_active_group
         
-        # Simple validation without calling enum items function
-        if current_value and current_value.isdigit():
-            print(f"🚫 Invalid numeric colortype value '{current_value}' detected, skipping update...")
+        # Get valid enum items to check against
+        valid_items = get_custom_group_colortype_items(self, context)
+        valid_values = [item[0] for item in valid_items]
+        
+        # Check for invalid values
+        if current_value and (current_value.isdigit() or current_value not in valid_values):
+            print(f"🚫 Invalid colortype value '{current_value}' detected, correcting...")
+            # Don't assign anything - let the enum system handle it
             return
         
         # Get animation properties to determine active group
@@ -341,34 +346,25 @@ def update_selected_colortype_in_active_group(self: "Task", context):
         print(f"❌ Error in update_selected_colortype_in_active_group: {e}")
 
 def update_variance_color_mode(self, context):
-    """Updates variance color mode visualization"""
+    """
+    Callback que se ejecuta al marcar/desmarcar el checkbox de modo color de varianza.
+    Cada tarea funciona independientemente y ahora invoca la actualización visual.
+    """
     try:
-        wprops = tool.Sequence.get_work_schedule_props()
+        print(f"🔄 Variance checkbox changed for task {self.ifc_definition_id} ({self.name}): {self.is_variance_color_selected}")
         
-        if self.is_variance_color_selected:
-            # Add task to variance selection if not already present
-            if str(self.ifc_definition_id) not in wprops.variance_selected_tasks:
-                task_item = wprops.variance_selected_tasks.add()
-                task_item.task_id = str(self.ifc_definition_id)
-                print(f"✅ Added task {self.ifc_definition_id} to variance color selection")
-        else:
-            # Remove task from variance selection
-            to_remove = []
-            for i, item in enumerate(wprops.variance_selected_tasks):
-                if item.task_id == str(self.ifc_definition_id):
-                    to_remove.append(i)
+        # --- INICIO DE LA CORRECCIÓN ---
+        # Llamamos directamente a la función que aplica la lógica de colores.
+        # Esta función ya se encarga de todo: guardar colores originales,
+        # encontrar los objetos 3D y aplicar el color correcto.
+        print("🎨 Updating variance colors for individual task...")
+        tool.Sequence.update_individual_variance_colors()
+        # --- FIN DE LA CORRECCIÓN ---
             
-            for idx in reversed(to_remove):
-                wprops.variance_selected_tasks.remove(idx)
-                print(f"✅ Removed task {self.ifc_definition_id} from variance color selection")
-        
-        # Refresh viewport to update colors
-        for area in bpy.context.screen.areas:
-            if area.type == 'VIEW_3D':
-                area.tag_redraw()
-                
     except Exception as e:
-        print(f"❌ Error in update_variance_color_mode: {e}")
+        print(f"❌ Error in variance color mode update: {e}")
+        import traceback
+        traceback.print_exc()
 
 # ============================================================================
 # TASK PROPERTY GROUP CLASSES
@@ -541,13 +537,13 @@ def get_date_source_items(self, context):
         ('LATE', "Late", "Use Late dates"),
     ]
 
-
+# Import the function from animation.py and create alias for compatibility
 def cleanup_all_tasks_colortype_mappings(context):
-    """Cleanup function for task colortype mappings - placeholder implementation."""
-    try:
-        # Try to import from animation.py which has the real implementation
-        from .animation import cleanup_all_tasks_colortype_mappings as real_cleanup
-        return real_cleanup(context)
-    except ImportError:
-        # Fallback: do nothing
-        pass
+    """Import from animation.py for consistency"""
+    from .animation import cleanup_all_tasks_colortype_mappings as _cleanup
+    return _cleanup(context)
+
+# Alias for compatibility with main Bonsai installation
+def blcleanup_all_tasks_ifcopentype_mappings(context):
+    """Alias for cleanup_all_tasks_colortype_mappings to fix import errors"""
+    return cleanup_all_tasks_colortype_mappings(context)

@@ -38,7 +38,8 @@ except ImportError:
         def load_ColorType_group_data(group_name): return {"ColorTypes": []}
 
 try:
-    from ..prop.animation import get_user_created_groups_enum, UnifiedColorTypeManager
+    from ..prop.animation import get_user_created_groups_enum
+    from ..prop.color_manager_prop import UnifiedColorTypeManager
 except ImportError:
     def get_user_created_groups_enum(self, context): return [("NONE", "None", "")]
     class UnifiedColorTypeManager: pass

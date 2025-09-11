@@ -51,7 +51,7 @@ from .animation_operators import _clear_previous_animation, _get_animation_setti
 from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
 
 try:
-    from ..prop.animation import UnifiedColorTypeManager
+    from ..prop.color_manager_prop import UnifiedColorTypeManager
 except Exception:
     UnifiedColorTypeManager = None  # optional
 
@@ -342,8 +342,7 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
 
         # 4. Forzar la recarga de los datos y el redibujado de la UI.
         try:
-            from ..data.sequence_data import SequenceData
-            from ..data.schedule_data import WorkScheduleData
+            from ..data import SequenceData, WorkScheduleData
             SequenceData.load()
             WorkScheduleData.load()
             for area in context.screen.areas:
@@ -852,9 +851,6 @@ class EnableEditingWorkScheduleTasks(bpy.types.Operator):
         # Como la caché de ColorTypes está vacía, no intentará restaurar
         # datos incorrectos del cronograma anterior.
         restore_all_ui_state(context)
-        
-        # Call the Orchestra Director to refresh the entire animation view
-        bpy.ops.bim.refresh_animation_view()
 
         return {"FINISHED"}
 

@@ -21,11 +21,11 @@ from typing import TYPE_CHECKING, Optional, Union
 
 # Import animation functions with fallback
 try:
-    from ..prop.animation import UnifiedColorTypeManager
+    from ..prop.color_manager_prop import UnifiedColorTypeManager
 except ImportError:
     # Fallback for when running from the original location
     try:
-        from .prop.animation import UnifiedColorTypeManager
+        from .prop.color_manager_prop import UnifiedColorTypeManager
     except ImportError:
         # Ultimate fallback - create dummy class
         class UnifiedColorTypeManager:

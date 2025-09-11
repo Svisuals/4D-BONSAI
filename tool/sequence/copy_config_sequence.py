@@ -623,7 +623,7 @@ class CopyConfigSequence(PropsSequence):
                             print(f"🔄 Copy3D SYNC: Task {task.ifc_definition_id} - '{current_animation_schemes}' -> '{selected_colortype}'")
                             
                             # Usar la función segura para asignar
-                            from bonsai.bim.module.sequence.prop.animation import safe_set_animation_color_schemes
+                            from ...prop.animation import safe_set_animation_color_schemes
                             safe_set_animation_color_schemes(task, selected_colortype)
                             tasks_synced += 1
                         elif selected_colortype:

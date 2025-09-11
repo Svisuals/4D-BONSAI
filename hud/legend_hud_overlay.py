@@ -173,7 +173,7 @@ class LegendHUD:
             print(f"🎨 Processing active group: {active_group}")
             
             # Get profiles from this group using UnifiedColorTypeManager
-            from ..prop.animation import UnifiedColorTypeManager
+            from ..prop.color_manager_prop import UnifiedColorTypeManager
             
             # SPECIAL CASE: For DEFAULT group in Legend HUD, always ensure full colortype list
             if active_group == "DEFAULT":

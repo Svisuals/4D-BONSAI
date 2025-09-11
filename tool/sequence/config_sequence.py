@@ -27,7 +27,7 @@ import bonsai.tool as tool
 
 # Importación segura para la gestión de grupos de colores
 try:
-    from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
+    from ...prop.color_manager_prop import UnifiedColorTypeManager
 except ImportError:
     class UnifiedColorTypeManager:
         @staticmethod

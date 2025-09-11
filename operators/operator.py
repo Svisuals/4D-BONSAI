@@ -64,10 +64,10 @@ import bonsai.core.sequence as core
 from .. import helper as helper
 from .animation_operators import _clear_previous_animation, _get_animation_settings, _compute_product_frames, _ensure_default_group
 try:
-    from ..prop.animation import UnifiedColorTypeManager
+    from ..prop.color_manager_prop import UnifiedColorTypeManager
 except Exception:
     try:
-        from ..prop.animation import UnifiedColorTypeManager
+        from ..prop.color_manager_prop import UnifiedColorTypeManager
     except Exception:
         UnifiedColorTypeManager = None  # optional
 try:
@@ -569,7 +569,19 @@ class EnableEditingTask(bpy.types.Operator):
         core.enable_editing_task_attributes(tool.Sequence, task=tool.Ifc.get().by_id(self.task))
         return {"FINISHED"}
 
-# DisableEditingTask is now defined only in schedule_task_operators.py - removed duplicate
+class DisableEditingTask(bpy.types.Operator):
+    bl_idname = "bim.disable_editing_task"
+    bl_label = "Disable Editing Task"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        # USAR EL MISMO PATRÓN QUE LOS FILTROS (que funciona correctamente):
+        snapshot_all_ui_state(context)  # >>> 1. Guardar estado ANTES de cancelar
+        
+        # >>> 2. Ejecutar la operación de cancelar
+        core.disable_editing_task(tool.Sequence)
+        
+        return {"FINISHED"}
 
 class EditTask(bpy.types.Operator, tool.Ifc.Operator):
     bl_idname = "bim.edit_task"
@@ -793,7 +805,7 @@ class ClearPreviousAnimation(bpy.types.Operator, tool.Ifc.Operator):
                         all_colortype_names = []
                         for group_item in anim_props.animation_group_stack:
                             group_name = group_item.group
-                            from .prop.animation import UnifiedColorTypeManager
+                            from .prop.color_manager_prop import UnifiedColorTypeManager
                             group_colortypes = UnifiedColorTypeManager.get_group_colortypes(bpy.context, group_name)
                             if group_colortypes:
                                 all_colortype_names.extend(group_colortypes.keys())
@@ -866,7 +878,7 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
                         all_colortype_names = []
                         for group_item in anim_props.animation_group_stack:
                             group_name = group_item.group
-                            from .prop.animation import UnifiedColorTypeManager
+                            from .prop.color_manager_prop import UnifiedColorTypeManager
                             group_colortypes = UnifiedColorTypeManager.get_group_colortypes(bpy.context, group_name)
                             if group_colortypes:
                                 all_colortype_names.extend(group_colortypes.keys())

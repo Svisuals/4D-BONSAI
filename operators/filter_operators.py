@@ -580,8 +580,8 @@ class ApplyLookaheadFilter(bpy.types.Operator):
         if self.time_window == 'THIS_WEEK': filter_start = today - timedelta(days=today.weekday()); filter_end = filter_start + timedelta(days=6)
         elif self.time_window == 'LAST_WEEK': filter_start = today - timedelta(days=today.weekday(), weeks=1); filter_end = filter_start + timedelta(days=6)
         else: weeks = int(self.time_window.split('_')[0]); filter_start = today; filter_end = today + timedelta(weeks=weeks)
-        rule1 = props.filters.rules.add(); rule1.is_active = True; rule1.column = start_column; rule1.operator = "LTE"; rule1.value_string = filter_end.strftime("%Y-%m-%d")
-        rule2 = props.filters.rules.add(); rule2.is_active = True; rule2.column = finish_column; rule2.operator = "GTE"; rule2.value_string = filter_start.strftime("%Y-%m-%d")
+        rule1 = props.filters.rules.add(); rule1.is_active = True; rule1.column = start_column; rule1.operator = "BEFORE"; rule1.value_date = filter_end.strftime("%Y-%m-%d")
+        rule2 = props.filters.rules.add(); rule2.is_active = True; rule2.column = finish_column; rule2.operator = "AFTER"; rule2.value_date = filter_start.strftime("%Y-%m-%d")
         props.filters.logic = "AND"; tool.Sequence.update_visualisation_date(filter_start, filter_end); bpy.ops.bim.apply_task_filters(); self.report({"INFO"}, f"Filter applied: {self.time_window.replace('_', ' ')}"); return {"FINISHED"}
 
 # =============================================================================
@@ -692,7 +692,7 @@ class FilterDatePicker(bpy.types.Operator):
         if self.rule_index < 0 or self.rule_index >= len(props.filters.rules): self.report({'ERROR'}, "Invalid filter rule index."); return {'CANCELLED'}
         selected_date_str = context.scene.DatePickerProperties.selected_date
         if not selected_date_str: self.report({'ERROR'}, "No date selected."); return {'CANCELLED'}
-        target_rule = props.filters.rules[self.rule_index]; target_rule.value_string = selected_date_str
+        target_rule = props.filters.rules[self.rule_index]; target_rule.value_date = selected_date_str
         try: bpy.ops.bim.apply_task_filters()
         except Exception as e: print(f"Error applying filters: {e}")
         self.report({'INFO'}, f"Date set to: {selected_date_str}"); return {"FINISHED"}
@@ -700,7 +700,7 @@ class FilterDatePicker(bpy.types.Operator):
         if self.rule_index < 0: self.report({'ERROR'}, "No rule index specified."); return {'CANCELLED'}
         props = tool.Sequence.get_work_schedule_props()
         if self.rule_index >= len(props.filters.rules): self.report({'ERROR'}, "Invalid filter rule index."); return {'CANCELLED'}
-        current_date_str = props.filters.rules[self.rule_index].value_string; date_picker_props = context.scene.DatePickerProperties
+        current_date_str = props.filters.rules[self.rule_index].value_date; date_picker_props = context.scene.DatePickerProperties
         if current_date_str and current_date_str.strip():
             try: current_date = datetime.fromisoformat(current_date_str.split('T')[0])
             except Exception:

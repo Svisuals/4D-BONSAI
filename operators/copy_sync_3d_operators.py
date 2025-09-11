@@ -124,7 +124,7 @@ class SnapshotWithcolortypes(tool.Ifc.Operator, bpy.types.Operator):
 
     def _execute(self, context):
         print("🚀🚀🚀 DEBUG: SnapshotWithcolortypes._execute() STARTED")
-        from ..prop.animation import UnifiedColorTypeManager
+        from ..prop.color_manager_prop import UnifiedColorTypeManager
         _ensure_default_group(context)
 
         # Save UI state before applying snapshot

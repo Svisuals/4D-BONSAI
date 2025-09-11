@@ -41,10 +41,10 @@ except Exception:
             pass
 
 try:
-    from ..prop.animation import UnifiedColorTypeManager
+    from ..prop.color_manager_prop import UnifiedColorTypeManager
 except Exception:
     try:
-        from ..prop.animation import UnifiedColorTypeManager
+        from ..prop.color_manager_prop import UnifiedColorTypeManager
     except Exception:
         UnifiedColorTypeManager = None  # optional
 
@@ -483,7 +483,7 @@ class BIM_OT_show_performance_stats(bpy.types.Operator):
     def execute(self, context):
         try:
             # Import the cache class
-            from ..data.cache_data import SequenceCache
+            from ..data import SequenceCache
             
             # Get performance stats
             stats = SequenceCache.get_performance_stats()
@@ -538,7 +538,7 @@ class BIM_OT_clear_performance_cache(bpy.types.Operator):
 
     def execute(self, context):
         try:
-            from ..data.cache_data import SequenceCache
+            from ..data import SequenceCache
             
             SequenceCache.clear()
             self.report({'INFO'}, "Performance cache and statistics cleared")
