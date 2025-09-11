@@ -1,7 +1,7 @@
 # Bonsai - OpenBIM Blender Add-on
-# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2022 Yassine Oualid <yassine@sigmadimensions.com>
+# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2022 Yassine Oualid <yassine@sigmadimensions.com>, 2025 Federico Eraso <feraso@svisuals.net>
 #
-# This file is part of Bonsai.
+# This file is part of Bonsai.	
 #
 # Bonsai is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@ import bpy
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..prop import (
+    from ...prop import (
         BIMAnimationProperties,
         BIMStatusProperties,
         BIMTaskTreeProperties,

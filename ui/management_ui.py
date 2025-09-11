@@ -24,7 +24,8 @@ from bpy.types import Panel
 from typing import Any
 import bonsai.tool as tool
 from bonsai.bim.helper import draw_attributes
-from ..data import WorkPlansData, SequenceData
+from ..data.plan_data import WorkPlansData
+from ..data.sequence_data import SequenceData
 
 
 

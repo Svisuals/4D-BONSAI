@@ -29,7 +29,8 @@ import ifcopenshell.util.attribute
 import ifcopenshell.util.date
 import bonsai.tool as tool
 import bonsai.core.sequence as core
-from ..data import SequenceData, AnimationColorSchemeData, refresh as refresh_sequence_data
+from ..data.sequence_data import SequenceData
+from ..data.animation_data import AnimationColorSchemeData, refresh as refresh_sequence_data
 import bonsai.bim.module.resource.data
 import bonsai.bim.module.pset.data
 from mathutils import Color
@@ -1057,7 +1058,7 @@ def updateTaskPredefinedType(self: "Task", context: bpy.types.Context) -> None:
         # 1. Get the new PredefinedType value directly from the task.
         #    This is more robust than searching the attribute collection.
         try:
-            from ..data import SequenceData
+            from ..data.sequence_data import SequenceData
             task_data = SequenceData.data["tasks"][self.ifc_definition_id]
             new_predefined_type = task_data.get("PredefinedType", "NOTDEFINED") or "NOTDEFINED"
         except Exception:

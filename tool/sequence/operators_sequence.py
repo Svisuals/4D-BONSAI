@@ -1,6 +1,7 @@
-# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2022 Yassine Oualid <yassine@sigmadimensions.com>
+# Bonsai - OpenBIM Blender Add-on
+# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2022 Yassine Oualid <yassine@sigmadimensions.com>, 2025 Federico Eraso <feraso@svisuals.net>
 #
-# This file is part of Bonsai.
+# This file is part of Bonsai.	
 #
 # Bonsai is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +24,7 @@ from . import props_sequence
 from . import colortype_sequence
 
 try:
-    from ..prop.animation import get_user_created_groups_enum, UnifiedColorTypeManager
+    from ...prop.animation import get_user_created_groups_enum, UnifiedColorTypeManager
 except ImportError:
     def get_user_created_groups_enum(self, context): return [("NONE", "None", "")]
     class UnifiedColorTypeManager: pass

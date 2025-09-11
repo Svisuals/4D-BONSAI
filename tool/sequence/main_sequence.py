@@ -1,6 +1,7 @@
-# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2022 Yassine Oualid <yassine@sigmadimensions.com>
+# Bonsai - OpenBIM Blender Add-on
+# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2022 Yassine Oualid <yassine@sigmadimensions.com>, 2025 Federico Eraso <feraso@svisuals.net>
 #
-# This file is part of Bonsai.
+# This file is part of Bonsai.	
 #
 # Bonsai is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -48,13 +49,13 @@ class Sequence(bonsai.core.tool.Sequence):
 
     @classmethod
     def get_work_plan_attributes(cls) -> dict[str, Any]:
-        import bonsai.bim.module.sequence.helper as helper
+        from ...helper import parse_datetime, parse_duration
         def callback(attributes: dict[str, Any], prop: Attribute) -> bool:
             if "Date" in prop.name or "Time" in prop.name:
-                attributes[prop.name] = None if prop.is_null else helper.parse_datetime(prop.string_value)
+                attributes[prop.name] = None if prop.is_null else parse_datetime(prop.string_value)
                 return True
             elif prop.name == "Duration" or prop.name == "TotalFloat":
-                attributes[prop.name] = None if prop.is_null else helper.parse_duration(prop.string_value)
+                attributes[prop.name] = None if prop.is_null else parse_duration(prop.string_value)
                 return True
             return False
         props = props_sequence.get_work_plan_props()
@@ -73,13 +74,13 @@ class Sequence(bonsai.core.tool.Sequence):
 
     @classmethod
     def get_work_schedule_attributes(cls) -> dict[str, Any]:
-        import bonsai.bim.module.sequence.helper as helper
+        from ...helper import parse_datetime, parse_duration
         def callback(attributes: dict[str, Any], prop: Attribute) -> bool:
             if "Date" in prop.name or "Time" in prop.name:
-                attributes[prop.name] = None if prop.is_null else helper.parse_datetime(prop.string_value)
+                attributes[prop.name] = None if prop.is_null else parse_datetime(prop.string_value)
                 return True
             elif prop.name == "Duration" or prop.name == "TotalFloat":
-                attributes[prop.name] = None if prop.is_null else helper.parse_duration(prop.string_value)
+                attributes[prop.name] = None if prop.is_null else parse_duration(prop.string_value)
                 return True
             return False
         props = props_sequence.get_work_schedule_props()
@@ -804,14 +805,14 @@ class Sequence(bonsai.core.tool.Sequence):
     
     # --- Get Work Schedule Attributes ---
     @classmethod
-    def get_work_schedule_attributes(cls) -> dict[str, Any]:
-        import bonsai.bim.module.sequence.helper as helper
+    def get_work_schedule_attributes_duplicate(cls) -> dict[str, Any]:
+        from ...helper import parse_datetime, parse_duration
         def callback(attributes: dict[str, Any], prop: Attribute) -> bool:
             if "Date" in prop.name or "Time" in prop.name:
-                attributes[prop.name] = None if prop.is_null else helper.parse_datetime(prop.string_value)
+                attributes[prop.name] = None if prop.is_null else parse_datetime(prop.string_value)
                 return True
             elif prop.name == "Duration" or prop.name == "TotalFloat":
-                attributes[prop.name] = None if prop.is_null else helper.parse_duration(prop.string_value)
+                attributes[prop.name] = None if prop.is_null else parse_duration(prop.string_value)
                 return True
             return False
         props = props_sequence.get_work_schedule_props()

@@ -232,8 +232,8 @@ def update_task_ICOM(task: ifcopenshell.entity_instance) -> None:
                         if op == 'EQUALS': match = task_value_bool == rule_value
                         elif op == 'NOT_EQUALS': match = task_value_bool != rule_value
                     elif data_type == 'date':
-                        task_date = bonsai.bim.module.sequence.helper.parse_datetime(str(task_value))
-                        rule_date = bonsai.bim.module.sequence.helper.parse_datetime(rule.value_string)
+                        task_date = helper.parse_datetime(str(task_value))
+                        rule_date = helper.parse_datetime(rule.value_string)
                         if task_date and rule_date:
                             if op == 'EQUALS': match = task_date.date() == rule_date.date()
                             elif op == 'NOT_EQUALS': match = task_date.date() != rule_date.date()
@@ -406,16 +406,7 @@ def get_checked_tasks() -> list[ifcopenshell.entity_instance]:
     ] or []
 
 
-def get_task_inputs(task: ifcopenshell.entity_instance) -> list[ifcopenshell.entity_instance]:
-    props = props_sequence.get_work_schedule_props()
-    is_deep = props.show_nested_inputs
-    return ifcopenshell.util.sequence.get_task_inputs(task, is_deep)
-
-
-def get_task_outputs(task: ifcopenshell.entity_instance) -> list[ifcopenshell.entity_instance]:
-    props = props_sequence.get_work_schedule_props()
-    is_deep = props.show_nested_outputs
-    return ifcopenshell.util.sequence.get_task_outputs(task, is_deep)
+# These functions are duplicated - removed to avoid conflicts
 
 
 def get_direct_nested_tasks(task: ifcopenshell.entity_instance) -> list[ifcopenshell.entity_instance]:
@@ -426,23 +417,7 @@ def get_direct_task_outputs(task: ifcopenshell.entity_instance) -> list[ifcopens
     return ifcopenshell.util.sequence.get_direct_task_outputs(task)
 
 
-def load_task_inputs(inputs: list[ifcopenshell.entity_instance]) -> None:
-    props = props_sequence.get_work_schedule_props()
-    props.task_inputs.clear()
-    for input_item in inputs:
-        new = props.task_inputs.add()
-        new.ifc_definition_id = input_item.id()
-        new.name = input_item.Name or "Unnamed"
-
-
-def load_task_outputs(outputs: list[ifcopenshell.entity_instance]) -> None:
-    props = props_sequence.get_work_schedule_props()
-    props.task_outputs.clear()
-    if outputs:
-        for output in outputs:
-            new = props.task_outputs.add()
-            new.ifc_definition_id = output.id()
-            new.name = output.Name or "Unnamed"
+# These functions are duplicated - removed to avoid conflicts
 
 
 def load_task_resources(task: ifcopenshell.entity_instance) -> None:
@@ -498,7 +473,7 @@ def apply_selection_from_checkboxes():
         print(f"Error applying selection from checkboxes: {e}")
 
 def get_task_attributes() -> dict[str, Any]:
-    import bonsai.bim.module.sequence.helper as helper
+    from ...helper import draw_attributes
     from typing import Any
     from bonsai.bim.prop import Attribute
     import bonsai.bim.helper
@@ -533,7 +508,7 @@ def load_task_attributes(task: ifcopenshell.entity_instance) -> None:
 def get_active_task() -> ifcopenshell.entity_instance:
     import bonsai.tool as tool
     
-    props = props_sequence.get_task_tree_props()
+    props = props_sequence.get_work_schedule_props()
     if not props.active_task_id:
         return None
     return tool.Ifc.get().by_id(props.active_task_id)
@@ -554,7 +529,7 @@ def get_task_time(task: ifcopenshell.entity_instance) -> ifcopenshell.entity_ins
     return task.TaskTime
 
 def get_task_time_attributes() -> dict[str, Any]:
-    import bonsai.bim.module.sequence.helper as helper
+    from ...helper import draw_attributes
     from typing import Any
     from bonsai.bim.prop import Attribute
     import bonsai.bim.helper
@@ -658,7 +633,7 @@ def get_checked_tasks() -> list[ifcopenshell.entity_instance]:
 
 def refresh_task_resources():
     """Refresh the task resources display for the active task"""
-    props = props_sequence.get_task_tree_props()
+    props = props_sequence.get_work_schedule_props()
     if props.active_task_id:
         import bonsai.tool as tool
         task = tool.Ifc.get().by_id(props.active_task_id)
@@ -802,29 +777,11 @@ def validate_task_object(task, operation_name="operation"):
     
     return True
 
-def load_task_inputs(inputs: list[ifcopenshell.entity_instance]) -> None:
-    """Load task inputs into the UI properties"""
-    props = props_sequence.get_work_schedule_props()
-    props.task_inputs.clear()
-    
-    for input_product in inputs:
-        new = props.task_inputs.add()
-        new.ifc_definition_id = input_product.id()
-        new.name = input_product.Name or "Unnamed Input"
+# These functions are duplicated - removed to avoid conflicts
 
-def load_task_outputs(outputs: list[ifcopenshell.entity_instance]) -> None:
-    """Load task outputs into the UI properties"""
-    props = props_sequence.get_work_schedule_props()
-    props.task_outputs.clear()
-    
-    for output_product in outputs:
-        new = props.task_outputs.add()
-        new.ifc_definition_id = output_product.id()
-        new.name = output_product.Name or "Unnamed Output"
-
-def load_task_properties() -> None:
+def load_active_task_properties() -> None:
     """Load properties for the active task"""
-    props = props_sequence.get_task_tree_props()
+    props = props_sequence.get_work_schedule_props()
     if not props.active_task_id:
         return
     
@@ -850,18 +807,7 @@ def load_task_properties() -> None:
     load_task_inputs(inputs)
     load_task_outputs(outputs)
 
-def get_task_inputs(task: ifcopenshell.entity_instance) -> list[ifcopenshell.entity_instance]:
-    """Get input products for a task"""
-    inputs = []
-    
-    # Check for IfcRelAssignsToProcess relationships where task consumes products
-    for rel in getattr(task, 'HasAssignments', []):
-        if rel.is_a('IfcRelAssignsToProcess'):
-            for related_object in rel.RelatedObjects:
-                if related_object.is_a('IfcProduct'):
-                    inputs.append(related_object)
-    
-    return inputs
+# This function is duplicated - removed to avoid conflicts
 
 def get_direct_nested_tasks(task: ifcopenshell.entity_instance) -> list[ifcopenshell.entity_instance]:
     """Get direct nested tasks (not recursive)"""
@@ -980,7 +926,7 @@ def enable_editing_work_time(work_time: ifcopenshell.entity_instance) -> None:
 
 def get_work_time_attributes() -> dict:
     """Get work time attributes with date parsing"""
-    import bonsai.bim.module.sequence.helper as helper
+    from ...helper import draw_attributes
     import bonsai.bim.helper
     from typing import Any
     from bonsai.bim.prop import Attribute
@@ -1346,7 +1292,7 @@ def disable_editing_work_plan() -> None:
 
 def get_work_plan_attributes() -> dict:
     """Get work plan attributes"""
-    import bonsai.bim.module.sequence.helper as helper
+    from ...helper import draw_attributes
     import bonsai.bim.helper
     from typing import Any
     from bonsai.bim.prop import Attribute

@@ -1,6 +1,7 @@
-# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2022 Yassine Oualid <yassine@sigmadimensions.com>
+# Bonsai - OpenBIM Blender Add-on
+# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2022 Yassine Oualid <yassine@sigmadimensions.com>, 2025 Federico Eraso <feraso@svisuals.net>
 #
-# This file is part of Bonsai.
+# This file is part of Bonsai.	
 #
 # Bonsai is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,6 +17,8 @@
 # along with Bonsai.  If not, see <http://www.gnu.org/licenses/>.
 
 
+
+
 import bpy
 import json
 import ifcopenshell
@@ -28,13 +31,13 @@ from . import task_sequence
 from . import utils_sequence
 
 try:
-    from ..operator import snapshot_all_ui_state, restore_all_ui_state
+    from ...operators.schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
 except ImportError:
     def snapshot_all_ui_state(context): pass
     def restore_all_ui_state(context): pass
 
 try:
-    from ..prop.animation import UnifiedColorTypeManager
+    from ...prop.animation import UnifiedColorTypeManager
 except ImportError:
     class UnifiedColorTypeManager:
         @staticmethod
@@ -79,7 +82,7 @@ def _sync_source_animation_color_schemes(context):
     Sincroniza el campo animation_color_schemes en tareas que tienen grupo activo.
     """
     try:
-        from ..prop.animation import safe_set_animation_color_schemes
+        from ...prop.animation import safe_set_animation_color_schemes
         tprops = props_sequence.get_task_tree_props()
         for task in getattr(tprops, 'tasks', []):
             if getattr(task, 'use_active_colortype_group', False):

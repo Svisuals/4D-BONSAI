@@ -21,7 +21,7 @@
 import bpy
 from bpy.types import Panel
 import bonsai.tool as tool
-from ..data import AnimationColorSchemeData
+from ..data.animation_data import AnimationColorSchemeData
 
 
 

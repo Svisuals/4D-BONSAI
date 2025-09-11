@@ -1,7 +1,7 @@
 # Bonsai - OpenBIM Blender Add-on
-# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2022 Yassine Oualid <yassine@sigmadimensions.com>
+# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2022 Yassine Oualid <yassine@sigmadimensions.com>, 2025 Federico Eraso <feraso@svisuals.net>
 #
-# This file is part of Bonsai.
+# This file is part of Bonsai.	
 #
 # Bonsai is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 # along with Bonsai.  If not, see <http://www.gnu.org/licenses/>.
 
 
+
+
 import bpy
 import ifcopenshell
 import ifcopenshell.util.date
@@ -24,7 +26,7 @@ import ifcopenshell.util.sequence
 from datetime import datetime, timedelta
 from dateutil import parser
 import bonsai.tool as tool
-from bonsai.bim.module.sequence import data as _seq_data
+# Note: SequenceData import removed as it's not used in this file
 from . import props_sequence
 from . import utils_sequence
 from . import colortype_sequence
@@ -161,7 +163,7 @@ def get_schedule_date_range(work_schedule=None):
     if not work_schedule: return None, None
     
     # El uso de 'cls' aquí es para llamar a un método de la clase principal, así que lo mantenemos como tool.Sequence
-    schedule_start, schedule_finish = tool.Sequence.guess_date_range(work_schedule)
+    schedule_start, schedule_finish = guess_date_range(work_schedule)
     return schedule_start, schedule_finish
 
 

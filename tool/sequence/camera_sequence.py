@@ -1,7 +1,7 @@
 # Bonsai - OpenBIM Blender Add-on
-# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2022 Yassine Oualid <yassine@sigmadimensions.com>
+# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2022 Yassine Oualid <yassine@sigmadimensions.com>, 2025 Federico Eraso <feraso@svisuals.net>
 #
-# This file is part of Bonsai.
+# This file is part of Bonsai.	
 #
 # Bonsai is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 
 
+
 import bpy
 import math
 import mathutils
@@ -25,6 +26,7 @@ import traceback
 import bonsai.tool as tool
 from . import props_sequence
 from . import visuals_sequence
+from . import animation_sequence
 
 
 
@@ -164,7 +166,7 @@ def add_animation_camera():
             bpy.context.scene.camera = cam_obj
             return cam_obj
 
-    settings = tool.Sequence.get_animation_settings()
+    settings = animation_sequence.get_animation_settings()
     total_frames_4d = int(settings["total_frames"]) if settings else 250
     start_frame = int(settings["start_frame"]) if settings else 1
 
@@ -218,7 +220,7 @@ def add_snapshot_camera():
         ws_props = props_sequence.get_work_schedule_props()
         if ws_props.active_work_schedule_id:
             work_schedule = tool.Ifc.get().by_id(ws_props.active_work_schedule_id)
-            settings = tool.Sequence.get_animation_settings()
+            settings = animation_sequence.get_animation_settings()
             if settings and work_schedule:
                 settings['schedule_name'] = work_schedule.Name or 'No Schedule'
                 visuals_sequence.add_text_animation_handler(settings)
@@ -355,7 +357,7 @@ def update_animation_camera(cam_obj):
         tcon.track_axis = 'TRACK_NEGATIVE_Z'
         tcon.up_axis = 'UP_Y'
 
-        settings = tool.Sequence.get_animation_settings()
+        settings = animation_sequence.get_animation_settings()
         start_frame = settings["start_frame"]
         end_frame = start_frame + settings["total_frames"] - 1 if camera_props.orbit_use_4d_duration else start_frame + int(camera_props.orbit_duration_frames)
         sign = -1.0 if camera_props.orbit_direction == "CW" else 1.0

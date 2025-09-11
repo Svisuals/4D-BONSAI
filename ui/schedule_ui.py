@@ -25,11 +25,9 @@ from typing import Any
 import bonsai.tool as tool
 import bonsai.bim.helper
 from bonsai.bim.helper import draw_attributes
-from ..data import (
-    WorkScheduleData,
-    SequenceData,
-    TaskICOMData,
-)
+from ..data.schedule_data import WorkScheduleData
+from ..data.sequence_data import SequenceData
+from ..data.task_data import TaskICOMData
 from .lists_ui import BIM_UL_tasks # Importante para usar el header
 
 

@@ -19,7 +19,8 @@
 import bpy
 import json
 import bonsai.tool as tool
-from ..data import SequenceData, AnimationColorSchemeData
+from ..data.sequence_data import SequenceData
+from ..data.animation_data import AnimationColorSchemeData
 from mathutils import Color
 from bpy.types import PropertyGroup
 from bpy.props import (
@@ -143,7 +144,7 @@ class UnifiedColorTypeManager:
     def get_all_predefined_types(context) -> list:
         """Gets all PredefinedTypes from loaded tasks to ensure ColorTypes exist for them."""
         try:
-            from ..data import SequenceData
+            from ..data.sequence_data import SequenceData
             if not SequenceData.is_loaded:
                 SequenceData.load()
             
@@ -228,7 +229,7 @@ class UnifiedColorTypeManager:
         
         # 1. Get the current PredefinedType of the task from the cached data.
         try:
-            from ..data import SequenceData
+            from ..data.sequence_data import SequenceData
             tid = getattr(task_pg, "ifc_definition_id", None)
             task_data = (SequenceData.data.get("tasks", {}) or {}).get(tid)
             predef_type = (task_data.get("PredefinedType") or "NOTDEFINED") if task_data else "NOTDEFINED"

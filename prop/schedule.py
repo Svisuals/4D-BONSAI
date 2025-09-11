@@ -19,7 +19,7 @@
 import bpy
 import bonsai.tool as tool
 import bonsai.core.sequence as core
-from ..data import SequenceData
+from ..data.sequence_data import SequenceData
 from bonsai.bim.prop import Attribute, ISODuration
 from dateutil import parser
 from bpy.types import PropertyGroup

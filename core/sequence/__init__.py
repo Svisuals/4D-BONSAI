@@ -18,6 +18,14 @@
 
 
 
-
-
-from .main_sequence import Sequence
+from .work_plan_sequence import *
+from .work_schedule_sequence import *
+from .task_management_sequence import *
+from .task_navigation_sequence import *
+from .task_relations_sequence import *
+from .task_time_sequence import *
+from .work_calendar_sequence import *
+from .task_sequence_attrs_sequence import *
+from .task_columns_sequence import *
+from .animation_sequence import *
+from .color_type_ifc_sequence import *

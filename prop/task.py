@@ -23,7 +23,7 @@ import ifcopenshell.util.attribute
 import ifcopenshell.util.date
 import bonsai.tool as tool
 import bonsai.core.sequence as core
-from ..data import SequenceData, refresh as refresh_sequence_data
+from ..data.sequence_data import SequenceData, refresh as refresh_sequence_data
 from bpy.types import PropertyGroup
 from bpy.props import (
     PointerProperty,

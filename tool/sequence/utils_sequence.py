@@ -1,7 +1,7 @@
 # Bonsai - OpenBIM Blender Add-on
-# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2022 Yassine Oualid <yassine@sigmadimensions.com>
+# Copyright (C) 2021 Dion Moult <dion@thinkmoult.com>, 2022 Yassine Oualid <yassine@sigmadimensions.com>, 2025 Federico Eraso <feraso@svisuals.net>
 #
-# This file is part of Bonsai.
+# This file is part of Bonsai.	
 #
 # Bonsai is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +15,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Bonsai.  If not, see <http://www.gnu.org/licenses/>.
-
 
 
 import bpy
@@ -519,7 +518,6 @@ def guess_date_range(work_schedule) -> tuple:
     return result_start, result_finish
 
 def get_work_calendar_attributes() -> dict[str, Any]:
-    import bonsai.bim.module.sequence.helper as helper
     from typing import Any
     from bonsai.bim.prop import Attribute
     import bonsai.bim.helper
@@ -554,14 +552,14 @@ def get_active_work_time() -> ifcopenshell.entity_instance:
     return tool.Ifc.get().by_id(props.active_work_time_id)
 
 def get_work_time_attributes() -> dict[str, Any]:
-    import bonsai.bim.module.sequence.helper as helper
+    from ...helper import parse_datetime
     from typing import Any
     from bonsai.bim.prop import Attribute
     import bonsai.bim.helper
     
     def callback(attributes: dict[str, Any], prop: Attribute) -> bool:
         if "Time" in prop.name:
-            attributes[prop.name] = None if prop.is_null else helper.parse_datetime(prop.string_value)
+            attributes[prop.name] = None if prop.is_null else parse_datetime(prop.string_value)
             return True
         return False
     
@@ -587,14 +585,14 @@ def load_work_time_attributes(work_time: ifcopenshell.entity_instance) -> None:
     bonsai.bim.helper.import_attributes(work_time, props.work_time_attributes, callback)
 
 def get_recurrence_pattern_attributes(recurrence_pattern: ifcopenshell.entity_instance) -> dict[str, Any]:
-    import bonsai.bim.module.sequence.helper as helper
+    from ...helper import parse_datetime
     from typing import Any
     from bonsai.bim.prop import Attribute
     import bonsai.bim.helper
     
     def callback(attributes: dict[str, Any], prop: Attribute) -> bool:
         if "Time" in prop.name:
-            attributes[prop.name] = None if prop.is_null else helper.parse_datetime(prop.string_value)
+            attributes[prop.name] = None if prop.is_null else parse_datetime(prop.string_value)
             return True
         return False
     
@@ -628,7 +626,6 @@ def get_recurrence_pattern_times() -> tuple[datetime, datetime] | None:
     return None
 
 def get_rel_sequence_attributes() -> dict[str, Any]:
-    import bonsai.bim.module.sequence.helper as helper
     from typing import Any
     from bonsai.bim.prop import Attribute
     import bonsai.bim.helper
@@ -654,14 +651,14 @@ def load_rel_sequence_attributes(rel_sequence: ifcopenshell.entity_instance) -> 
     bonsai.bim.helper.import_attributes(rel_sequence, props.rel_sequence_attributes, callback)
 
 def get_lag_time_attributes() -> dict[str, Any]:
-    import bonsai.bim.module.sequence.helper as helper
+    from ...helper import parse_duration
     from typing import Any
     from bonsai.bim.prop import Attribute
     import bonsai.bim.helper
     
     def callback(attributes: dict[str, Any], prop: Attribute) -> bool:
         if prop.name == "LagValue":
-            attributes[prop.name] = None if prop.is_null else helper.parse_duration(prop.string_value)
+            attributes[prop.name] = None if prop.is_null else parse_duration(prop.string_value)
             return True
         return False
     
@@ -980,14 +977,14 @@ def enable_editing_work_plan_schedules(work_plan) -> None:
 
 def export_duration_prop(prop, attributes: dict[str, Any]) -> bool:
     """Export duration property to attributes"""
-    import bonsai.bim.module.sequence.helper as helper
+    from ...helper import parse_duration
     
     if prop.is_null:
         attributes[prop.name] = None
         return True
     
     try:
-        duration = helper.parse_duration(prop.string_value)
+        duration = parse_duration(prop.string_value)
         attributes[prop.name] = duration
         return True
     except:
@@ -995,14 +992,14 @@ def export_duration_prop(prop, attributes: dict[str, Any]) -> bool:
 
 def add_duration_prop(prop, value) -> None:
     """Add duration property with proper formatting"""
-    import bonsai.bim.module.sequence.helper as helper
+    from ...helper import isodate_duration
     
     if value is None:
         prop.is_null = True
         prop.string_value = ""
     else:
         prop.is_null = False
-        prop.string_value = helper.isodate_duration(value) if value else ""
+        prop.string_value = isodate_duration(value) if value else ""
 
 def add_task_column(column_type: str, name: str, data_type: str) -> None:
     """Add a task column to the UI"""

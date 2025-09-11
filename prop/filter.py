@@ -17,7 +17,7 @@
 # along with Bonsai.  If not, see <http://www.gnu.org/licenses/>.
 
 import bpy
-from ..data import SequenceData
+from ..data.sequence_data import SequenceData
 from bpy.types import PropertyGroup
 from bpy.props import (
     StringProperty,
