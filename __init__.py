@@ -1,5 +1,5 @@
 # Bonsai - OpenBIM Blender Add-on
-# Copyright (C) 2020, 2021 Dion Moult <dion@thinkmoult.com>
+# Copyright (C) 2020, 2021 Dion Moult <dion@thinkmoult.com>, 2025 Federico Eraso <feraso@svisuals.net>
 #
 # This file is part of Bonsai.
 #

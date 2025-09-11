@@ -483,7 +483,7 @@ class BIM_OT_show_performance_stats(bpy.types.Operator):
     def execute(self, context):
         try:
             # Import the cache class
-            from ..data import SequenceCache
+            from ..data.cache_data import SequenceCache
             
             # Get performance stats
             stats = SequenceCache.get_performance_stats()
@@ -538,7 +538,7 @@ class BIM_OT_clear_performance_cache(bpy.types.Operator):
 
     def execute(self, context):
         try:
-            from ..data import SequenceCache
+            from ..data.cache_data import SequenceCache
             
             SequenceCache.clear()
             self.report({'INFO'}, "Performance cache and statistics cleared")

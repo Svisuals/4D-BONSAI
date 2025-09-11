@@ -17,7 +17,7 @@
 # along with Bonsai.  If not, see <http://www.gnu.org/licenses/>.
 
 import bpy
-from ..data import SequenceData
+from ..data.sequence_data import SequenceData
 from bpy.types import PropertyGroup
 from bpy.props import (
     StringProperty,
@@ -128,7 +128,27 @@ def get_all_task_columns_enum(self, context):
             items.append((internal_id, label, desc))
 
     # 3. IfcTaskTime columns  
-    for name_type, label, desc in SequenceData.data.get("task_time_columns_enum", []):
+    task_time_columns = SequenceData.data.get("task_time_columns_enum", [])
+    
+    # If no task time columns are loaded, add common ones manually
+    if not task_time_columns:
+        task_time_columns = [
+            ("ScheduleStart/string", "Schedule Start", "Scheduled start date"),
+            ("ScheduleFinish/string", "Schedule Finish", "Scheduled finish date"),
+            ("ActualStart/string", "Actual Start", "Actual start date"),
+            ("ActualFinish/string", "Actual Finish", "Actual finish date"),
+            ("EarlyStart/string", "Early Start", "Early start date"),
+            ("EarlyFinish/string", "Early Finish", "Early finish date"),
+            ("LateStart/string", "Late Start", "Late start date"),
+            ("LateFinish/string", "Late Finish", "Late finish date"),
+            ("FreeFloat/string", "Free Float", "Free float duration"),
+            ("TotalFloat/string", "Total Float", "Total float duration"),
+            ("Duration/string", "Duration", "Task duration"),
+            ("RemainingTime/string", "Remaining Time", "Remaining duration"),
+            ("Completion/float", "Completion", "Task completion percentage"),
+        ]
+    
+    for name_type, label, desc in task_time_columns:
         try:
             name, data_type = name_type.split('/')
             # Reformat to the new standard: "IfcTaskTime.PropertyName||data_type"
@@ -230,6 +250,12 @@ class BIMTaskFilterProperties(PropertyGroup):
     show_filters: BoolProperty(
         name="Show Filters",
         description="Toggle the visibility of the filter panel",
+        default=False
+    )
+    
+    show_saved_filters: BoolProperty(
+        name="Show Saved Filters",
+        description="Toggle the visibility of the saved filter sets panel",
         default=False
     )
     

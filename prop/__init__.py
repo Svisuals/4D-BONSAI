@@ -1,4 +1,5 @@
-"""Property Groups for 4D BIM scheduling - Modular Organization.
+# Bonsai - OpenBIM Blender Add-on
+""" Property Groups for 4D BIM scheduling - Modular Organization.
 
 This package contains PropertyGroup classes organized thematically:
 - animation.py: Animation, colors and colortype management

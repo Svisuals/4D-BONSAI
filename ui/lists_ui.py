@@ -22,7 +22,7 @@ import bpy
 import re
 from bpy.types import UIList
 import bonsai.tool as tool
-from ..data import SequenceData
+from ..data.sequence_data import SequenceData
 from typing import Any, Optional
 
 

@@ -32,13 +32,11 @@ import bonsai.tool as tool
 import bonsai.bim.helper
 from bpy.types import Panel, UIList
 from bonsai.bim.helper import draw_attributes
-from ..data import (
-    WorkPlansData,
-    WorkScheduleData,
-    SequenceData,
-    TaskICOMData,
-    AnimationColorSchemeData,
-)
+from ..data.plan_data import WorkPlansData
+from ..data.schedule_data import WorkScheduleData
+from ..data.sequence_data import SequenceData
+from ..data.task_data import TaskICOMData
+from ..data.animation_data import AnimationColorSchemeData
 from ..prop.animation import UnifiedColorTypeManager
 from ..prop.animation import monitor_predefined_type_change
 from typing import Any, Optional, TYPE_CHECKING

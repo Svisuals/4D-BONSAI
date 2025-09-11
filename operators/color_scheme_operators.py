@@ -877,3 +877,144 @@ class BIM_OT_cleanup_colortype_groups(bpy.types.Operator):
         
         self.report({'INFO'}, f"Cleaned {cleaned_count} invalid colortype references")
         return {'FINISHED'}
+
+
+# ============================================================================
+# CUSTOM COLORTYPE GROUP OPERATORS (Migrated from tool/sequence.py)
+# ============================================================================
+
+class SearchCustomColorTypeGroup(bpy.types.Operator):
+    bl_idname = "bim.search_custom_colortype_group"
+    bl_label = "Search Custom ColorType Group"
+    bl_description = "Search and filter custom ColorType groups"
+    bl_options = {"REGISTER", "UNDO"}
+
+    search_term: bpy.props.StringProperty(name="Search", default="")
+
+    def execute(self, context):
+        props = tool.Sequence.get_animation_props()
+        if not self.search_term:
+            self.report({'INFO'}, "Enter search term")
+            return {'CANCELLED'}
+
+        # Buscar en grupos disponibles
+        from ..prop.animation import get_user_created_groups_enum
+        items = get_user_created_groups_enum(None, context)
+
+        matches = [item for item in items if self.search_term.lower() in item[1].lower()]
+
+        if matches:
+            # Seleccionar el primer match
+            props.task_colortype_group_selector = matches[0][0]
+            self.report({'INFO'}, f"Found and selected: {matches[0][1]}")
+        else:
+            self.report({'WARNING'}, f"No groups found matching: {self.search_term}")
+
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "search_term")
+
+
+class CopyCustomColorTypeGroup(bpy.types.Operator):
+    bl_idname = "bim.copy_custom_colortype_group"
+    bl_label = "Copy Custom ColorType Group"
+    bl_description = "Copy current custom ColorType group to clipboard"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        props = tool.Sequence.get_animation_props()
+        current_value = getattr(props, "task_colortype_group_selector", "")
+
+        if current_value:
+            context.window_manager.clipboard = current_value
+            self.report({'INFO'}, f"Copied to clipboard: {current_value}")
+        else:
+            self.report({'WARNING'}, "No custom ColorType group selected to copy")
+
+        return {'FINISHED'}
+
+
+class PasteCustomColorTypeGroup(bpy.types.Operator):
+    bl_idname = "bim.paste_custom_colortype_group"
+    bl_label = "Paste Custom ColorType Group"
+    bl_description = "Paste custom ColorType group from clipboard"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        props = tool.Sequence.get_animation_props()
+        clipboard_value = context.window_manager.clipboard.strip()
+
+        if not clipboard_value:
+            self.report({'WARNING'}, "Clipboard is empty")
+            return {'CANCELLED'}
+
+        # Verificar que el valor existe en los grupos disponibles
+        from ..prop.animation import get_user_created_groups_enum
+        items = get_user_created_groups_enum(None, context)
+        valid_values = [item[0] for item in items]
+
+        if clipboard_value in valid_values:
+            props.task_colortype_group_selector = clipboard_value
+            self.report({'INFO'}, f"Pasted from clipboard: {clipboard_value}")
+        else:
+            self.report({'WARNING'}, f"Invalid group in clipboard: {clipboard_value}")
+
+        return {'FINISHED'}
+
+
+class SetCustomColorTypeGroupNull(bpy.types.Operator):
+    bl_idname = "bim.set_custom_colortype_group_null"
+    bl_label = "Set Custom ColorType Group to Null"
+    bl_description = "Clear custom ColorType group selection (set to null)"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        props = tool.Sequence.get_animation_props()
+
+        # Limpiar la selección
+        props.task_colortype_group_selector = ""
+
+        # También limpiar el perfil seleccionado en la tarea activa si existe
+        try:
+            tprops = tool.Sequence.get_task_tree_props()
+            wprops = tool.Sequence.get_work_schedule_props()
+            if tprops.tasks and wprops.active_task_index < len(tprops.tasks):
+                task = tprops.tasks[wprops.active_task_index]
+                task.selected_colortype_in_active_group = ""
+                task.use_active_colortype_group = False
+        except Exception:
+            pass
+
+        self.report({'INFO'}, "Custom ColorType group cleared (set to null)")
+        return {'FINISHED'}
+
+
+class ShowCustomColorTypeGroupInfo(bpy.types.Operator):
+    bl_idname = "bim.show_custom_colortype_group_info"
+    bl_label = "Custom ColorType Group Info"
+    bl_description = "Show information about the current custom ColorType group"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        props = tool.Sequence.get_animation_props()
+        current_value = getattr(props, "task_colortype_group_selector", "")
+
+        if current_value:
+            # Obtener información del grupo
+            colortypes = UnifiedColorTypeManager.get_group_colortypes(context, current_value)
+
+            info_text = f"Group: {current_value}\n"
+            info_text += f"ColorTypes: {len(colortypes)}\n"
+            if colortypes:
+                info_text += f"Available: {', '.join(colortypes.keys())}"
+
+            self.report({'INFO'}, info_text)
+        else:
+            self.report({'INFO'}, "No custom ColorType group selected")
+
+        return {'FINISHED'}

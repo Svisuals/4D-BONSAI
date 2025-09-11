@@ -20,7 +20,8 @@
 
 
 import bonsai.tool as tool
-from ..data import SequenceData, AnimationColorSchemeData
+from ..data.sequence_data import SequenceData
+from ..data.animation_data import AnimationColorSchemeData
 from .color_manager_prop import UnifiedColorTypeManager
 
 

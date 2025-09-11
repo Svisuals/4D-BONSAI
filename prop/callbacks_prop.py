@@ -29,7 +29,8 @@ import ifcopenshell.util.attribute
 import ifcopenshell.util.date
 import bonsai.tool as tool
 import bonsai.core.sequence as core
-from ..data import SequenceData, AnimationColorSchemeData, refresh as refresh_sequence_data
+from ..data.sequence_data import SequenceData
+from ..data.animation_data import AnimationColorSchemeData, refresh as refresh_sequence_data
 import bonsai.bim.module.resource.data
 import bonsai.bim.module.pset.data
 from mathutils import Color
@@ -1057,7 +1058,7 @@ def updateTaskPredefinedType(self: "Task", context: bpy.types.Context) -> None:
         # 1. Get the new PredefinedType value directly from the task.
         #    This is more robust than searching the attribute collection.
         try:
-            from ..data import SequenceData
+            from ..data.sequence_data import SequenceData
             task_data = SequenceData.data["tasks"][self.ifc_definition_id]
             new_predefined_type = task_data.get("PredefinedType", "NOTDEFINED") or "NOTDEFINED"
         except Exception:
@@ -2055,6 +2056,50 @@ def update_selected_date(self: "DatePickerProperties", context: bpy.types.Contex
     selected_date = tool.Sequence.parse_isodate_datetime(self.selected_date, include_time)
     selected_date = selected_date.replace(hour=self.selected_hour, minute=self.selected_min, second=self.selected_sec)
     self.selected_date = tool.Sequence.isodate_datetime(selected_date, include_time)
+
+
+# Global debounce state for date range updates
+_date_range_debounce_timer = None
+
+def full_schedule_and_animation_update(self, context):
+    """
+    This is the callback that connects the UI with the orchestra director.
+    Uses a timer to avoid Blender context errors.
+    """
+    def deferred_update():
+        try:
+            bpy.ops.bim.refresh_animation_view()
+        except Exception as e:
+            print(f"Error in full_schedule_and_animation_update: {e}")
+        return None
+    
+    # Call the refresh operator safely
+    bpy.app.timers.register(deferred_update, first_interval=0.01)
+
+def full_schedule_and_animation_update_debounced(self, context, delay=0.5):
+    """
+    Debounced version of full_schedule_and_animation_update for date range changes.
+    Only executes after a delay to avoid frequent updates while user is typing/dragging.
+    """
+    global _date_range_debounce_timer
+    
+    # Cancel any existing timer
+    if _date_range_debounce_timer and bpy.app.timers.is_registered(_date_range_debounce_timer):
+        bpy.app.timers.unregister(_date_range_debounce_timer)
+    
+    def deferred_update():
+        global _date_range_debounce_timer
+        _date_range_debounce_timer = None
+        try:
+            bpy.ops.bim.refresh_animation_view()
+            print("🔄 Date range animation update completed")
+        except Exception as e:
+            print(f"Error in debounced animation update: {e}")
+        return None
+    
+    # Register the debounced timer
+    _date_range_debounce_timer = deferred_update
+    bpy.app.timers.register(deferred_update, first_interval=delay)
 
 
 
