@@ -34,6 +34,7 @@ from . import schedule_sequence_operators
 from . import schedule_operators
 from . import work_plan_operators
 from . import color_scheme_operators
+from . import operators_sequence
 from .animation_operators import CreateAnimation, ClearAnimation, AddAnimationTaskType, RemoveAnimationTaskType, AddAnimationCamera, ClearPreviousAnimation, ClearPreviousSnapshot, SyncAnimationByDate
 
 # A single tuple containing all operator classes to be registered
@@ -261,6 +262,14 @@ classes = (
     config_operators.RefreshSnapshotTexts,
     config_operators.BIM_OT_show_performance_stats,
     config_operators.BIM_OT_clear_performance_cache,
+    
+    # from tool/sequence/operators_sequence.py
+    operators_sequence.BIM_OT_RefreshAnimationView,
+    operators_sequence.SearchCustomColorTypeGroup,
+    operators_sequence.CopyCustomColorTypeGroup,
+    operators_sequence.PasteCustomColorTypeGroup,
+    operators_sequence.SetCustomColorTypeGroupNull,
+    operators_sequence.ShowCustomColorTypeGroupInfo,
 )
 
 def register():

@@ -40,8 +40,9 @@ class ContractTask(bpy.types.Operator):
     def execute(self, context):
         snapshot_all_ui_state(context)
         core.contract_task(tool.Sequence, task=tool.Ifc.get().by_id(self.task))
-        return {'FINISHED'}
         restore_all_ui_state(context)
+        bpy.ops.bim.refresh_animation_view()
+        return {'FINISHED'}
 
 
 class RemoveTask(bpy.types.Operator, tool.Ifc.Operator):
@@ -63,6 +64,7 @@ class RemoveTask(bpy.types.Operator, tool.Ifc.Operator):
             pass
 
         restore_all_ui_state(context)
+        bpy.ops.bim.refresh_animation_view()
 
 
 class EnableEditingTaskTime(bpy.types.Operator, tool.Ifc.Operator):
@@ -103,19 +105,7 @@ class EnableEditingTask(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DisableEditingTask(bpy.types.Operator):
-    bl_idname = "bim.disable_editing_task"
-    bl_label = "Disable Editing Task"
-    bl_options = {"REGISTER", "UNDO"}
-
-    def execute(self, context):
-        # USAR EL MISMO PATRÓN QUE LOS FILTROS (que funciona correctamente):
-        snapshot_all_ui_state(context)  # >>> 1. Guardar estado ANTES de cancelar
-        
-        # >>> 2. Ejecutar la operación de cancelar
-        core.disable_editing_task(tool.Sequence)
-        
-        return {"FINISHED"}
+# DisableEditingTask is now defined only in schedule_task_operators.py - removed duplicate
 
 
 class EditTask(bpy.types.Operator, tool.Ifc.Operator):

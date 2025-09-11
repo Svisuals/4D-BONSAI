@@ -66,3 +66,8 @@ class WorkScheduleData:
                         }
                     )
         return results
+
+
+def refresh():
+    """Refresh the work schedule data by reloading all cached information."""
+    WorkScheduleData.load()

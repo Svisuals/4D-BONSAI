@@ -119,22 +119,48 @@ def _get_or_create_target(center, name="4D_OrbitTarget"):
 
 def add_animation_camera():
     """Create a camera using Animation Settings (Camera/Orbit) and optionally animate it."""
+    import bpy
+    import bonsai.tool as tool
+    import ifcopenshell.util.sequence
+    from . import props_sequence
+    from . import utils_sequence
     from mathutils import Vector
+    
     print("🎥 === ADD_ANIMATION_CAMERA CALLED ===")
+    
+    # Get active work schedule
+    props = props_sequence.get_work_schedule_props()
+    if not props.active_work_schedule_id:
+        print("⚠️ No active work schedule")
+        # Create with generic name if no schedule
+        schedule_name = "NoSchedule"
+        work_schedule = None
+    else:
+        try:
+            work_schedule = tool.Ifc.get().by_id(props.active_work_schedule_id)
+            schedule_name = getattr(work_schedule, "Name", "Schedule")
+        except Exception as e:
+            print(f"⚠️ Error getting work schedule: {e}")
+            schedule_name = "Schedule"
+            work_schedule = None
+    
     anim = props_sequence.get_animation_props()
     camera_props = anim.camera_orbit
     center, dims, _ = _get_active_schedule_bbox()
 
-    cam_data = bpy.data.cameras.new("4D_Animation_Camera")
+    # Create camera with proper work schedule name
+    cam_data = bpy.data.cameras.new(f"4D_Animation_Camera_{schedule_name}")
     cam_data.lens = camera_props.camera_focal_mm
     cam_data.clip_start = max(0.0001, camera_props.camera_clip_start)
     auto_scale = max(dims.x, dims.y, dims.z) * 5.0
     cam_data.clip_end = max(camera_props.camera_clip_end, auto_scale)
 
-    cam_obj = bpy.data.objects.new("4D_Animation_Camera", cam_data)
+    cam_obj = bpy.data.objects.new(cam_data.name, cam_data)
     cam_obj['is_4d_camera'] = True
     cam_obj['is_animation_camera'] = True
     cam_obj['camera_context'] = 'animation'
+    if props.active_work_schedule_id:
+        cam_obj['work_schedule_id'] = props.active_work_schedule_id
     try:
         bpy.context.collection.objects.link(cam_obj)
     except Exception:
@@ -184,21 +210,45 @@ def add_animation_camera():
 
 def add_snapshot_camera():
     """Create a camera specifically for Snapshot Settings."""
+    import bpy
+    import bonsai.tool as tool
+    import mathutils
+    from . import props_sequence
     from mathutils import Vector
+    
+    # Get active work schedule
+    props = props_sequence.get_work_schedule_props()
+    if not props.active_work_schedule_id:
+        print("⚠️ No active work schedule")
+        # Create with generic name if no schedule
+        schedule_name = "NoSchedule"
+        work_schedule = None
+    else:
+        try:
+            work_schedule = tool.Ifc.get().by_id(props.active_work_schedule_id)
+            schedule_name = getattr(work_schedule, "Name", "Schedule")
+        except Exception as e:
+            print(f"⚠️ Error getting work schedule: {e}")
+            schedule_name = "Schedule"
+            work_schedule = None
+    
     anim = props_sequence.get_animation_props()
     camera_props = anim.camera_orbit
     center, dims, _ = _get_active_schedule_bbox()
 
-    cam_data = bpy.data.cameras.new("Snapshot_Camera")
+    # Create camera with proper work schedule name
+    cam_data = bpy.data.cameras.new(f"Snapshot_Camera_{schedule_name}")
     cam_data.lens = camera_props.camera_focal_mm
     cam_data.clip_start = max(0.0001, camera_props.camera_clip_start)
     auto_scale = max(dims.length * 2.0, 100.0)
     cam_data.clip_end = max(camera_props.camera_clip_end, auto_scale)
 
-    cam_obj = bpy.data.objects.new("Snapshot_Camera", cam_data)
+    cam_obj = bpy.data.objects.new(cam_data.name, cam_data)
     cam_obj['is_4d_camera'] = True
     cam_obj['is_snapshot_camera'] = True
     cam_obj['camera_context'] = 'snapshot'
+    if props.active_work_schedule_id:
+        cam_obj['work_schedule_id'] = props.active_work_schedule_id
     try:
         bpy.context.collection.objects.link(cam_obj)
     except Exception:
@@ -217,9 +267,7 @@ def add_snapshot_camera():
 
     texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
     if not texts_collection or len(texts_collection.objects) == 0:
-        ws_props = props_sequence.get_work_schedule_props()
-        if ws_props.active_work_schedule_id:
-            work_schedule = tool.Ifc.get().by_id(ws_props.active_work_schedule_id)
+        if work_schedule:
             settings = animation_sequence.get_animation_settings()
             if settings and work_schedule:
                 settings['schedule_name'] = work_schedule.Name or 'No Schedule'
@@ -490,255 +538,8 @@ def _create_keyframe_orbit(cam_obj, center, radius, z, angle0, start_frame, end_
                 for kp in fcurve.keyframe_points:
                     kp.interpolation = 'LINEAR'
 
-def add_animation_camera():
-    """Add animation camera to the scene"""
-    import bpy
-    import bonsai.tool as tool
-    import ifcopenshell.util.sequence
-    from . import props_sequence
-    from . import utils_sequence
-    
-    # Get active work schedule
-    props = props_sequence.get_work_schedule_props()
-    if not props.active_work_schedule_id:
-        print("⚠️ No active work schedule")
-        return None
-    
-    work_schedule = tool.Ifc.get().by_id(props.active_work_schedule_id)
-    schedule_name = getattr(work_schedule, "Name", "Schedule")
-    
-    # Get schedule bounding box center for camera positioning
-    center = _get_active_schedule_bbox()
-    if not center:
-        center = (0, 0, 0)
-    
-    # Create camera
-    camera_data = bpy.data.cameras.new(f"4D_Animation_Camera_{schedule_name}")
-    camera_obj = bpy.data.objects.new(camera_data.name, camera_data)
-    
-    # Set camera properties
-    camera_obj['is_4d_camera'] = True
-    camera_obj['is_animation_camera'] = True
-    camera_obj['camera_context'] = 'animation'
-    camera_obj['work_schedule_id'] = props.active_work_schedule_id
-    
-    # Position camera
-    camera_obj.location = (center[0] + 10, center[1] - 10, center[2] + 5)
-    
-    # Look at center
-    direction = mathutils.Vector(center) - mathutils.Vector(camera_obj.location)
-    camera_obj.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
-    
-    # Link to scene
-    bpy.context.scene.collection.objects.link(camera_obj)
-    
-    print(f"✅ Added animation camera: {camera_obj.name}")
-    return camera_obj
 
-def add_snapshot_camera():
-    """Add snapshot camera to the scene"""
-    import bpy
-    import bonsai.tool as tool
-    import mathutils
-    from . import props_sequence
-    
-    # Get active work schedule
-    props = props_sequence.get_work_schedule_props()
-    if not props.active_work_schedule_id:
-        print("⚠️ No active work schedule")
-        return None
-    
-    work_schedule = tool.Ifc.get().by_id(props.active_work_schedule_id)
-    schedule_name = getattr(work_schedule, "Name", "Schedule")
-    
-    # Get schedule bounding box center for camera positioning
-    center = _get_active_schedule_bbox()
-    if not center:
-        center = (0, 0, 0)
-    
-    # Create camera
-    camera_data = bpy.data.cameras.new(f"Snapshot_Camera_{schedule_name}")
-    camera_obj = bpy.data.objects.new(camera_data.name, camera_data)
-    
-    # Set camera properties
-    camera_obj['is_snapshot_camera'] = True
-    camera_obj['camera_context'] = 'snapshot'
-    camera_obj['work_schedule_id'] = props.active_work_schedule_id
-    
-    # Position camera
-    camera_obj.location = (center[0] + 15, center[1] - 15, center[2] + 8)
-    
-    # Look at center
-    direction = mathutils.Vector(center) - mathutils.Vector(camera_obj.location)
-    camera_obj.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
-    
-    # Link to scene
-    bpy.context.scene.collection.objects.link(camera_obj)
-    
-    print(f"✅ Added snapshot camera: {camera_obj.name}")
-    return camera_obj
 
-def _get_active_schedule_bbox():
-    """Get bounding box center for active schedule"""
-    import bpy
-    import bonsai.tool as tool
-    import ifcopenshell.util.sequence
-    import mathutils
-    from . import props_sequence
-    
-    props = props_sequence.get_work_schedule_props()
-    if not props.active_work_schedule_id:
-        return None
-    
-    try:
-        work_schedule = tool.Ifc.get().by_id(props.active_work_schedule_id)
-        root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
-        
-        all_locations = []
-        
-        def collect_task_locations(tasks):
-            for task in tasks:
-                # Get task outputs (products)
-                task_outputs = ifcopenshell.util.sequence.get_task_outputs(task, is_deep=False)
-                for output in task_outputs:
-                    obj = tool.Ifc.get_object(output)
-                    if obj and obj.type == 'MESH':
-                        all_locations.append(obj.location)
-                
-                # Check nested tasks
-                nested_tasks = ifcopenshell.util.sequence.get_nested_tasks(task)
-                if nested_tasks:
-                    collect_task_locations(nested_tasks)
-        
-        collect_task_locations(root_tasks)
-        
-        if all_locations:
-            # Calculate center of all locations
-            center = mathutils.Vector((0, 0, 0))
-            for loc in all_locations:
-                center += mathutils.Vector(loc)
-            center /= len(all_locations)
-            return tuple(center)
-            
-    except Exception as e:
-        print(f"⚠️ Error calculating schedule bbox: {e}")
-    
-    return (0, 0, 0)
-
-def _get_or_create_target(center, name="4D_OrbitTarget"):
-    """Get or create orbit target for camera animation"""
-    import bpy
-    
-    # Check if target already exists
-    target = bpy.data.objects.get(name)
-    if target:
-        return target
-    
-    # Create new target
-    target = bpy.data.objects.new(name, None)
-    target.location = center
-    target.empty_display_type = 'SPHERE'
-    target.empty_display_size = 2.0
-    
-    # Set custom properties
-    target['is_4d_orbit_target'] = True
-    
-    # Link to scene
-    bpy.context.scene.collection.objects.link(target)
-    
-    return target
-
-def align_snapshot_camera_to_view():
-    """Align snapshot camera to current 3D view"""
-    import bpy
-    from . import visuals_sequence
-    
-    # Find active snapshot camera
-    snapshot_cameras = [
-        obj for obj in bpy.context.scene.objects 
-        if visuals_sequence.is_bonsai_snapshot_camera(obj)
-    ]
-    
-    if not snapshot_cameras:
-        print("⚠️ No snapshot camera found")
-        return False
-    
-    camera = snapshot_cameras[0]  # Use first found
-    
-    # Get current 3D view
-    for area in bpy.context.screen.areas:
-        if area.type == 'VIEW_3D':
-            space = area.spaces.active
-            if space.region_3d:
-                # Copy view location and rotation
-                camera.location = space.region_3d.view_location.copy()
-                camera.rotation_euler = space.region_3d.view_rotation.to_euler()
-                print(f"✅ Aligned snapshot camera to view")
-                return True
-    
-    print("⚠️ No 3D view found")
-    return False
-
-def align_animation_camera_to_view():
-    """Align animation camera to current 3D view"""
-    import bpy
-    from . import visuals_sequence
-    
-    # Find active animation camera
-    animation_cameras = [
-        obj for obj in bpy.context.scene.objects 
-        if visuals_sequence.is_bonsai_animation_camera(obj)
-    ]
-    
-    if not animation_cameras:
-        print("⚠️ No animation camera found")
-        return False
-    
-    camera = animation_cameras[0]  # Use first found
-    
-    # Get current 3D view
-    for area in bpy.context.screen.areas:
-        if area.type == 'VIEW_3D':
-            space = area.spaces.active
-            if space.region_3d:
-                # Copy view location and rotation
-                camera.location = space.region_3d.view_location.copy()
-                camera.rotation_euler = space.region_3d.view_rotation.to_euler()
-                print(f"✅ Aligned animation camera to view")
-                return True
-    
-    print("⚠️ No 3D view found")
-    return False
-
-def update_animation_camera(cam_obj):
-    """Update animation camera properties"""
-    import bpy
-    from . import props_sequence
-    
-    if not cam_obj:
-        return False
-    
-    try:
-        # Update camera name based on active schedule
-        props = props_sequence.get_work_schedule_props()
-        if props.active_work_schedule_id:
-            import bonsai.tool as tool
-            work_schedule = tool.Ifc.get().by_id(props.active_work_schedule_id)
-            schedule_name = getattr(work_schedule, "Name", "Schedule")
-            cam_obj.name = f"4D_Animation_Camera_{schedule_name}"
-            cam_obj['work_schedule_id'] = props.active_work_schedule_id
-        
-        # Update other properties
-        cam_obj['is_4d_camera'] = True
-        cam_obj['is_animation_camera'] = True
-        cam_obj['camera_context'] = 'animation'
-        
-        print(f"✅ Updated animation camera: {cam_obj.name}")
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error updating animation camera: {e}")
-        return False
 
 
 

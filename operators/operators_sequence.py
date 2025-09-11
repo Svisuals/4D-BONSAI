@@ -20,18 +20,32 @@
 
 import bpy
 import bonsai.tool as tool
-from . import props_sequence
-from . import colortype_sequence
 
 try:
-    from ...prop.animation import get_user_created_groups_enum, UnifiedColorTypeManager
+    from ..tool.sequence import props_sequence, colortype_sequence
+except ImportError:
+    # Fallback definitions
+    class props_sequence:
+        @staticmethod
+        def get_animation_props(): return None
+        @staticmethod
+        def get_task_tree_props(): return None
+        @staticmethod
+        def get_work_schedule_props(): return None
+    
+    class colortype_sequence:
+        @staticmethod
+        def load_ColorType_group_data(group_name): return {"ColorTypes": []}
+
+try:
+    from ..prop.animation import get_user_created_groups_enum, UnifiedColorTypeManager
 except ImportError:
     def get_user_created_groups_enum(self, context): return [("NONE", "None", "")]
     class UnifiedColorTypeManager: pass
 
 
 class SearchCustomColorTypeGroup(bpy.types.Operator):
-    bl_idname = "bim.search_custom_ColorType_group"
+    bl_idname = "bim.search_custom_colortype_group"
     bl_label = "Search Custom ColorType Group"
     bl_description = "Search and filter custom ColorType groups"
     bl_options = {"REGISTER", "UNDO"}
@@ -61,7 +75,7 @@ class SearchCustomColorTypeGroup(bpy.types.Operator):
 
 
 class CopyCustomColorTypeGroup(bpy.types.Operator):
-    bl_idname = "bim.copy_custom_ColorType_group"
+    bl_idname = "bim.copy_custom_colortype_group"
     bl_label = "Copy Custom ColorType Group"
     bl_description = "Copy current custom ColorType group to clipboard"
     bl_options = {"REGISTER", "UNDO"}
@@ -78,7 +92,7 @@ class CopyCustomColorTypeGroup(bpy.types.Operator):
 
 
 class PasteCustomColorTypeGroup(bpy.types.Operator):
-    bl_idname = "bim.paste_custom_ColorType_group"
+    bl_idname = "bim.paste_custom_colortype_group"
     bl_label = "Paste Custom ColorType Group"
     bl_description = "Paste custom ColorType group from clipboard"
     bl_options = {"REGISTER", "UNDO"}
@@ -100,7 +114,7 @@ class PasteCustomColorTypeGroup(bpy.types.Operator):
 
 
 class SetCustomColorTypeGroupNull(bpy.types.Operator):
-    bl_idname = "bim.set_custom_ColorType_group_null"
+    bl_idname = "bim.set_custom_colortype_group_null"
     bl_label = "Set Custom ColorType Group to Null"
     bl_description = "Clear custom ColorType group selection (set to null)"
     bl_options = {"REGISTER", "UNDO"}
@@ -122,7 +136,7 @@ class SetCustomColorTypeGroupNull(bpy.types.Operator):
 
 
 class ShowCustomColorTypeGroupInfo(bpy.types.Operator):
-    bl_idname = "bim.show_custom_ColorType_group_info"
+    bl_idname = "bim.show_custom_colortype_group_info"
     bl_label = "Custom ColorType Group Info"
     bl_description = "Show information about the current custom ColorType group"
     bl_options = {"REGISTER", "UNDO"}
@@ -140,3 +154,79 @@ class ShowCustomColorTypeGroupInfo(bpy.types.Operator):
         else:
             self.report({'INFO'}, "No custom ColorType group selected")
         return {'FINISHED'}
+
+
+class BIM_OT_RefreshAnimationView(bpy.types.Operator):
+    """The new Orchestra Director. Refreshes the entire 4D animation view."""
+    bl_idname = "bim.refresh_animation_view"
+    bl_label = "Refresh 4D Animation View"
+    bl_description = "Refresh the entire 4D schedule animation view"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        # Always use tool.Sequence for compatibility
+        import bonsai.tool as tool
+        
+        try:
+            # 1. Clear old animation and visuals to start fresh
+            try:
+                tool.Sequence.clear_objects_animation()
+            except (AttributeError, TypeError):
+                pass
+            
+            try:
+                tool.Sequence.clear_task_bars()
+            except (AttributeError, TypeError):
+                pass
+
+            # 2. Reload task properties from IFC
+            try:
+                tool.Sequence.load_task_properties()
+            except (AttributeError, TypeError):
+                pass
+
+            # 3. Calculate new animation configuration (frames, dates, etc.)
+            work_schedule = tool.Sequence.get_active_work_schedule()
+            if not work_schedule:
+                # Try to refresh UI properties even without work schedule
+                try:
+                    tool.Sequence.load_task_properties()
+                except:
+                    pass
+                self.report({'WARNING'}, "No active work schedule - refreshing UI only.")
+                # Force UI redraw
+                for area in context.screen.areas:
+                    area.tag_redraw()
+                return {'FINISHED'}
+            
+            # Validate work schedule is valid IFC entity
+            if not hasattr(work_schedule, 'id') or not work_schedule.id():
+                self.report({'ERROR'}, "Invalid work schedule entity.")
+                return {'CANCELLED'}
+            
+            # 4. Force a simple refresh by reloading task tree and properties
+            try:
+                tool.Sequence.load_task_tree(work_schedule)
+                tool.Sequence.load_task_properties()
+            except (AttributeError, TypeError) as e:
+                self.report({'WARNING'}, f"Failed to reload tasks: {str(e)}")
+            except Exception as e:
+                # Handle any other errors gracefully
+                self.report({'WARNING'}, f"Task loading error: {str(e)}")
+
+            # 5. Try to refresh any visual elements
+            try:
+                tool.Sequence.refresh_task_bars()
+            except (AttributeError, TypeError):
+                pass
+            
+            # 6. Force Blender to redraw the entire interface
+            for area in context.screen.areas:
+                area.tag_redraw()
+
+            self.report({'INFO'}, "4D Sequence Refreshed.")
+            return {'FINISHED'}
+            
+        except Exception as e:
+            self.report({'ERROR'}, f"Failed to refresh animation view: {str(e)}")
+            return {'CANCELLED'}

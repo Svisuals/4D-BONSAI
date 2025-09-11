@@ -244,7 +244,25 @@ class GuessDateRange(bpy.types.Operator, tool.Ifc.Operator):
     work_schedule: bpy.props.IntProperty()
 
     def _execute(self, context):
-        work_schedule = tool.Ifc.get().by_id(self.work_schedule)
+        # Add error handling for invalid work schedule ID
+        if not self.work_schedule or self.work_schedule <= 0:
+            # Try to get the active work schedule instead
+            work_schedule = tool.Sequence.get_active_work_schedule()
+            if not work_schedule:
+                self.report({'ERROR'}, "No valid work schedule found. Please select a work schedule first.")
+                return {"CANCELLED"}
+        else:
+            try:
+                work_schedule = tool.Ifc.get().by_id(self.work_schedule)
+            except RuntimeError as e:
+                if "not found" in str(e):
+                    # Try to get the active work schedule as fallback
+                    work_schedule = tool.Sequence.get_active_work_schedule()
+                    if not work_schedule:
+                        self.report({'ERROR'}, f"Work schedule with ID {self.work_schedule} not found and no active schedule available.")
+                        return {"CANCELLED"}
+                else:
+                    raise
         
         # NEW: Calculate unified date range across all schedule types for HUD timeline
         unified_start_date, unified_finish_date = self._calculate_unified_range(work_schedule)

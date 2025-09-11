@@ -569,19 +569,7 @@ class EnableEditingTask(bpy.types.Operator):
         core.enable_editing_task_attributes(tool.Sequence, task=tool.Ifc.get().by_id(self.task))
         return {"FINISHED"}
 
-class DisableEditingTask(bpy.types.Operator):
-    bl_idname = "bim.disable_editing_task"
-    bl_label = "Disable Editing Task"
-    bl_options = {"REGISTER", "UNDO"}
-
-    def execute(self, context):
-        # USAR EL MISMO PATRÓN QUE LOS FILTROS (que funciona correctamente):
-        snapshot_all_ui_state(context)  # >>> 1. Guardar estado ANTES de cancelar
-        
-        # >>> 2. Ejecutar la operación de cancelar
-        core.disable_editing_task(tool.Sequence)
-        
-        return {"FINISHED"}
+# DisableEditingTask is now defined only in schedule_task_operators.py - removed duplicate
 
 class EditTask(bpy.types.Operator, tool.Ifc.Operator):
     bl_idname = "bim.edit_task"

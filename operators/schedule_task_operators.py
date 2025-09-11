@@ -497,6 +497,7 @@ class AddTask(bpy.types.Operator, tool.Ifc.Operator):
             pass
 
         restore_all_ui_state(context)
+        bpy.ops.bim.refresh_animation_view()
 
 
 class AddSummaryTask(bpy.types.Operator, tool.Ifc.Operator):
@@ -588,11 +589,24 @@ class DisableEditingTask(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        # USAR EL MISMO PATRÓN QUE LOS FILTROS (que funciona correctamente):
-        snapshot_all_ui_state(context)  # >>> 1. Guardar estado ANTES de cancelar
+        # Save UI state before canceling edit
+        snapshot_all_ui_state(context)
         
-        # >>> 2. Ejecutar la operación de cancelar
-        core.disable_editing_task(tool.Sequence)
+        try:
+            # Execute the core cancel operation
+            core.disable_editing_task(tool.Sequence)
+            
+            # Restore UI state after canceling - this is what was missing!
+            restore_all_ui_state(context)
+            
+            # Refresh the interface
+            for area in context.screen.areas:
+                if area.type == 'VIEW_3D':
+                    area.tag_redraw()
+                    
+        except Exception as e:
+            self.report({'ERROR'}, f"Failed to cancel task editing: {str(e)}")
+            return {"CANCELLED"}
         
         return {"FINISHED"}
 

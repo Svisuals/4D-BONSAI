@@ -124,7 +124,16 @@ def edit_task(ifc: type[tool.Ifc], sequence: type[tool.Sequence], task: ifcopens
     ifc.run("sequence.edit_task", task=task, attributes=attributes)
 
     # 2. Reload data from IFC so cache is updated
-    from ...data.sequence_data import SequenceData
+    try:
+        from ...data.sequence_data import SequenceData
+    except ImportError:
+        # Fallback for different import structures
+        try:
+            from ....data.sequence_data import SequenceData
+        except ImportError:
+            # If data module is not available, skip the reload step
+            print("⚠️ SequenceData module not available, skipping data reload")
+            return
     SequenceData.load() # Complete reload to ensure consistency
     sequence.load_task_properties(task=task)
 

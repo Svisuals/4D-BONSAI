@@ -318,3 +318,8 @@ class SequenceData:
             print(f"Error loading product task relationships: {e}")
             return {"input_tasks": [], "output_tasks": []}
 
+
+def refresh():
+    """Refresh the sequence data by reloading all cached information."""
+    SequenceData.load()
+

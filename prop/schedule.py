@@ -38,10 +38,13 @@ from typing import TYPE_CHECKING, Literal
 try:
     from .task import TaskResource, TaskProduct, get_date_source_items
     from .filter import BIMTaskFilterProperties, SavedFilterSet
+    from .callbacks_prop import full_schedule_and_animation_update, full_schedule_and_animation_update_debounced
 except ImportError:
     # Fallback for when running from the original location
     from .task import TaskResource, TaskProduct, get_date_source_items
     from .filter import BIMTaskFilterProperties, SavedFilterSet
+    def full_schedule_and_animation_update(self, context): pass
+    def full_schedule_and_animation_update_debounced(self, context, delay=0.5): pass
 
 # ============================================================================
 # SCHEDULE CALLBACK FUNCTIONS
@@ -192,9 +195,13 @@ def update_work_schedule_predefined_type(self: "BIMWorkScheduleProperties", cont
 
 def update_visualisation_start(self: "BIMWorkScheduleProperties", context: bpy.types.Context) -> None:
     update_visualisation_start_finish(self, context, "visualisation_start")
+    # Use debounced update to prevent excessive animation refreshes during date selection
+    full_schedule_and_animation_update_debounced(self, context, delay=0.3)
 
 def update_visualisation_finish(self: "BIMWorkScheduleProperties", context: bpy.types.Context) -> None:
     update_visualisation_start_finish(self, context, "visualisation_finish")
+    # Use debounced update to prevent excessive animation refreshes during date selection
+    full_schedule_and_animation_update_debounced(self, context, delay=0.3)
 
 def update_visualisation_start_finish(
     self: "BIMWorkScheduleProperties",
@@ -283,6 +290,9 @@ def update_date_source_type(self, context):
             )
         except Exception as e:
             print(f"⚠️ Animation sync failed: {e}")
+        
+        # Call the Orchestra Director to refresh the entire animation view
+        full_schedule_and_animation_update(self, context)
                 
     except Exception as e:
         print(f"❌ update_date_source_type: Error: {e}")

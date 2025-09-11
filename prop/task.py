@@ -540,3 +540,14 @@ def get_date_source_items(self, context):
         ('EARLY', "Early", "Use Early dates"),
         ('LATE', "Late", "Use Late dates"),
     ]
+
+
+def cleanup_all_tasks_colortype_mappings(context):
+    """Cleanup function for task colortype mappings - placeholder implementation."""
+    try:
+        # Try to import from animation.py which has the real implementation
+        from .animation import cleanup_all_tasks_colortype_mappings as real_cleanup
+        return real_cleanup(context)
+    except ImportError:
+        # Fallback: do nothing
+        pass

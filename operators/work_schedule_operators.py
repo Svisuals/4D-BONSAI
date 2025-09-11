@@ -830,6 +830,9 @@ class EnableEditingWorkScheduleTasks(bpy.types.Operator):
         # Como la caché de ColorTypes está vacía, no intentará restaurar
         # datos incorrectos del cronograma anterior.
         restore_all_ui_state(context)
+        
+        # Call the Orchestra Director to refresh the entire animation view
+        bpy.ops.bim.refresh_animation_view()
 
         return {"FINISHED"}
 

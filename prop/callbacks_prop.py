@@ -2058,6 +2058,50 @@ def update_selected_date(self: "DatePickerProperties", context: bpy.types.Contex
     self.selected_date = tool.Sequence.isodate_datetime(selected_date, include_time)
 
 
+# Global debounce state for date range updates
+_date_range_debounce_timer = None
+
+def full_schedule_and_animation_update(self, context):
+    """
+    This is the callback that connects the UI with the orchestra director.
+    Uses a timer to avoid Blender context errors.
+    """
+    def deferred_update():
+        try:
+            bpy.ops.bim.refresh_animation_view()
+        except Exception as e:
+            print(f"Error in full_schedule_and_animation_update: {e}")
+        return None
+    
+    # Call the refresh operator safely
+    bpy.app.timers.register(deferred_update, first_interval=0.01)
+
+def full_schedule_and_animation_update_debounced(self, context, delay=0.5):
+    """
+    Debounced version of full_schedule_and_animation_update for date range changes.
+    Only executes after a delay to avoid frequent updates while user is typing/dragging.
+    """
+    global _date_range_debounce_timer
+    
+    # Cancel any existing timer
+    if _date_range_debounce_timer and bpy.app.timers.is_registered(_date_range_debounce_timer):
+        bpy.app.timers.unregister(_date_range_debounce_timer)
+    
+    def deferred_update():
+        global _date_range_debounce_timer
+        _date_range_debounce_timer = None
+        try:
+            bpy.ops.bim.refresh_animation_view()
+            print("🔄 Date range animation update completed")
+        except Exception as e:
+            print(f"Error in debounced animation update: {e}")
+        return None
+    
+    # Register the debounced timer
+    _date_range_debounce_timer = deferred_update
+    bpy.app.timers.register(deferred_update, first_interval=delay)
+
+
 
 
 

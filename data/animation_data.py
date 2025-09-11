@@ -211,3 +211,8 @@ def compute_progress_at_frame(task, frame, settings):
     return (float(frame) - float(sf)) / float(max(1, ff - sf))
 
 
+def refresh():
+    """Refresh the animation color scheme data by reloading all cached information."""
+    AnimationColorSchemeData.load()
+
+

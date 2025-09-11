@@ -23,7 +23,12 @@ import bpy
 import ifcopenshell
 import ifcopenshell.api
 import bonsai.core.tool
-import bonsai.bim.helper
+try:
+    import bonsai.bim.helper
+except ImportError:
+    from ... import helper as bonsai_bim_helper
+    import sys
+    sys.modules['bonsai.bim.helper'] = bonsai_bim_helper
 from typing import Any, Union, Literal, TYPE_CHECKING
 
 # Imports de los nuevos módulos refactorizados
@@ -49,7 +54,7 @@ class Sequence(bonsai.core.tool.Sequence):
 
     @classmethod
     def get_work_plan_attributes(cls) -> dict[str, Any]:
-        from ...helper import parse_datetime, parse_duration
+        from bonsai.bim.helper import parse_datetime, parse_duration
         def callback(attributes: dict[str, Any], prop: Attribute) -> bool:
             if "Date" in prop.name or "Time" in prop.name:
                 attributes[prop.name] = None if prop.is_null else parse_datetime(prop.string_value)
@@ -74,7 +79,7 @@ class Sequence(bonsai.core.tool.Sequence):
 
     @classmethod
     def get_work_schedule_attributes(cls) -> dict[str, Any]:
-        from ...helper import parse_datetime, parse_duration
+        from bonsai.bim.helper import parse_datetime, parse_duration
         def callback(attributes: dict[str, Any], prop: Attribute) -> bool:
             if "Date" in prop.name or "Time" in prop.name:
                 attributes[prop.name] = None if prop.is_null else parse_datetime(prop.string_value)
@@ -806,7 +811,7 @@ class Sequence(bonsai.core.tool.Sequence):
     # --- Get Work Schedule Attributes ---
     @classmethod
     def get_work_schedule_attributes_duplicate(cls) -> dict[str, Any]:
-        from ...helper import parse_datetime, parse_duration
+        from bonsai.bim.helper import parse_datetime, parse_duration
         def callback(attributes: dict[str, Any], prop: Attribute) -> bool:
             if "Date" in prop.name or "Time" in prop.name:
                 attributes[prop.name] = None if prop.is_null else parse_datetime(prop.string_value)

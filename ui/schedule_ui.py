@@ -23,8 +23,14 @@ import isodate
 from bpy.types import Panel
 from typing import Any
 import bonsai.tool as tool
-import bonsai.bim.helper
-from bonsai.bim.helper import draw_attributes
+try:
+    import bonsai.bim.helper
+    from bonsai.bim.helper import draw_attributes
+except ImportError:
+    from .. import helper as bonsai_bim_helper
+    from ..helper import draw_attributes
+    import sys
+    sys.modules['bonsai.bim.helper'] = bonsai_bim_helper
 from ..data.schedule_data import WorkScheduleData
 from ..data.sequence_data import SequenceData
 from ..data.task_data import TaskICOMData

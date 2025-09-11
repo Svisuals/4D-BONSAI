@@ -552,7 +552,7 @@ def get_active_work_time() -> ifcopenshell.entity_instance:
     return tool.Ifc.get().by_id(props.active_work_time_id)
 
 def get_work_time_attributes() -> dict[str, Any]:
-    from ...helper import parse_datetime
+    from bonsai.bim.helper import parse_datetime
     from typing import Any
     from bonsai.bim.prop import Attribute
     import bonsai.bim.helper
@@ -585,7 +585,7 @@ def load_work_time_attributes(work_time: ifcopenshell.entity_instance) -> None:
     bonsai.bim.helper.import_attributes(work_time, props.work_time_attributes, callback)
 
 def get_recurrence_pattern_attributes(recurrence_pattern: ifcopenshell.entity_instance) -> dict[str, Any]:
-    from ...helper import parse_datetime
+    from bonsai.bim.helper import parse_datetime
     from typing import Any
     from bonsai.bim.prop import Attribute
     import bonsai.bim.helper
@@ -651,7 +651,7 @@ def load_rel_sequence_attributes(rel_sequence: ifcopenshell.entity_instance) -> 
     bonsai.bim.helper.import_attributes(rel_sequence, props.rel_sequence_attributes, callback)
 
 def get_lag_time_attributes() -> dict[str, Any]:
-    from ...helper import parse_duration
+    from bonsai.bim.helper import parse_duration
     from typing import Any
     from bonsai.bim.prop import Attribute
     import bonsai.bim.helper
@@ -977,7 +977,7 @@ def enable_editing_work_plan_schedules(work_plan) -> None:
 
 def export_duration_prop(prop, attributes: dict[str, Any]) -> bool:
     """Export duration property to attributes"""
-    from ...helper import parse_duration
+    from bonsai.bim.helper import parse_duration
     
     if prop.is_null:
         attributes[prop.name] = None
@@ -992,7 +992,7 @@ def export_duration_prop(prop, attributes: dict[str, Any]) -> bool:
 
 def add_duration_prop(prop, value) -> None:
     """Add duration property with proper formatting"""
-    from ...helper import isodate_duration
+    from bonsai.bim.helper import isodate_duration
     
     if value is None:
         prop.is_null = True
