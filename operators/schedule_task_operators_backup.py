@@ -8,21 +8,29 @@ import bonsai.tool as tool
 import bonsai.core.sequence as core
 
 try:
-    from ..prop import safe_set_selected_colortype_in_active_group
+    from ..prop.task import safe_set_selected_colortype_in_active_group
     # ... otras importaciones de ..prop
 except (ImportError, ValueError):
     # Fallback si la estructura cambia
-    from bonsai.bim.module.sequence.prop import safe_set_selected_colortype_in_active_group
+    try:
+        from ..prop.animation import safe_set_selected_colortype_in_active_group
+    except ImportError:
+        # Ultimate fallback
+        def safe_set_selected_colortype_in_active_group(task_obj, value, skip_validation=False):
+            try:
+                setattr(task_obj, "selected_colortype_in_active_group", value)
+            except Exception:
+                pass
 
 try:
-    from .prop import update_filter_column
-    from . import prop
+    from ..prop import update_filter_column
+    from .. import prop
     from .ui import calculate_visible_columns_count
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop import update_filter_column
-        import bonsai.bim.module.sequence.prop as prop
-        from bonsai.bim.module.sequence.ui import calculate_visible_columns_count
+        from ..prop.filter import update_filter_column
+        from .. import prop as prop
+        from ..ui import calculate_visible_columns_count
     except Exception:
         def update_filter_column(*args, **kwargs):
             pass
@@ -40,303 +48,25 @@ except Exception:
 
 
 def snapshot_all_ui_state(context):
-    """
-    (SNAPSHOT) Captura el estado completo de la UI de perfiles y lo guarda
-    en propiedades temporales de la escena. También mantiene un caché
-    persistente para soportar alternancias de filtros (filtrar -> desfiltrar)
-    sin perder datos de tareas ocultas.
-    """
-    import json
-    try:
-        # 1. Snapshot de la configuración de perfiles por tarea
-        tprops = tool.Sequence.get_task_tree_props()
-        task_snap = {}
-        
-        # NUEVO: También capturar datos de todas las tareas del cronograma activo 
-        # para evitar pérdida de datos cuando se aplican/quitan filtros
-        try:
-            ws = tool.Sequence.get_active_work_schedule()
-            if ws:
-                import ifcopenshell.util.sequence
-                
-                def get_all_tasks_recursive(tasks):
-                    """Recursivamente obtiene todas las tareas y subtareas."""
-                    all_tasks = []
-                    for task in tasks:
-                        all_tasks.append(task)
-                        nested = ifcopenshell.util.sequence.get_nested_tasks(task)
-                        if nested:
-                            all_tasks.extend(get_all_tasks_recursive(nested))
-                    return all_tasks
-                
-                root_tasks = ifcopenshell.util.sequence.get_root_tasks(ws)
-                all_tasks = get_all_tasks_recursive(root_tasks)
-                
-                # Crear snapshot de todas las tareas, no solo las visibles
-                task_id_to_ui_data = {str(getattr(t, "ifc_definition_id", 0)): t for t in getattr(tprops, "tasks", [])}
-                
-                for task in all_tasks:
-                    tid = str(task.id())
-                    if tid == "0":
-                        continue
-                    
-                    # Si la tarea está visible en la UI, usar sus datos actuales
-                    if tid in task_id_to_ui_data:
-                        t = task_id_to_ui_data[tid]
-                        groups_list = []
-                        for g in getattr(t, "colortype_group_choices", []):
-                            sel_attr = None
-                            for cand in ("selected_colortype", "selected", "active_colortype", "colortype"):
-                                if hasattr(g, cand):
-                                    sel_attr = cand
-                                    break
-                            groups_list.append({
-                                "group_name": getattr(g, "group_name", ""),
-                                "enabled": bool(getattr(g, "enabled", False)),
-                                "selected_value": getattr(g, sel_attr, "") if sel_attr else "",
-                                "selected_attr": sel_attr or "",
-                            })
-                        task_snap[tid] = {
-                            "active": bool(getattr(t, "use_active_colortype_group", False)),
-                            "selected_active_colortype": getattr(t, "selected_colortype_in_active_group", ""),
-                            "animation_color_schemes": getattr(t, "animation_color_schemes", ""),
-                            "groups": groups_list,
-                        }
-                    else:
-                        # Si la tarea no está visible (filtrada), preservar datos del caché
-                        cache_key = "_task_colortype_snapshot_cache_json"
-                        cache_raw = context.scene.get(cache_key)
-                        if cache_raw:
-                            try:
-                                cached_data = json.loads(cache_raw)
-                                if tid in cached_data:
-                                    task_snap[tid] = cached_data[tid]
-                                else:
-                                    # Crear entrada vacía para tareas sin datos previos
-                                    task_snap[tid] = {
-                                        "active": False,
-                                        "selected_active_colortype": "",
-                                        "animation_color_schemes": "",
-                                        "groups": [],
-                                    }
-                            except Exception:
-                                task_snap[tid] = {
-                                    "active": False,
-                                    "selected_active_colortype": "",
-                                    "animation_color_schemes": "",
-                                    "groups": [],
-                                }
-                        else:
-                            task_snap[tid] = {
-                                "active": False,
-                                "selected_active_colortype": "",
-                                "animation_color_schemes": "",
-                                "groups": [],
-                            }
-        except Exception as e:
-            print(f"Bonsai WARNING: Error capturando todas las tareas: {e}")
-            # Fallback al método original solo con tareas visibles
-            for t in getattr(tprops, "tasks", []):
-                tid = str(getattr(t, "ifc_definition_id", 0))
-                if tid == "0":
-                    continue
-                groups_list = []
-                for g in getattr(t, "colortype_group_choices", []):
-                    sel_attr = None
-                    for cand in ("selected_colortype", "selected", "active_colortype", "colortype"):
-                        if hasattr(g, cand):
-                            sel_attr = cand
-                            break
-                    groups_list.append({
-                        "group_name": getattr(g, "group_name", ""),
-                        "enabled": bool(getattr(g, "enabled", False)),
-                        "selected_value": getattr(g, sel_attr, "") if sel_attr else "",
-                        "selected_attr": sel_attr or "",
-                    })
-                task_snap[tid] = {
-                    "active": bool(getattr(t, "use_active_colortype_group", False)),
-                    "selected_active_colortype": getattr(t, "selected_colortype_in_active_group", ""),
-                    "animation_color_schemes": getattr(t, "animation_color_schemes", ""),
-                    "groups": groups_list,
-                }
-
-        # Detectar el WorkSchedule activo para acotar el caché
-        try:
-            ws_props = tool.Sequence.get_work_schedule_props()
-            ws_id = int(getattr(ws_props, "active_work_schedule_id", 0))
-        except Exception:
-            try:
-                ws = tool.Sequence.get_active_work_schedule()
-                ws_id = int(getattr(ws, "id", 0) or getattr(ws, "GlobalId", 0) or 0)
-            except Exception:
-                ws_id = 0
-
-        # Resetear caché si cambió el WS activo
-        cache_ws_key = "_task_colortype_snapshot_cache_ws_id"
-        cache_key = "_task_colortype_snapshot_cache_json"
-        prior_ws = context.scene.get(cache_ws_key)
-        if prior_ws is None or int(prior_ws) != ws_id:
-            context.scene[cache_key] = "{}"
-            context.scene[cache_ws_key] = str(ws_id)
-
-        # Guardar snapshot efímero (ciclo actual) - AMBAS CLAVES para compatibilidad
-        snap_key_specific = f"_task_colortype_snapshot_json_WS_{ws_id}"
-        snap_key_generic = "_task_colortype_snapshot_json"
-        
-        # Guardar en clave específica (para Copy 3D)
-        context.scene[snap_key_specific] = json.dumps(task_snap)
-        print(f"💾 DEBUG SNAPSHOT: Guardado en clave {snap_key_specific} - {len(task_snap)} tareas")
-        
-        # TAMBIÉN guardar en clave genérica (para sistema normal)
-        context.scene[snap_key_generic] = json.dumps(task_snap)
-
-        # Actualizar caché persistente (merge)
-        merged = {}
-        cache_raw = context.scene.get(cache_key)
-        if cache_raw:
-            try:
-                merged = json.loads(cache_raw) or {}
-            except Exception:
-                merged = {}
-        merged.update(task_snap)
-        context.scene[cache_key] = json.dumps(merged)
-
-        # 2. Snapshot de los selectores de grupo y el stack de animación
-        anim_props = tool.Sequence.get_animation_props()
-        anim_snap = {
-            "ColorType_groups": getattr(anim_props, "ColorType_groups", "DEFAULT"),
-            "task_colortype_group_selector": getattr(anim_props, "task_colortype_group_selector", ""),
-            "animation_group_stack": [
-                {"group": getattr(item, "group", ""), "enabled": bool(getattr(item, "enabled", False))}
-                for item in getattr(anim_props, "animation_group_stack", [])
-            ],
-        }
-        context.scene["_anim_state_snapshot_json"] = json.dumps(anim_snap)
-        # 3. Snapshot de selección/índice activo del árbol de tareas
-        try:
-            wprops = tool.Sequence.get_work_schedule_props()
-            tprops = tool.Sequence.get_task_tree_props()
-            active_idx = int(getattr(wprops, 'active_task_index', -1))
-            active_id = int(getattr(wprops, 'active_task_id', 0))
-            selected_ids = []
-            for t in getattr(tprops, 'tasks', []):
-                tid = int(getattr(t, 'ifc_definition_id', 0))
-                sel = False
-                for cand in ('is_selected','selected'):
-                    if hasattr(t, cand) and bool(getattr(t, cand)):
-                        sel = True
-                        break
-                if sel:
-                    selected_ids.append(tid)
-            sel_snap = {'active_index': active_idx, 'active_id': active_id, 'selected_ids': selected_ids}
-            context.scene['_task_selection_snapshot_json'] = json.dumps(sel_snap)
-        except Exception:
-            pass
-
-    except Exception as e:
-        print(f"Bonsai WARNING: No se pudo crear el snapshot de la UI: {e}")
+    """Simple v60-style snapshot - just save ColorTypes"""
+    from .simple_colortype_persistence import save_colortypes_simple
+    save_colortypes_simple()
 
 
 def restore_all_ui_state(context):
-    """
-    (RESTAURACIÓN) Restaura el estado completo de la UI de perfiles desde
-    las propiedades temporales de la escena. Usa un caché persistente para
-    cubrir tareas que no estaban visibles en el snapshot efímero (p.ej. al
-    desactivar filtros).
-    """
-    import json
-    try:
-        # Detectar cronograma activo para usar claves específicas
-        try:
-            ws_props = tool.Sequence.get_work_schedule_props()
-            ws_id = int(getattr(ws_props, "active_work_schedule_id", 0))
-        except Exception:
-            try:
-                ws = tool.Sequence.get_active_work_schedule()
-                ws_id = int(getattr(ws, "id", 0) or getattr(ws, "GlobalId", 0) or 0)
-            except Exception:
-                ws_id = 0
-                
-        # 1. Restaurar configuración de perfiles en las tareas - ESPECÍFICO POR CRONOGRAMA
-        snap_key_specific = f"_task_colortype_snapshot_json_WS_{ws_id}"
-        cache_key = "_task_colortype_snapshot_cache_json"
+    """Simple v60-style restore - just restore ColorTypes"""
+    from .simple_colortype_persistence import restore_colortypes_simple
+    restore_colortypes_simple()
 
-        # Union: cache ∪ snapshot (snapshot tiene prioridad)
-        union = {}
-        cache_raw = context.scene.get(cache_key)
-        if cache_raw:
-            try:
-                union.update(json.loads(cache_raw) or {})
-            except Exception:
-                pass
-        snap_raw = context.scene.get(snap_key_specific)
-        if snap_raw:
-            try:
-                snap_data = json.loads(snap_raw) or {}
-                union.update(snap_data)
-                print(f"📥 DEBUG RESTORE: Cargando de clave {snap_key_specific} - {len(snap_data)} tareas")
-            except Exception:
-                pass
-        else:
-            print(f"❌ DEBUG RESTORE: No se encontró clave {snap_key_specific}")
 
-        if union:
-            tprops = tool.Sequence.get_task_tree_props()
-            task_map = {str(getattr(t, "ifc_definition_id", 0)): t for t in getattr(tprops, "tasks", [])}
-
-            for tid, cfg in union.items():
-                t = task_map.get(str(tid))
-                if not t:
-                    continue
-                # Estado principal de la tarea
-                try:
-                    t.use_active_colortype_group = cfg.get("active", False)
-                    
-                    # VALIDACIÓN AGRESIVA: Evitar valores problemáticos en selected_colortype_in_active_group
-                    selected_active_colortype = cfg.get("selected_active_colortype", "")
-                    problematic_values = ["0", 0, None, "", "None", "null", "undefined"]
-                    
-                    if selected_active_colortype in problematic_values:
-                        selected_active_colortype = ""
-                    else:
-                        # Validación adicional para strings problemáticos
-                        selected_active_str = str(selected_active_colortype).strip()
-                        if selected_active_str in [str(v) for v in problematic_values]:
-                            selected_active_colortype = ""
-                    
-                    prop.safe_set_selected_colortype_in_active_group(t, selected_active_colortype, skip_validation=True)
-                    
-                    # RESTAURAR CAMPO PRINCIPAL animation_color_schemes
-                    animation_color_schemes = cfg.get("animation_color_schemes", "")
-                    task_is_active = cfg.get("active", False)
-                    
-                    # Si la tarea NO tiene grupo activo, usar el valor capturado de animation_color_schemes
-                    if not task_is_active and animation_color_schemes:
-                        print(f"🎨 DEBUG RESTORE: Task {tid} - Setting animation_color_schemes from snapshot: '{animation_color_schemes}'")
-                        from ..prop.animation import safe_set_animation_color_schemes
-                        safe_set_animation_color_schemes(t, animation_color_schemes)
-                    elif not task_is_active:
-                        print(f"🎨 DEBUG RESTORE: Task {tid} - No animation_color_schemes value, using first valid enum option")
-                        # Don't pass empty string, let the safe_set function handle the fallback
-                        try:
-                            # Get the first valid enum option
-                            from ..prop.animation import get_animation_color_schemes_items, safe_set_animation_color_schemes
-                            valid_items = get_animation_color_schemes_items(t, bpy.context)
-                            first_valid = valid_items[0][0] if valid_items else ""
-                            safe_set_animation_color_schemes(t, first_valid)
-                        except Exception as e:
-                            print(f"⚠️ Could not determine valid enum options for task {tid}: {e}")
-                            # Skip setting if we can't determine valid options
-                    else:
+def _save_3d_texts_state():
                         # Si la tarea SÍ tiene grupo activo, sincronizar animation_color_schemes con el valor del grupo
                         if selected_active_colortype:
                             print(f"🔄 DEBUG RESTORE: Task {tid} - Syncing animation_color_schemes with active group value: '{selected_active_colortype}'")
-                            from ..prop.animation import safe_set_animation_color_schemes
-                            safe_set_animation_color_schemes(t, selected_active_colortype)
+                            prop.safe_set_animation_color_schemes(t, selected_active_colortype)
                         else:
                             print(f"🔄 DEBUG RESTORE: Task {tid} - Has active group but no selected colortype, using snapshot value: '{animation_color_schemes}'")
-                            from ..prop.animation import safe_set_animation_color_schemes
-                            safe_set_animation_color_schemes(t, animation_color_schemes)
+                            prop.safe_set_animation_color_schemes(t, animation_color_schemes)
                     
                     print(f"🔧 DEBUG RESTORE: Task {tid} - active={cfg.get('active')}, selected_colortype='{selected_active_colortype}'")
                 except Exception as e:
@@ -496,7 +226,7 @@ class AddTask(bpy.types.Operator, tool.Ifc.Operator):
             ws = tool.Sequence.get_active_work_schedule()
             if ws:
                 tool.Sequence.load_task_tree(ws)
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
         except Exception:
             pass
 
@@ -518,7 +248,7 @@ class AddSummaryTask(bpy.types.Operator, tool.Ifc.Operator):
             ws = tool.Sequence.get_active_work_schedule()
             if ws:
                 tool.Sequence.load_task_tree(ws)
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
         except Exception:
             pass
 
@@ -568,7 +298,7 @@ class RemoveTask(bpy.types.Operator, tool.Ifc.Operator):
             ws = tool.Sequence.get_active_work_schedule()
             if ws:
                 tool.Sequence.load_task_tree(ws)
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
         except Exception:
             pass
 
@@ -595,7 +325,9 @@ class DisableEditingTask(bpy.types.Operator):
         # USAR EL MISMO PATRÓN QUE LOS FILTROS (que funciona correctamente):
         snapshot_all_ui_state(context)  # >>> 1. Guardar estado ANTES de cancelar
         
-        # >>> 2. Ejecutar la operación de cancelar
+        # >>> 2. Ejecutar la operación de cancelar usando llamada directa
+        print("🔍 DEBUG: Llamando core.disable_editing_task con tool.Sequence")
+        # Necesitamos usar core porque disable_editing_task no está en nuestras clases
         core.disable_editing_task(tool.Sequence)
         
         return {"FINISHED"}
@@ -680,7 +412,7 @@ class CopyTask(bpy.types.Operator, tool.Ifc.Operator):
             ws = tool.Sequence.get_active_work_schedule()
             if ws:
                 tool.Sequence.load_task_tree(ws)
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
         except Exception:
             pass
 
@@ -694,9 +426,21 @@ class GoToTask(bpy.types.Operator):
     task: bpy.props.IntProperty()
 
     def execute(self, context):
-        r = core.go_to_task(tool.Sequence, task=tool.Ifc.get().by_id(self.task))
-        if isinstance(r, str):
-            self.report({"WARNING"}, r)
+        print(f"🚀 GoToTask operator executed with task ID: {self.task}")
+        try:
+            task_entity = tool.Ifc.get().by_id(self.task)
+            print(f"📋 Retrieved task entity: {task_entity} (Name: {getattr(task_entity, 'Name', 'N/A')})")
+            r = core.go_to_task(tool.Sequence, task=task_entity)
+            if isinstance(r, str):
+                print(f"⚠️ GoToTask returned warning: {r}")
+                self.report({"WARNING"}, r)
+            else:
+                print(f"✅ GoToTask completed successfully")
+        except Exception as e:
+            print(f"❌ Error in GoToTask operator: {e}")
+            import traceback
+            traceback.print_exc()
+            self.report({"ERROR"}, f"Error: {e}")
         return {"FINISHED"}
 
 
@@ -721,7 +465,7 @@ class ReorderTask(bpy.types.Operator, tool.Ifc.Operator):
             ws = tool.Sequence.get_active_work_schedule()
             if ws:
                 tool.Sequence.load_task_tree(ws)
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
         except Exception:
             pass
 

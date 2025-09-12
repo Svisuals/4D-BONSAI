@@ -20,38 +20,12 @@
 
 import bpy
 
-from . import ui, prop
+from . import ui, prop, hud
 from . import operators
 
 
 classes = (
     
-# Property groups from prop.py
-    prop.WorkPlan,
-    prop.BIMWorkPlanProperties,
-    prop.TaskcolortypeGroupChoice,
-    prop.Task,
-    prop.TaskResource,
-    prop.TaskProduct,
-    prop.IFCStatus,
-    prop.BIMStatusProperties,
-    # --- Filter Property Groups ---
-    prop.TaskFilterRule,
-    prop.BIMTaskFilterProperties,
-    prop.SavedFilterSet,
-
-    prop.BIMWorkScheduleProperties,
-    prop.BIMTaskTreeProperties,
-    prop.BIMTaskTypeColor,
-    prop.AnimationColorSchemes,
-    prop.AnimationColorTypeGroupItem,
-    prop.BIMAnimationProperties,
-    prop.WorkCalendar,
-    prop.RecurrenceComponent,
-    prop.BIMWorkCalendarProperties,
-    prop.DatePickerProperties,
-    prop.BIMDateTextProperties,
-
     # UI Panels & Lists from ui.py
     ui.BIM_PT_work_plans,
     ui.BIM_PT_work_schedules,
@@ -103,8 +77,12 @@ def menu_func_import(self, context):
 
 
 def register():
-    # Register operators from operators module
+    # 1. Registra todas las propiedades delegando en el paquete 'prop'
+    prop.register()
+    
+    # 2. Registra todos los operadores
     operators.register()
+
     
     # Register all classes for this module
     try:
@@ -162,18 +140,19 @@ try:
     if not isinstance(data, dict) or not data.get("DEFAULT"):
         color_map = {
             "CONSTRUCTION": {"start": [1,1,1,0], "active": [0,1,0,1], "end": [0.3,1,0.3,1]},
-            "INSTALLATION": {"start": [1,1,1,0], "active": [0,0.8,0.5,1], "end": [0.3,0.8,0.5,1]},
+            "INSTALLATION": {"start": [1,1,1,0], "active": [0,1,0,1], "end": [0.3,0.8,0.5,1]},
             "DEMOLITION": {"start": [1,1,1,1], "active": [1,0,0,1], "end": [0,0,0,0], "hide": True},
-            "REMOVAL": {"start": [1,1,1,1], "active": [1,0.3,0,1], "end": [0,0,0,0], "hide": True},
-            "DISPOSAL": {"start": [1,1,1,1], "active": [0.8,0,0.2,1], "end": [0,0,0,0], "hide": True},
-            "DISMANTLE": {"start": [1,1,1,1], "active": [1,0.5,0,1], "end": [0,0,0,0], "hide": True},
-            "OPERATION": {"start": [1,1,1,1], "active": [0,0.5,1,1], "end": [1,1,1,1]},
-            "MAINTENANCE": {"start": [1,1,1,1], "active": [0.3,0.6,1,1], "end": [1,1,1,1]},
-            "ATTENDANCE": {"start": [1,1,1,1], "active": [0.5,0.5,1,1], "end": [1,1,1,1]},
-            "RENOVATION": {"start": [1,1,1,1], "active": [0.5,0,1,1], "end": [0.9,0.9,0.9,1]},
+            "REMOVAL": {"start": [1,1,1,1], "active": [1,0,0,1], "end": [0,0,0,0], "hide": True},
+            "DISPOSAL": {"start": [1,1,1,1], "active": [1,0,0,1], "end": [0,0,0,0], "hide": True},
+            "DISMANTLE": {"start": [1,1,1,1], "active": [1,0,0,1], "end": [0,0,0,0], "hide": True},
+            "OPERATION": {"start": [1,1,1,1], "active": [0,0,1,1], "end": [1,1,1,1]},
+            "MAINTENANCE": {"start": [1,1,1,1], "active": [0,0,1,1], "end": [1,1,1,1]},
+            "ATTENDANCE": {"start": [1,1,1,1], "active": [0,0,1,1], "end": [1,1,1,1]},
+            "RENOVATION": {"start": [1,1,1,1], "active": [0,0,1,1], "end": [0.9,0.9,0.9,1]},
             "LOGISTIC": {"start": [1,1,1,1], "active": [1,1,0,1], "end": [1,0.8,0.3,1]},
-            "MOVE": {"start": [1,1,1,1], "active": [1,0.8,0,1], "end": [0.8,0.6,0,1]},
+            "MOVE": {"start": [1,1,1,1], "active": [1,1,0,1], "end": [0.8,0.6,0,1]},
             "NOTDEFINED": {"start": [0.7,0.7,0.7,1], "active": [0.5,0.5,0.5,1], "end": [0.3,0.3,0.3,1]},
+            "USERDEFINED": {"start": [0.7,0.7,0.7,1], "active": [0.5,0.5,0.5,1], "end": [0.3,0.3,0.3,1]},
         }
         default_colortypes = []
         for name, colors in color_map.items():
