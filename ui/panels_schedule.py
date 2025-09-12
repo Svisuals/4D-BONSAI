@@ -25,9 +25,9 @@ from typing import Any
 import bonsai.tool as tool
 import bonsai.bim.helper
 from bonsai.bim.helper import draw_attributes
-from ..data.sequence_data import SequenceData
-from ..data.schedule_data import WorkScheduleData
-from ..data.task_data import TaskICOMData
+from ..data import SequenceData
+from ..data import WorkScheduleData
+from ..data import TaskICOMData
 
 # Importamos la UIList de tasks desde nuestro nuevo módulo
 from .elements import BIM_UL_tasks
@@ -534,7 +534,7 @@ class BIM_PT_work_schedules(Panel):
 
         # Ensures that the active task has its DEFAULT group synchronized when drawn
         try:
-            from ..prop.animation import UnifiedColorTypeManager
+            from ..prop.color_manager_prop import UnifiedColorTypeManager
 
             tprops = tool.Sequence.get_task_tree_props()
             if tprops.tasks and self.props.active_task_index < len(tprops.tasks):

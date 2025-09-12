@@ -27,7 +27,7 @@ import bonsai.tool as tool
 
 # Importación segura para guardar/restaurar el estado de la UI
 try:
-    from ..operator import snapshot_all_ui_state, restore_all_ui_state
+    from ..operators.schedule_task_operators import snapshot_all_ui_state, snapshot_all_ui_state
 except ImportError:
     def snapshot_all_ui_state(context): pass
     def restore_all_ui_state(context): pass
@@ -623,7 +623,7 @@ class CopyConfigSequence(PropsSequence):
                             print(f"🔄 Copy3D SYNC: Task {task.ifc_definition_id} - '{current_animation_schemes}' -> '{selected_colortype}'")
                             
                             # Usar la función segura para asignar
-                            from bonsai.bim.module.sequence.prop.animation import safe_set_animation_color_schemes
+                            from ...prop.animation import safe_set_animation_color_schemes
                             safe_set_animation_color_schemes(task, selected_colortype)
                             tasks_synced += 1
                         elif selected_colortype:

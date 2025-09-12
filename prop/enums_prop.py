@@ -20,8 +20,7 @@
 
 
 import bonsai.tool as tool
-from ..data.sequence_data import SequenceData
-from ..data.animation_data import AnimationColorSchemeData
+from ..data import SequenceData, AnimationColorSchemeData
 from .color_manager_prop import UnifiedColorTypeManager
 
 
@@ -47,10 +46,9 @@ def get_operator_items(self, context):
         ] + common_ops
     elif data_type == 'date':
         return [
-            ('GREATER', "After Date", "The date is after the specified one"),
-            ('LESS', "Before Date", "The date is before the specified one"),
-            ('GTE', "On or After Date", "The date is on or after the specified one"),
-            ('LTE', "On or Before Date", "The date is on or before the specified one"),
+            ('AFTER', "After Date", "The date is after the specified one"),
+            ('BEFORE', "Before Date", "The date is before the specified one"),
+            ('ON', "On Date", "The date is exactly the specified one"),
         ] + common_ops
     elif data_type == 'boolean':
         return [

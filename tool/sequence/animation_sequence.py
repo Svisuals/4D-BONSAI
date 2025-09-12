@@ -581,8 +581,8 @@ class AnimationSequence(ColorTypeSequence, DatetimeHelpersSequence):
 
     
     
-    @staticmethod
-    def add_group_to_animation_stack():
+    @classmethod
+    def add_group_to_animation_stack(cls):
         """Add a new group to the animation group stack"""
         try:
             anim_props = cls.get_animation_props()
@@ -605,8 +605,8 @@ class AnimationSequence(ColorTypeSequence, DatetimeHelpersSequence):
             import traceback
             traceback.print_exc()
 
-    @staticmethod
-    def remove_group_from_animation_stack():
+    @classmethod
+    def remove_group_from_animation_stack(cls):
         """Remove the selected group from the animation group stack"""
         try:
             anim_props = cls.get_animation_props()
@@ -632,8 +632,8 @@ class AnimationSequence(ColorTypeSequence, DatetimeHelpersSequence):
             import traceback
             traceback.print_exc()
 
-    @staticmethod
-    def move_group_in_animation_stack(direction):
+    @classmethod
+    def move_group_in_animation_stack(cls, direction):
         """Move the selected group up or down in the animation group stack"""
         try:
             anim_props = cls.get_animation_props()

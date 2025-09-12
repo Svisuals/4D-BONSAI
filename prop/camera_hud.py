@@ -612,19 +612,29 @@ class BIMCameraOrbitProperties(PropertyGroup):
 
     # Animation and snapshot camera selection
     active_animation_camera: PointerProperty(
-        type=bpy.types.Object,
-        name="Animation Camera",
-        description="Camera used for 4D animation sequences",
-        poll=lambda self, obj: obj.type == 'CAMERA',
-        update=update_active_animation_camera,
-    )
+    type=bpy.types.Object,
+    name="Animation Camera",
+    description="Camera used for 4D animation sequences",
+    # SOLUCIÓN: Añadir lógica de filtrado específica para cámaras de animación
+    poll=lambda self, obj: obj.type == 'CAMERA' and (
+        obj.get('is_animation_camera') or
+        obj.get('camera_context') == 'animation' or
+        '4D_Animation_Camera' in obj.name
+    ),
+    update=update_active_animation_camera,
+)
     active_snapshot_camera: PointerProperty(
-        type=bpy.types.Object,
-        name="Snapshot Camera",
-        description="Camera used for schedule snapshots",
-        poll=lambda self, obj: obj.type == 'CAMERA',
-        update=update_active_snapshot_camera,
-    )
+    type=bpy.types.Object,
+    name="Snapshot Camera",
+    description="Camera used for schedule snapshots",
+    # SOLUCIÓN: Añadir lógica de filtrado específica para cámaras de snapshot
+    poll=lambda self, obj: obj.type == 'CAMERA' and (
+        obj.get('is_snapshot_camera') or
+        obj.get('camera_context') == 'snapshot' or
+        'Snapshot_Camera' in obj.name
+    ),
+    update=update_active_snapshot_camera,
+)
     
     # Legacy 4D camera property for backward compatibility
     active_4d_camera: PointerProperty(

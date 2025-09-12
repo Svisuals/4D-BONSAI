@@ -29,7 +29,7 @@ import bonsai.tool as tool
 
 # Importación segura de dependencias de UI y color
 try:
-    from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
+    from ...prop.color_manager_prop import UnifiedColorTypeManager
 except ImportError:
     class UnifiedColorTypeManager:
         @staticmethod
@@ -137,122 +137,6 @@ class ObjectAnimationSequence(ColorTypeSequence):
         bpy.context.scene.frame_start = settings["start_frame"]
         bpy.context.scene.frame_end = int(settings["start_frame"] + settings["total_frames"] + 1)
 
-
-    @classmethod
-    def apply_ColorType_animation(cls, obj, frame_data, ColorType, original_color, settings):
-        """Aplica la animación a un objeto basándose en su perfil de apariencia,con una lógica corregida y robusta para todos los estados."""
-        # Limpiar cualquier animación previa en este objeto para empezar de cero.
-        if obj.animation_data:
-            obj.animation_data_clear()
-
-        # --- LÓGICA DE ESTADO "START" (ANTES DE QUE LA TAREA EMPIECE) ---
-        start_state_frames = frame_data["states"]["before_start"]
-        start_f, end_f = start_state_frames
-
-        # Determinar si el objeto debe estar oculto o visible en la fase inicial.
-        is_construction = frame_data.get("relationship") == "output"
-        should_be_hidden_at_start = is_construction and not getattr(ColorType, 'consider_start', False)
-
-        
-        # El objeto ya está oculto desde animate_objects_with_ColorTypes.
-        # Solo preparar los valores para los keyframes.
-        
-        start_visibility = not should_be_hidden_at_start
-        
-        # Preparar color para keyframes (solo si será visible)
-        if not should_be_hidden_at_start:
-            use_original = getattr(ColorType, 'use_start_original_color', False)
-            color = original_color if use_original else list(ColorType.start_color)
-            alpha = 1.0 - getattr(ColorType, 'start_transparency', 0.0)
-            start_color = (color[0], color[1], color[2], alpha)
-
-        # Insertar keyframes para el estado inicial completo.
-        if end_f >= start_f:
-            # Establecer visibilidad para keyframes sin cambiar el estado actual
-            current_hide_state = obj.hide_viewport
-            obj.hide_viewport = not start_visibility
-            obj.hide_render = not start_visibility
-            obj.keyframe_insert(data_path="hide_viewport", frame=start_f)
-            obj.keyframe_insert(data_path="hide_render", frame=start_f)
-            
-            if not should_be_hidden_at_start:
-                obj.color = start_color
-                obj.keyframe_insert(data_path="color", frame=start_f)
-
-            # Keyframe al final de la fase para mantener el estado.
-            obj.keyframe_insert(data_path="hide_viewport", frame=end_f)
-            obj.keyframe_insert(data_path="hide_render", frame=end_f)
-            if not should_be_hidden_at_start:
-                obj.keyframe_insert(data_path="color", frame=end_f)
-                
-            # CRÍTICO: Restaurar el estado oculto para que no sea visible antes de la animación
-            obj.hide_viewport = True
-            obj.hide_render = True
-
-        # --- LÓGICA DE ESTADO "ACTIVE" (DURANTE LA TAREA) ---
-        active_state_frames = frame_data["states"]["active"]
-        start_f, end_f = active_state_frames
-
-        if end_f >= start_f and getattr(ColorType, 'consider_active', True):
-            
-            # Aplicar color y transparencia del estado "active".
-            use_original = getattr(ColorType, 'use_active_original_color', False)
-            color = original_color if use_original else list(ColorType.in_progress_color)
-
-            # Interpolar transparencia
-            alpha_start = 1.0 - getattr(ColorType, 'active_start_transparency', 0.0)
-            alpha_end = 1.0 - getattr(ColorType, 'active_finish_transparency', 0.0)
-
-            # Establecer keyframes de visibilidad (visible durante fase activa)
-            obj.hide_viewport = False
-            obj.hide_render = False
-            obj.keyframe_insert(data_path="hide_viewport", frame=start_f)
-            obj.keyframe_insert(data_path="hide_render", frame=start_f)
-
-            # Keyframe inicial del estado activo
-            obj.color = (color[0], color[1], color[2], alpha_start)
-            obj.keyframe_insert(data_path="color", frame=start_f)
-
-            # Keyframe final del estado activo (si hay duración)
-            if end_f > start_f:
-                obj.color = (color[0], color[1], color[2], alpha_end)
-                obj.keyframe_insert(data_path="color", frame=end_f)
-                
-            # CRÍTICO: Restaurar el estado oculto para que no sea visible antes de la animación
-            obj.hide_viewport = True
-            obj.hide_render = True
-
-        # --- LÓGICA DE ESTADO "END" (DESPUÉS DE QUE LA TAREA TERMINA) ---
-        end_state_frames = frame_data["states"]["after_end"]
-        start_f, end_f = end_state_frames
-
-        if end_f >= start_f and getattr(ColorType, 'consider_end', True):
-            # Determinar si el objeto debe ocultarse al final.
-            should_hide_at_end = getattr(ColorType, 'hide_at_end', False)
-
-            
-            end_visibility = not should_hide_at_end
-            
-            # Preparar color para keyframes (solo si será visible)
-            if not should_hide_at_end:
-                use_original = getattr(ColorType, 'use_end_original_color', True)
-                color = original_color if use_original else list(ColorType.end_color)
-                alpha = 1.0 - getattr(ColorType, 'end_transparency', 0.0)
-                end_color = (color[0], color[1], color[2], alpha)
-
-            # Establecer keyframes de visibilidad
-            obj.hide_viewport = not end_visibility
-            obj.hide_render = not end_visibility
-            obj.keyframe_insert(data_path="hide_viewport", frame=start_f)
-            obj.keyframe_insert(data_path="hide_render", frame=start_f)
-            
-            if not should_hide_at_end:
-                obj.color = end_color
-                obj.keyframe_insert(data_path="color", frame=start_f)
-                
-            # CRÍTICO: Restaurar el estado oculto para que no sea visible antes de la animación
-            obj.hide_viewport = True
-            obj.hide_render = True
 
     @classmethod
     def apply_ColorType_animation(cls, obj, frame_data, ColorType, original_color, settings):

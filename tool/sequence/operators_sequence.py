@@ -24,14 +24,14 @@ import bonsai.tool as tool
 
 # Importación segura para llenar los menús desplegables de la UI
 try:
-    from bonsai.bim.module.sequence.prop.animation import get_user_created_groups_enum
+    from ...prop.animation import get_user_created_groups_enum
 except ImportError:
     def get_user_created_groups_enum(self, context):
         return [("NONE", "None", "")]
 
 # Importación segura para UnifiedColorTypeManager
 try:
-    from bonsai.bim.module.sequence.prop.animation import UnifiedColorTypeManager
+    from ...prop.color_manager_prop import UnifiedColorTypeManager
 except ImportError:
     class UnifiedColorTypeManager:
         @staticmethod

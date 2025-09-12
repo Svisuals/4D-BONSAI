@@ -31,9 +31,9 @@ except ImportError:
     from ..helper import draw_attributes
     import sys
     sys.modules['bonsai.bim.helper'] = bonsai_bim_helper
-from ..data.schedule_data import WorkScheduleData
-from ..data.sequence_data import SequenceData
-from ..data.task_data import TaskICOMData
+from ..data import WorkScheduleData
+from ..data import SequenceData
+from ..data import TaskICOMData
 from .lists_ui import BIM_UL_tasks # Importante para usar el header
 
 
