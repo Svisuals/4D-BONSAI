@@ -228,8 +228,13 @@ class TimelineHUD:
                     if year == current_year:
                         # For the first year, use the timeline start date
                         year_effective_start = start_date
+
+                        # Normalizar también el primer año para una alineación perfecta.
+                        from datetime import time
+                        year_effective_start = datetime.combine(start_date.date(), time.min)
+                       
                     else:
-                        # For subsequent years, use January 1
+                                            # For subsequent years, use January 1
                         year_effective_start = datetime(year, 1, 1)
                     
                     # Only process if the year appears in the timeline
@@ -307,7 +312,13 @@ class TimelineHUD:
                 # ====== DIBUJAR DÍAS ======
                 # Solo mostrar días si el zoom es muy detallado (e.g., <= 2 semanas)
                 if zoom_level == 'DETAILED':
-                    current_day_date = start_date
+                   
+                    # Normalizar la fecha de inicio a medianoche para alinear las marcas de día.
+                    from datetime import time
+                    normalized_start_date = datetime.combine(start_date.date(), time.min)
+                    current_day_date = normalized_start_date
+                  
+
                     day_counter = 0
                     # Extend the loop by one day to ensure the final marker is drawn
                     loop_end_day = end_date + timedelta(days=1)
@@ -348,7 +359,7 @@ class TimelineHUD:
                         day_counter += 1
 
                 # ====== DRAW WEEKS (always visible with adaptive logic) ======
-                # CORRECTED: Show weeks at all zoom levels but with different frequencies
+                # Show weeks at all zoom levels but with different frequencies
                 duration_days = (end_date - start_date).days
                 if duration_days <= 365:  # <= 1 año: mostrar todas las semanas
                     week_interval = 1
@@ -383,9 +394,14 @@ class TimelineHUD:
                     print(f"🔄 Usando rango seleccionado como referencia: {actual_start.strftime('%Y-%m-%d')}")
                 
                 # Empezar desde la fecha de START configurada (no desde lunes ISO)
-                week_start_date = actual_start
+                # Normalizar la fecha de inicio a medianoche para que los marcadores de semana
+                # se alineen con el comienzo del día, eliminando desfases por la hora.
+                from datetime import time
+                normalized_start_date = datetime.combine(actual_start.date(), time.min)
+                week_start_date = normalized_start_date
+               
                 week_counter = 0
-                
+
                 print(f"🔄 Timeline weeks aligned from START date: {week_start_date.strftime('%Y-%m-%d')}")
                 
                 # Draw vertical lines every 7 days from the START date
