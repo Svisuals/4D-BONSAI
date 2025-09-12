@@ -138,6 +138,7 @@ class BIM_PT_work_schedules(Panel):
                 row1.label(text="Schedule tools")
                 row1 = col.row(align=True)
                 row1.alignment = "RIGHT"
+                row1.operator("bim.enable_status_filters", text="Status", icon='INFO')
                 row1.operator("bim.generate_gantt_chart", text="Generate Gantt", icon="NLA").work_schedule = (
                     work_schedule_id
                 )
