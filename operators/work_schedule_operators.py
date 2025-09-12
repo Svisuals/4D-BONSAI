@@ -878,6 +878,13 @@ class SortWorkScheduleByIdAsc(bpy.types.Operator, tool.Ifc.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def _execute(self, context):
+        # SIMPLE SOLUTION - Save/restore ColorTypes
+        try:
+            from .simple_colortype_persistence import save_colortypes_simple, restore_colortypes_simple
+            save_colortypes_simple()
+        except:
+            pass
+        
         props = tool.Sequence.get_work_schedule_props()
         # Set sort column to Identification and ascending
         props.sort_column = "IfcTask.Identification"
@@ -887,6 +894,13 @@ class SortWorkScheduleByIdAsc(bpy.types.Operator, tool.Ifc.Operator):
             core.load_task_tree(tool.Ifc, tool.Sequence)
         except Exception:
             pass
+            
+        # Restore ColorTypes
+        try:
+            restore_colortypes_simple()
+        except:
+            pass
+            
         return {"FINISHED"}
 
 

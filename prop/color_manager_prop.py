@@ -195,6 +195,10 @@ class UnifiedColorTypeManager:
         """
         if not task_pg: return
         
+        # Check if we're in a context that allows property modifications
+        if not UnifiedColorTypeManager._can_modify_properties():
+            return
+        
         # 1. Get the current PredefinedType of the task from the cached data.
         try:
             from ..data import SequenceData
@@ -253,6 +257,26 @@ class UnifiedColorTypeManager:
             return sorted([g for g in all_groups if g != "DEFAULT"])
         except Exception:
             return []
+    
+    @staticmethod
+    def _can_modify_properties():
+        """Check if we're in a context that allows property modifications"""
+        try:
+            # Test if we can write to Scene properties (a safe way to check context)
+            import bpy
+            current_scene = bpy.context.scene
+            if current_scene is None:
+                return False
+            # Try to set a dummy property to test if ID class writing is allowed
+            test_val = getattr(current_scene, 'frame_current', 1)
+            current_scene.frame_current = test_val
+            return True
+        except RuntimeError as e:
+            if "Writing to ID classes in this context is not allowed" in str(e):
+                return False
+            return True
+        except:
+            return False
             
     # Methods from the original implementation that are still needed and relevant
     @staticmethod
@@ -381,6 +405,10 @@ class UnifiedColorTypeManager:
     @staticmethod
     def sync_task_colortypes(context, task, group_name: str):
         """Synchronizes task colortypes with the active group - eliminates duplication"""
+        # Check if we're in a context that allows property modifications
+        if not UnifiedColorTypeManager._can_modify_properties():
+            return None
+            
         valid_colortypes = UnifiedColorTypeManager.get_group_colortypes(context, group_name)
     
         if hasattr(task, 'colortype_group_choices'):

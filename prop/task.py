@@ -316,10 +316,13 @@ def update_selected_colortype_in_active_group(self: "Task", context):
         valid_items = get_custom_group_colortype_items(self, context)
         valid_values = [item[0] for item in valid_items]
         
-        # Check for invalid values
+        # Check for invalid values - silently ignore numeric or invalid values
         if current_value and (current_value.isdigit() or current_value not in valid_values):
-            print(f"🚫 Invalid colortype value '{current_value}' detected, correcting...")
-            # Don't assign anything - let the enum system handle it
+            # Silently reset to empty value to prevent enum errors
+            try:
+                self.selected_colortype_in_active_group = ""
+            except RuntimeError:
+                pass  # Context doesn't allow property modification
             return
         
         # Get animation properties to determine active group

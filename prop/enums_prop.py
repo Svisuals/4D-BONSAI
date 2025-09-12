@@ -133,6 +133,8 @@ def get_custom_group_colortype_items(self, context):
             
             # Always include an empty option first to prevent enum errors
             items.append(("", "<none>", "No colortype selected", 0))
+            # Also include '0' as a fallback to prevent enum errors when '0' is stored
+            items.append(("0", "<fallback 0>", "Fallback option for '0' values", -1))
             
             for i, name in enumerate(sorted(colortype_names)):
                 items.append((name, name, f"colortype from {selected_group}", i + 1))
@@ -146,27 +148,36 @@ def get_custom_group_colortype_items(self, context):
     except Exception as e:
         print(f"Error getting custom group colortypes: {e}")
         items.append(("", "<error loading colortypes>", "", 0))
+        items.append(("0", "<fallback 0>", "Fallback option for '0' values", -1))
 
     if not items:
         anim_props = tool.Sequence.get_animation_props()
         selected_group = getattr(anim_props, "task_colortype_group_selector", "")
         if not selected_group:
             items.append(("", "<select custom group first>", "", 0))
+            items.append(("0", "<fallback 0>", "Fallback option for '0' values", -1))
         elif selected_group == "DEFAULT":
             items.append(("", "<DEFAULT not allowed here>", "", 0))
+            items.append(("0", "<fallback 0>", "Fallback option for '0' values", -1))
         else:
             items.append(("", f"<no colortypes in {selected_group}>", "", 0))
+            items.append(("0", "<fallback 0>", "Fallback option for '0' values", -1))
     
     # Ensure that the null option is always present if there are no other items
     if not items:
         items.append(("", "<none>", "No colortypes available", 0))
+        items.append(("0", "<fallback 0>", "Fallback option for '0' values", -1))
     # --- END OF CORRECTION ---
     
     
-    # CRITICAL: Ensure empty option is ALWAYS first and present
+    # CRITICAL: Ensure empty option and '0' fallback are ALWAYS present
     if not any(item[0] == "" for item in items):
         print("🚨 CRITICAL: No empty option found, forcing one")
         items.insert(0, ("", "<none>", "No colortype selected", 0))
+    
+    if not any(item[0] == "0" for item in items):
+        print("🚨 CRITICAL: No '0' fallback found, adding one")
+        items.append(("0", "<fallback 0>", "Fallback option for '0' values", -1))
     
     # Ensure the empty option is always first
     empty_item = None

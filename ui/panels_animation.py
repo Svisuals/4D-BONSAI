@@ -120,10 +120,17 @@ class BIM_PT_animation_color_schemes(Panel):
             header.label(text="Start Appearance", icon='PLAY')
             col = start_box.column()
             col.enabled = bool(getattr(p, "consider_start", True))
+            
+            # Ajuste para Start Color
             row = col.row(align=True)
-            row.prop(p, "use_start_original_color")
+            row.prop(p, "use_start_original_color") # Checkbox para usar color original
+            
             if not p.use_start_original_color:
-                col.prop(p, "start_color")
+                # Ahora sí, el color en la misma fila con la etiqueta
+                color_row = col.row(align=True)
+                color_row.label(text="Start Color:")
+                color_row.prop(p, "start_color", text="") # El selector de color sin su propia etiqueta
+
             col.prop(p, "start_transparency")
 
             # --- Active / In Progress Appearance ---
@@ -132,25 +139,33 @@ class BIM_PT_animation_color_schemes(Panel):
             header.label(text="Active Appearance", icon='SEQUENCE')
             col = active_box.column()
             col.enabled = bool(getattr(p, "consider_active", True))
+            
+            # Ajuste para In Progress Color
             row = col.row(align=True)
-            row.prop(p, "use_active_original_color")
+            row.prop(p, "use_active_original_color") # Checkbox para usar color original
+            
             if not p.use_active_original_color:
+                # El color en la misma fila con la etiqueta
+                color_row = col.row(align=True)
+                # Tu código original tenía 'in_progress_color' o 'active_color', lo mantengo
                 if hasattr(p, "in_progress_color"):
-                    col.prop(p, "in_progress_color")
+                    color_row.label(text="In Progress Color:")
+                    color_row.prop(p, "in_progress_color", text="")
                 elif hasattr(p, "active_color"):
-                    col.prop(p, "active_color")
+                    color_row.label(text="Active Color:")
+                    color_row.prop(p, "active_color", text="")
+            
             col.prop(p, "active_start_transparency")
             col.prop(p, "active_finish_transparency")
             col.prop(p, "active_transparency_interpol")
 
-            # --- End Appearance ---
+           # --- End Appearance ---
             end_box = layout.box()
             header = end_box.row(align=True)
             header.label(text="End Appearance", icon='FF')
             col = end_box.column()
             col.enabled = bool(getattr(p, "consider_end", True))
-
-            # <-- START OF MODIFICATION -->
+            
             # Add the new switch to hide at the end
             col.prop(p, "hide_at_end")
 

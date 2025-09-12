@@ -29,13 +29,13 @@ except Exception:
         prop = PropFallback()
 
 # =============================================================================
-# ▼▼▼ SISTEMA DE SNAPSHOT/RESTORE COMPLETO (BASADO EN V125 FUNCIONAL) ▼▼▼
+# ▼▼▼ REMOVED COMPLEX SYSTEM - Using SIMPLE solution instead ▼▼▼
 # =============================================================================
 
-# Variable global para cache de estado de tareas (usada por filtros)
-_persistent_task_state = {}
+# SIMPLE SOLUTION - removed all complex snapshot/restore system
+# Now using simple_colortype_persistence.py instead
 
-def snapshot_all_ui_state(context):
+def snapshot_all_ui_state_DISABLED(context):
     """
     Captura el estado completo de TODAS las tareas del cronograma activo.
     Basado en la v125 que funcionaba perfectamente.
@@ -265,7 +265,7 @@ def deferred_restore_task_state():
             
     return None # Finaliza el temporizador
 
-def restore_all_ui_state(context):
+def restore_all_ui_state_DISABLED(context):
     """
     Restaura el estado completo de la UI desde snapshot + caché persistente.
     Basado en la v125 que funcionaba perfectamente.
@@ -519,33 +519,30 @@ class SelectStatusFilter(bpy.types.Operator):
 class ApplyTaskFilters(bpy.types.Operator):
     bl_idname = "bim.apply_task_filters"; bl_label = "Apply Task Filters"; bl_options = {"REGISTER", "UNDO"}
     def execute(self, context):
-        # SISTEMA V125 FUNCIONAL: Snapshot → Recarga → Restore
-        try:
-            snapshot_all_ui_state(context)
-        except Exception as e:
-            print(f"Bonsai WARNING: snapshot_all_ui_state falló: {e}")
+        # SIMPLE SOLUTION - Like v60 but SIMPLE
+        from .simple_colortype_persistence import save_colortypes_simple, restore_colortypes_simple
         
-        # Recarga destructiva de tareas
+        # 1. Save ColorTypes SIMPLE
+        save_colortypes_simple()
+        
+        # 2. Reload tasks (this destroys ColorTypes)
         try:
             ws = tool.Sequence.get_active_work_schedule()
             if ws: 
                 tool.Sequence.load_task_tree(ws)
                 tool.Sequence.load_task_properties(task=None)
         except Exception as e: 
-            print(f"Bonsai WARNING: Task tree reload failed: {e}")
+            print(f"Task tree reload failed: {e}")
         
-        # Restaurar estado completo
-        try:
-            restore_all_ui_state(context)
-        except Exception as e:
-            print(f"Bonsai WARNING: restore_all_ui_state falló: {e}")
+        # 3. Restore ColorTypes SIMPLE  
+        restore_colortypes_simple()
         
-        # Lógica de colores de varianza
+        # 4. Variance colors (keep this)
         try:
             if not tool.Sequence.has_variance_calculation_in_tasks(): 
                 tool.Sequence.clear_variance_colors_only()
         except Exception as e: 
-            print(f"⚠️ Error in variance color check: {e}")
+            print(f"Variance color check error: {e}")
         
         return {'FINISHED'}
 

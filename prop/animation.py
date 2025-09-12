@@ -81,8 +81,8 @@ def get_custom_group_colortype_items(self, context):
             for colortype in colortypes_list:
                 if isinstance(colortype, dict) and "name" in colortype:
                     # Ensure we only add valid non-numeric string names
-                    name = str(colortype["name"])
-                    if name and not name.isdigit():
+                    name = str(colortype["name"]).strip()
+                    if name and not name.isdigit() and name != "0" and len(name) > 0:
                         colortype_names.append(name)
             
             # Always include an empty option first to prevent enum errors
