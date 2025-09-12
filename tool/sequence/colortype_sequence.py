@@ -264,6 +264,8 @@ class ColorTypeSequence(PropsSequence):
                     'active_transparency_interpol': prof_data.get("active_transparency_interpol", 1.0),
                     'end_transparency': prof_data.get("end_transparency", 0.0),
                     'hide_at_end': bool(prof_data.get("hide_at_end", prof_data.get("name") in {"DEMOLITION","REMOVAL","DISPOSAL","DISMANTLE"})),
+                    'active_to_end_transition': prof_data.get("active_to_end_transition", 0.0),
+                    'start_to_active_transition': prof_data.get("start_to_active_transition", 0.0),
                 })()
         return None
 
@@ -310,6 +312,8 @@ class ColorTypeSequence(PropsSequence):
                     "active_transparency_interpol": float(getattr(ColorType, "active_transparency_interpol", 1.0)),
                     "end_transparency": float(getattr(ColorType, "end_transparency", 0.0)),
                     "hide_at_end": bool(getattr(ColorType, "hide_at_end", getattr(ColorType, "name", "") in {"DEMOLITION","REMOVAL","DISPOSAL","DISMANTLE"})),
+                    "active_to_end_transition": float(getattr(ColorType, "active_to_end_transition", 0.0)),
+                    "start_to_active_transition": float(getattr(ColorType, "start_to_active_transition", 0.0)),
                 })
             except Exception:
                 pass
@@ -360,64 +364,93 @@ class ColorTypeSequence(PropsSequence):
 
     @classmethod
     def _apply_ColorType_to_object(cls, obj, frame_data, ColorType, original_color, settings):
-            for state_name, (start_f, end_f) in frame_data["states"].items():
-                if end_f < start_f:
-                    continue
-                if state_name == "before_start":
-                    state = "start"
-                elif state_name == "active":
-                    state = "in_progress"
-                elif state_name == "after_end":
-                    state = "end"
-                else:
-                    continue
-                if state == "start" and not getattr(ColorType, 'consider_start', True):
+        # Leemos los factores de transición desde el perfil de color
+        start_transition_factor = getattr(ColorType, 'start_to_active_transition', 0.0)
+        end_transition_factor = getattr(ColorType, 'active_to_end_transition', 0.0)
+
+        # Primero, manejamos los estados que están fuera de la fase "active"
+        # ESTADO ANTES DE EMPEZAR (START)
+        if 'before_start' in frame_data["states"]:
+            start_f, end_f = frame_data["states"]["before_start"]
+            if end_f >= start_f:
+                if not getattr(ColorType, 'consider_start', True):
                     if frame_data.get("relationship") == "output":
                         obj.hide_viewport = True
                         obj.hide_render = True
                         obj.keyframe_insert(data_path="hide_viewport", frame=start_f)
                         obj.keyframe_insert(data_path="hide_render", frame=start_f)
-                    return
-                elif state == "in_progress" and not getattr(ColorType, 'consider_active', True):
-                    return
-                elif state == "end" and not getattr(ColorType, 'consider_end', True):
-                    return
-                cls.apply_state_appearance(obj, ColorType, state, start_f, end_f, original_color, frame_data)
-                # Transparency: fade during active stretch
-                try:
-                    if state == 'in_progress':
-                        vals0 = _seq_data.interpolate_ColorType_values(ColorType, 'in_progress', 0.0)
-                        vals1 = _seq_data.interpolate_ColorType_values(ColorType, 'in_progress', 1.0)
-                        a0 = float(vals0.get('alpha', obj.color[3] if len(obj.color) >= 4 else 1.0))
-                        a1 = float(vals1.get('alpha', a0))
-                        # Keyframes at the beginning and end of the active stretch
-                        c = list(obj.color)
-                        if len(c) < 4:
-                            c = [c[0], c[1], c[2], 1.0]
-                        c[3] = a0
-                        obj.color = c
-                        obj.keyframe_insert(data_path='color', frame=int(start_f))
-                        c[3] = a1
-                        obj.color = c
-                        obj.keyframe_insert(data_path='color', frame=int(end_f))
-                except Exception:
-                    pass
+                else:
+                    cls.apply_state_appearance(obj, ColorType, "start", start_f, end_f, original_color, frame_data)
 
+        # ESTADO DESPUÉS DE TERMINAR (END)
+        if 'after_end' in frame_data["states"]:
+            start_f, end_f = frame_data["states"]["after_end"]
+            if end_f >= start_f:
+                if getattr(ColorType, 'consider_end', True):
+                     # Si no hay transición final, aplicamos el estado final de forma normal
+                    if end_transition_factor == 0.0:
+                        cls.apply_state_appearance(obj, ColorType, "end", start_f, end_f, original_color, frame_data)
+                # La lógica de ocultar al final se respeta aquí
 
+        # --- LÓGICA DE TRANSICIÓN MEJORADA PARA EL ESTADO ACTIVO ---
+        if 'active' in frame_data["states"]:
+            start_f, end_f = frame_data["states"]["active"]
+            if end_f < start_f:
+                return # Salimos si la duración no es válida
 
+            duration = end_f - start_f
+            has_start_transition = start_transition_factor > 0 and getattr(ColorType, 'consider_start', True)
+            has_end_transition = end_transition_factor > 0 and getattr(ColorType, 'consider_end', True)
 
+            # Si no hay transiciones para esta tarea, usamos la lógica original
+            if not has_start_transition and not has_end_transition:
+                if getattr(ColorType, 'consider_active', True):
+                    cls.apply_state_appearance(obj, ColorType, "in_progress", start_f, end_f, original_color, frame_data)
+                return
 
+            # --- Si hay transiciones, tomamos el control total ---
+            if duration <= 1: # No transicionar si es demasiado corto
+                cls.apply_state_appearance(obj, ColorType, "in_progress", start_f, end_f, original_color, frame_data)
+                return
 
+            # Obtenemos los colores RGBA completos
+            start_rgba = list(getattr(ColorType, 'start_color', [1,1,1,1]))
+            active_rgba = list(getattr(ColorType, 'in_progress_color', [1,1,0,1]))
+            end_rgba = list(getattr(ColorType, 'end_color', [0,1,0,1]))
 
+            # 1. Transición de Inicio (Start -> Active)
+            transition_start_end_f = start_f
+            if has_start_transition:
+                transition_start_end_f = int(start_f + (duration * start_transition_factor))
+                # Aseguramos que no se pase del final
+                transition_start_end_f = min(end_f - 1, transition_start_end_f)
+                
+                # Fotograma clave al inicio de la tarea (color START)
+                obj.color = start_rgba
+                obj.keyframe_insert(data_path='color', frame=int(start_f))
+                
+                # Fotograma clave al final de la transición de inicio (color ACTIVE)
+                obj.color = active_rgba
+                obj.keyframe_insert(data_path='color', frame=int(transition_start_end_f))
 
+            # 2. Transición de Fin (Active -> End)
+            transition_end_start_f = end_f
+            if has_end_transition:
+                transition_end_start_f = int(end_f - (duration * end_transition_factor))
+                # Aseguramos que no empiece antes que la transición de inicio
+                transition_end_start_f = max(transition_start_end_f + 1, transition_end_start_f)
 
+                # Fotograma clave antes de que empiece la transición final (color ACTIVE)
+                obj.color = active_rgba
+                obj.keyframe_insert(data_path='color', frame=int(transition_end_start_f))
 
-
-
-
-
-
-
-
+                # Fotograma clave al final de la tarea (color END)
+                obj.color = end_rgba
+                obj.keyframe_insert(data_path='color', frame=int(end_f))
+            
+            # 3. Aseguramos el color ACTIVE si no hubo transición de inicio
+            if not has_start_transition:
+                obj.color = active_rgba
+                obj.keyframe_insert(data_path='color', frame=int(start_f))
 
 
