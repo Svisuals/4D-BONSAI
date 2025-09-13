@@ -4,7 +4,7 @@
 import bpy
 import bonsai.tool as tool
 import ifcopenshell.util.sequence
-from .. import hud_overlay
+from .. import hud as hud_overlay
 from datetime import datetime, timedelta
 from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
 
@@ -41,7 +41,15 @@ class CreateAnimation(bpy.types.Operator, tool.Ifc.Operator):
         # Levanta la bandera para indicar que la animación ya existe y es válida.
         anim_props.is_animation_created = True
         print("✅ Animation flag SET to TRUE.")
-        # --- FIN DE LA MODIFICACIÓN ---
+        
+        try:
+            camera_props = tool.Sequence.get_animation_props().camera_orbit
+            if camera_props.enable_3d_legend_hud:
+                print("✅ 3D Legend HUD is enabled, ensuring it is created...")
+                bpy.ops.bim.setup_3d_legend_hud()
+        except Exception as e:
+            print(f"⚠️ Could not auto-create 3D Legend HUD during animation creation: {e}")
+
 
         return {'FINISHED'}
 
@@ -525,7 +533,7 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
                         camera_props.legend_hud_selected_colortypes = set()
                     
                     # Invalidar caché del legend HUD
-                    from bonsai.bim.module.sequence.hud_overlay import invalidate_legend_hud_cache
+                    from ..hud import invalidate_legend_hud_cache
                     invalidate_legend_hud_cache()
                     print("🧹 Active colortype group cleared from HUD Legend")
             except Exception as legend_e:

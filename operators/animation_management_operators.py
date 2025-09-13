@@ -67,7 +67,7 @@ class ClearPreviousAnimation(bpy.types.Operator, tool.Ifc.Operator):
                         camera_props.legend_hud_selected_colortypes = set()
                     
                     # Invalidar caché del legend HUD
-                    from bonsai.bim.module.sequence.hud_overlay import invalidate_legend_hud_cache
+                    from ..hud import invalidate_legend_hud_cache
                     invalidate_legend_hud_cache()
                     print("🧹 Active colortype group cleared from HUD Legend")
             except Exception as legend_e:
@@ -140,7 +140,7 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
                         camera_props.legend_hud_selected_colortypes = set()
                     
                     # Invalidar caché del legend HUD
-                    from bonsai.bim.module.sequence.hud_overlay import invalidate_legend_hud_cache
+                    from ..hud import invalidate_legend_hud_cache
                     invalidate_legend_hud_cache()
                     print("🧹 Active colortype group cleared from HUD Legend")
             except Exception as legend_e:
