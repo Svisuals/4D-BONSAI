@@ -80,18 +80,6 @@ class ScheduleHUD:
     def invalidate_legend_cache(self):
         """Invalidates the legend data cache to force an update"""
         self.legend_hud.invalidate_legend_cache()
-    
-    def get_camera_props(self):
-        """Helper to get camera properties"""
-        try:
-            import bonsai.tool as tool
-            animation_props = tool.Sequence.get_animation_props()
-            if hasattr(animation_props, 'camera_orbit') and animation_props.camera_orbit:
-                return animation_props.camera_orbit
-            return None
-        except Exception as e:
-            print(f"❌ Error getting camera props: {e}")
-            return None
 
     def get_schedule_data(self):
         """Extracts data from the current schedule"""
@@ -108,13 +96,9 @@ class ScheduleHUD:
             # Get settings and data - this is shared across all components
             text_settings, timeline_settings, legend_settings = self.get_hud_settings()
             
-            # DEBUG: Show HUD states
-            print(f"🎯 HUD DRAW DEBUG: text_enabled={text_settings.get('enabled', False)}, timeline_enabled={timeline_settings.get('enabled', False)}, legend_enabled={legend_settings.get('enabled', False)}")
-            
             if not any([text_settings.get('enabled', False), 
                        timeline_settings.get('enabled', False),
                        legend_settings.get('enabled', False)]):
-                print("❌ All HUD components disabled, exiting")
                 return
 
             data = self._get_schedule_data()
@@ -132,16 +116,109 @@ class ScheduleHUD:
                 self.timeline_hud.draw(data, timeline_settings, viewport_width, viewport_height)
             
             if legend_settings.get('enabled', False):
-                print(f"🎨 LEGEND HUD: Drawing with {len(self.legend_hud.get_active_colortype_legend_data())} legend items")
                 self.legend_hud.draw(data, legend_settings, viewport_width, viewport_height)
-            else:
-                print(f"🙈 LEGEND HUD: Disabled - enable_legend_hud={getattr(self.get_camera_props(), 'enable_legend_hud', 'NOT_FOUND')}")
 
         except Exception as e:
             print(f"Bonsai HUD draw error: {e}")
             import traceback
             traceback.print_exc()
 
+    def _get_hud_settings(self):
+        """Get HUD settings - shared method for all components"""
+        try:
+            import bonsai.tool as tool
+            anim_props = tool.Sequence.get_animation_props()
+            camera_props = anim_props.camera_orbit
+
+            # TEXT HUD SETTINGS
+            text_settings = {
+                'enabled': getattr(camera_props, 'enable_text_hud', False),
+                'position': getattr(camera_props, 'hud_position', 'TOP_RIGHT'),
+                'margin_h': getattr(camera_props, 'hud_margin_horizontal', 0.05),
+                'margin_v': getattr(camera_props, 'hud_margin_vertical', 0.05),
+                'spacing': getattr(camera_props, 'hud_text_spacing', 0.08),
+                'scale': getattr(camera_props, 'hud_scale_factor', 1.0),
+                'text_color': getattr(camera_props, 'hud_text_color', (1.0, 1.0, 1.0, 1.0)),
+                'background_color': getattr(camera_props, 'hud_background_color', (0.0, 0.0, 0.0, 0.8)),
+                'padding_h': getattr(camera_props, 'hud_padding_horizontal', 10.0),
+                'padding_v': getattr(camera_props, 'hud_padding_vertical', 8.0),
+                'text_shadow_enabled': getattr(camera_props, 'hud_text_shadow_enabled', True),
+                'text_shadow_offset': (
+                    getattr(camera_props, 'hud_text_shadow_offset_x', 1.0),
+                    getattr(camera_props, 'hud_text_shadow_offset_y', -1.0)
+                ),
+                'text_shadow_color': getattr(camera_props, 'hud_text_shadow_color', (0.0, 0.0, 0.0, 0.8)),
+                'background_enabled': True,
+                'border_enabled': getattr(camera_props, 'hud_border_width', 0.0) > 0,
+                'border_color': getattr(camera_props, 'hud_border_color', (1.0, 1.0, 1.0, 0.5)),
+                'hud_show_date': getattr(camera_props, 'hud_show_date', True),
+                'hud_show_week': getattr(camera_props, 'hud_show_week', True),
+                'hud_show_day': getattr(camera_props, 'hud_show_day', True),
+                'hud_show_progress': getattr(camera_props, 'hud_show_progress', True),
+            }
+
+            # TIMELINE HUD SETTINGS
+            timeline_settings = {
+                'enabled': getattr(camera_props, 'enable_timeline_hud', False),
+                'position': getattr(camera_props, 'timeline_hud_position', 'BOTTOM'),
+                'margin_h': getattr(camera_props, 'timeline_hud_margin_horizontal', 0.0),
+                'margin_v': getattr(camera_props, 'timeline_hud_margin_vertical', 0.05),
+                'height': getattr(camera_props, 'timeline_hud_height', 80),
+                'width_ratio': getattr(camera_props, 'timeline_hud_width', 0.8),
+                'background_enabled': True,
+                'background_color': (0.1, 0.1, 0.1, 0.7),
+                'border_enabled': True,
+                'border_color': (0.5, 0.5, 0.5, 1.0),
+                'show_years': True,
+                'show_months': True,
+                'show_weeks': True,
+                'show_year_labels': True,
+                'show_month_labels': True,
+                'show_week_labels': True,
+                'show_current_date_label': True,
+                'year_height_ratio': 0.3,
+                'month_height_ratio': 0.4,
+                'week_height_ratio': 0.3,
+                'current_date_color': (1.0, 0.0, 0.0, 1.0),
+                'current_date_width': 2.0,
+                'year_current_color': (0.0, 0.8, 0.0, 0.8),
+                'year_past_color': (0.5, 0.5, 0.5, 0.6),
+                'year_future_color': (0.2, 0.4, 0.8, 0.6),
+                'month_current_color': (0.0, 0.6, 0.8, 0.7),
+                'month_past_color': (0.4, 0.4, 0.4, 0.5),
+                'month_future_color': (0.1, 0.3, 0.6, 0.5),
+                'week_current_color': (0.8, 0.8, 0.0, 0.8),
+                'week_past_color': (0.3, 0.3, 0.3, 0.4),
+                'week_future_color': (0.0, 0.2, 0.4, 0.4),
+            }
+
+            # LEGEND HUD SETTINGS
+            legend_settings = {
+                'enabled': getattr(camera_props, 'enable_legend_hud', False),
+                'position': getattr(camera_props, 'legend_hud_position', 'TOP_LEFT'),
+                'margin_h': getattr(camera_props, 'legend_hud_margin_horizontal', 0.05),
+                'margin_v': getattr(camera_props, 'legend_hud_margin_vertical', 0.5),
+                'scale': getattr(camera_props, 'legend_hud_scale', 1.0),
+                'background_enabled': True,
+                'background_color': getattr(camera_props, 'legend_hud_background_color', (0.0, 0.0, 0.0, 0.8)),
+                'border_enabled': True,
+                'border_color': (0.5, 0.5, 0.5, 1.0),
+                'padding': getattr(camera_props, 'legend_hud_padding_horizontal', 12.0),
+                'item_height': 20,
+                'item_width': 150,
+                'color_indicator_size': 12,
+                'text_color': getattr(camera_props, 'legend_hud_text_color', (1.0, 1.0, 1.0, 1.0)),
+                'show_title': getattr(camera_props, 'legend_hud_show_title', True),
+                'title_text': getattr(camera_props, 'legend_hud_title_text', 'ColorTypes'),
+                'title_color': getattr(camera_props, 'legend_hud_title_color', (1.0, 1.0, 1.0, 1.0)),
+                'title_height': 25,
+            }
+
+            return text_settings, timeline_settings, legend_settings
+
+        except Exception as e:
+            print(f"❌ Error getting HUD settings: {e}")
+            return {}, {}, {}
     
     def get_hud_settings(self):
         """Gets complete HUD configuration from properties"""
@@ -227,11 +304,8 @@ class ScheduleHUD:
             }
             
             # --- LEGEND HUD SETTINGS (NEW) ---
-            legend_enabled = getattr(camera_props, 'enable_legend_hud', False)
-            print(f"🔍 LEGEND DEBUG: enable_legend_hud property = {legend_enabled}")
-            
             legend_hud_settings = {
-                'enabled': legend_enabled,
+                'enabled': getattr(camera_props, 'enable_legend_hud', False),
                 'position': getattr(camera_props, 'legend_hud_position', 'TOP_LEFT'),
                 'margin_h': getattr(camera_props, 'legend_hud_margin_horizontal', 0.05),
                 'margin_v': getattr(camera_props, 'legend_hud_margin_vertical', 0.5),
@@ -254,14 +328,6 @@ class ScheduleHUD:
                 'selected_colortypes': getattr(camera_props, 'legend_hud_selected_colortypes', set()),
                 'auto_scale': getattr(camera_props, 'legend_hud_auto_scale', True),
                 'max_width': getattr(camera_props, 'legend_hud_max_width', 0.3),  # 30% of viewport width
-                # Column visibility settings
-                'show_start_column': getattr(camera_props, 'legend_hud_show_start_column', False),
-                'show_active_column': getattr(camera_props, 'legend_hud_show_active_column', True),
-                'show_end_column': getattr(camera_props, 'legend_hud_show_end_column', False),
-                'show_start_title': getattr(camera_props, 'legend_hud_show_start_title', False),
-                'show_active_title': getattr(camera_props, 'legend_hud_show_active_title', False),
-                'show_end_title': getattr(camera_props, 'legend_hud_show_end_title', False),
-                'column_spacing': getattr(camera_props, 'legend_hud_column_spacing', 16.0)
             }
             
             return text_hud_settings, timeline_hud_settings, legend_hud_settings
@@ -1099,129 +1165,3 @@ def draw_color_indicator(x, y, size, color):
         
     except Exception as e:
         print(f"❌ Error drawing color indicator: {e}")
-
-
-def draw_hud_callback():
-    """Callback that runs every frame to draw the HUD"""
-    try:
-        # Always use regular draw - snapshot detection is now handled inside get_schedule_data()
-        # This ensures proper data flow while preventing animation for snapshots
-        schedule_hud.draw()
-    except Exception as e:
-        print(f"🔴 HUD callback error: {e}")
-        import traceback
-        traceback.print_exc()
-
-# Global instance of the HUD
-schedule_hud = ScheduleHUD()
-
-def register_hud_handler():
-    """Registers the HUD drawing handler"""
-    global _hud_draw_handler, _hud_enabled
-    if _hud_draw_handler is not None:
-        unregister_hud_handler()
-    try:
-        _hud_draw_handler = bpy.types.SpaceView3D.draw_handler_add(
-            draw_hud_callback, (), 'WINDOW', 'POST_PIXEL'
-        )
-        _hud_enabled = True
-        print("✅ HUD handler registered successfully")
-        # Force immediate redraw
-        wm = bpy.context.window_manager
-        for window in wm.windows:
-            screen = window.screen
-            for area in screen.areas:
-                if area.type == 'VIEW_3D':
-                    area.tag_redraw()
-    except Exception as e:
-        print(f"🔴 Error registering HUD handler: {e}")
-        _hud_enabled = False
-
-def unregister_hud_handler():
-    """Unregisters the HUD drawing handler"""
-    global _hud_draw_handler, _hud_enabled
-    if _hud_draw_handler is not None:
-        try:
-            bpy.types.SpaceView3D.draw_handler_remove(_hud_draw_handler, 'WINDOW')
-            print("✅ HUD handler unregistered successfully")
-        except Exception as e:
-            print(f"🔴 Error removing HUD handler: {e}")
-        _hud_draw_handler = None
-    _hud_enabled = False
-
-def is_hud_enabled():
-    """Checks if the HUD is active"""
-    return _hud_enabled
-
-def ensure_hud_handlers():
-    """Ensures that all handlers are registered correctly"""
-    global _hud_enabled
-
-def invalidate_legend_hud_cache():
-    """Función global para invalidar el caché del Legend HUD cuando cambien los grupos de animación"""
-    global schedule_hud
-    if 'schedule_hud' in globals() and schedule_hud and hasattr(schedule_hud, 'invalidate_legend_cache'):
-        schedule_hud.invalidate_legend_cache()
-        print("🔄 Legend HUD cache invalidated globally")
-    
-    # Also update 3D Legend HUD if it exists and is enabled
-    try:
-        import bonsai.tool as tool
-        anim_props = tool.Sequence.get_animation_props()
-        camera_props = anim_props.camera_orbit
-        
-        if getattr(camera_props, 'enable_3d_legend_hud', False):
-            # Check if 3D Legend HUD exists
-            hud_exists = False
-            for obj in bpy.data.objects:
-                if obj.get("is_3d_legend_hud", False):
-                    hud_exists = True
-                    break
-            
-            if hud_exists:
-                print("🔄 Updating 3D Legend HUD due to ColorType change")
-                bpy.ops.bim.update_3d_legend_hud()
-    except Exception as e:
-        print(f"⚠️ Failed to auto-update 3D Legend HUD: {e}")
-    
-    print(f"🔍 Estado actual: _hud_enabled={_hud_enabled}")
-    if not _hud_enabled:
-        print("🔧 Registrando handlers del HUD automáticamente...")
-        register_hud_handler()
-    else:
-        print("✅ Handlers ya están activos")
-
-def refresh_hud():
-    """Forces a viewport refresh to update the HUD"""
-    try:
-        wm = bpy.context.window_manager
-        for window in wm.windows:
-            screen = window.screen
-            for area in screen.areas:
-                if area.type == 'VIEW_3D':
-                    area.tag_redraw()
-        print("🔄 HUD refresh requested")
-    except Exception as e:
-        print(f"🔴 HUD refresh error: {e}")
-
-# 🔧 ADDITIONAL DIAGNOSTIC FUNCTION
-def debug_hud_state():
-    """Diagnostic function to debug the HUD state"""
-    print("\n🔍 === HUD DEBUG STATE ===")
-    print(f"Handler enabled: {_hud_enabled}")
-    print(f"Handler object: {_hud_draw_handler}")
-    try:
-        import bonsai.tool as tool
-        anim_props = tool.Sequence.get_animation_props()
-        camera_props = anim_props.camera_orbit
-        hud_enabled = getattr(camera_props, 'enable_text_hud', False)
-        print(f"Property enable_text_hud: {hud_enabled}")
-        # Verificar datos de cronograma
-        data = schedule_hud.get_schedule_data()
-        print(f"Schedule data available: {data is not None}")
-        if data:
-            print(f"  Current date: {data.get('current_date')}")
-            print(f"  Frame: {data.get('current_frame')}")
-    except Exception as e:
-        print(f"Error in debug: {e}")
-    print("=== END DEBUG ===\n")

@@ -7,8 +7,9 @@ import bonsai.tool as tool
 import bonsai.core.sequence as core
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 
-# Import helpers using absolute paths like v18
-from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager, safe_set_selected_colortype_in_active_group
+# Import helpers using local paths
+from ..prop.color_manager_prop import UnifiedColorTypeManager
+from ..prop.animation import safe_set_selected_colortype_in_active_group
 try:
     from .schedule_task_operators import snapshot_all_ui_state
 except ImportError:
@@ -398,7 +399,7 @@ class CleanupTaskcolortypeMappings(bpy.types.Operator):
     def execute(self, context):
         try:
             # 1. Limpiar mapeos de tareas (función original)
-            from bonsai.bim.module.sequence.prop import cleanup_all_tasks_colortype_mappings
+            from ..prop.task import cleanup_all_tasks_colortype_mappings
             cleanup_all_tasks_colortype_mappings(context)
 
             # 2. NUEVO: Limpiar perfiles del canvas actual

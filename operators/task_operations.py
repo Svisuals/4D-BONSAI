@@ -58,7 +58,7 @@ class RemoveTask(bpy.types.Operator, tool.Ifc.Operator):
             ws = tool.Sequence.get_active_work_schedule()
             if ws:
                 tool.Sequence.load_task_tree(ws)
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
         except Exception:
             pass
 
@@ -231,7 +231,7 @@ class CopyTask(bpy.types.Operator, tool.Ifc.Operator):
             ws = tool.Sequence.get_active_work_schedule()
             if ws:
                 tool.Sequence.load_task_tree(ws)
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
         except Exception:
             pass
 
@@ -272,7 +272,7 @@ class ReorderTask(bpy.types.Operator, tool.Ifc.Operator):
             ws = tool.Sequence.get_active_work_schedule()
             if ws:
                 tool.Sequence.load_task_tree(ws)
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
         except Exception:
             pass
 
