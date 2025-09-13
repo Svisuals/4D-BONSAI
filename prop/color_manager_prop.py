@@ -112,7 +112,11 @@ class UnifiedColorTypeManager:
     def get_all_predefined_types(context) -> list:
         """Gets all PredefinedTypes from loaded tasks to ensure ColorTypes exist for them."""
         try:
+<<<<<<< HEAD
             from bonsai.bim.module.sequence.data import SequenceData
+=======
+            from ..data import SequenceData
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
             if not SequenceData.is_loaded:
                 SequenceData.load()
             
@@ -195,9 +199,19 @@ class UnifiedColorTypeManager:
         """
         if not task_pg: return
         
+<<<<<<< HEAD
         # 1. Get the current PredefinedType of the task from the cached data.
         try:
             from bonsai.bim.module.sequence.data import SequenceData
+=======
+        # Check if we're in a context that allows property modifications
+        if not UnifiedColorTypeManager._can_modify_properties():
+            return
+        
+        # 1. Get the current PredefinedType of the task from the cached data.
+        try:
+            from ..data import SequenceData
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
             tid = getattr(task_pg, "ifc_definition_id", None)
             task_data = (SequenceData.data.get("tasks", {}) or {}).get(tid)
             predef_type = (task_data.get("PredefinedType") or "NOTDEFINED") if task_data else "NOTDEFINED"
@@ -253,6 +267,29 @@ class UnifiedColorTypeManager:
             return sorted([g for g in all_groups if g != "DEFAULT"])
         except Exception:
             return []
+<<<<<<< HEAD
+=======
+    
+    @staticmethod
+    def _can_modify_properties():
+        """Check if we're in a context that allows property modifications"""
+        try:
+            # Test if we can write to Scene properties (a safe way to check context)
+            import bpy
+            current_scene = bpy.context.scene
+            if current_scene is None:
+                return False
+            # Try to set a dummy property to test if ID class writing is allowed
+            test_val = getattr(current_scene, 'frame_current', 1)
+            current_scene.frame_current = test_val
+            return True
+        except RuntimeError as e:
+            if "Writing to ID classes in this context is not allowed" in str(e):
+                return False
+            return True
+        except:
+            return False
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
             
     # Methods from the original implementation that are still needed and relevant
     @staticmethod
@@ -381,6 +418,13 @@ class UnifiedColorTypeManager:
     @staticmethod
     def sync_task_colortypes(context, task, group_name: str):
         """Synchronizes task colortypes with the active group - eliminates duplication"""
+<<<<<<< HEAD
+=======
+        # Check if we're in a context that allows property modifications
+        if not UnifiedColorTypeManager._can_modify_properties():
+            return None
+            
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
         valid_colortypes = UnifiedColorTypeManager.get_group_colortypes(context, group_name)
     
         if hasattr(task, 'colortype_group_choices'):

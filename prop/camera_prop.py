@@ -17,6 +17,7 @@
 # along with Bonsai.  If not, see <http://www.gnu.org/licenses/>.
 
 
+<<<<<<< HEAD
 import bpy
 from bpy.types import PropertyGroup
 from bpy.props import (
@@ -1199,3 +1200,13 @@ class BIMCameraOrbitProperties(PropertyGroup):
         poll=lambda self, object: object.type in {'CAMERA', 'EMPTY'},
         update=lambda self, context: callbacks.update_legend_3d_hud_constraint(context)
     )
+=======
+"""
+DEPRECATION NOTICE:
+This file contained a duplicate BIMCameraOrbitProperties class that has been 
+consolidated into camera_hud.py for better maintainability.
+
+The actual implementation is now in camera_hud.py and is imported through 
+__init__.py. This file can be deleted in a future refactoring.
+"""
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138

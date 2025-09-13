@@ -25,7 +25,13 @@ from typing import Any
 import bonsai.tool as tool
 import bonsai.bim.helper
 from bonsai.bim.helper import draw_attributes
+<<<<<<< HEAD
 from bonsai.bim.module.sequence.data import SequenceData, WorkScheduleData, TaskICOMData
+=======
+from ..data import SequenceData
+from ..data import WorkScheduleData
+from ..data import TaskICOMData
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 
 # Importamos la UIList de tasks desde nuestro nuevo módulo
 from .elements import BIM_UL_tasks
@@ -136,6 +142,10 @@ class BIM_PT_work_schedules(Panel):
                 row1.label(text="Schedule tools")
                 row1 = col.row(align=True)
                 row1.alignment = "RIGHT"
+<<<<<<< HEAD
+=======
+                row1.operator("bim.enable_status_filters", text="Status", icon='INFO')
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
                 row1.operator("bim.generate_gantt_chart", text="Generate Gantt", icon="NLA").work_schedule = (
                     work_schedule_id
                 )
@@ -328,12 +338,26 @@ class BIM_PT_work_schedules(Panel):
         row = saved_filters_box.row(align=True)
 
         # The title is now a button to show/hide the section
+<<<<<<< HEAD
         icon = 'TRIA_DOWN' if props.filters.show_saved_filters else 'TRIA_RIGHT'
         row.prop(props.filters, "show_saved_filters", text="Saved Filters", icon=icon, emboss=False)
         # --- END OF MODIFICATION ---
 
         # The content is only drawn if the section is expanded
         if props.filters.show_saved_filters:
+=======
+        # Safe access to show_saved_filters with fallback
+        show_saved = getattr(props.filters, "show_saved_filters", False)
+        icon = 'TRIA_DOWN' if show_saved else 'TRIA_RIGHT'
+        if hasattr(props.filters, "show_saved_filters"):
+            row.prop(props.filters, "show_saved_filters", text="Saved Filters", icon=icon, emboss=False)
+        else:
+            row.label(text="Saved Filters", icon=icon)
+        # --- END OF MODIFICATION ---
+
+        # The content is only drawn if the section is expanded
+        if show_saved:
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
             saved_filters_box.template_list(
                 "BIM_UL_saved_filter_sets", "",
                 props, "saved_filter_sets",
@@ -527,7 +551,11 @@ class BIM_PT_work_schedules(Panel):
 
         # Ensures that the active task has its DEFAULT group synchronized when drawn
         try:
+<<<<<<< HEAD
             from ..prop.animation import UnifiedColorTypeManager
+=======
+            from ..prop.color_manager_prop import UnifiedColorTypeManager
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 
             tprops = tool.Sequence.get_task_tree_props()
             if tprops.tasks and self.props.active_task_index < len(tprops.tasks):

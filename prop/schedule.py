@@ -19,7 +19,11 @@
 import bpy
 import bonsai.tool as tool
 import bonsai.core.sequence as core
+<<<<<<< HEAD
 from bonsai.bim.module.sequence.data import SequenceData
+=======
+from ..data import SequenceData
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 from bonsai.bim.prop import Attribute, ISODuration
 from dateutil import parser
 from bpy.types import PropertyGroup
@@ -40,8 +44,13 @@ try:
     from .filter import BIMTaskFilterProperties, SavedFilterSet
 except ImportError:
     # Fallback for when running from the original location
+<<<<<<< HEAD
     from bonsai.bim.module.sequence.prop.task import TaskResource, TaskProduct, get_date_source_items
     from bonsai.bim.module.sequence.prop.filter import BIMTaskFilterProperties, SavedFilterSet
+=======
+    from .task import TaskResource, TaskProduct, get_date_source_items
+    from .filter import BIMTaskFilterProperties, SavedFilterSet
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 
 # ============================================================================
 # SCHEDULE CALLBACK FUNCTIONS
@@ -82,12 +91,39 @@ def update_active_work_schedule_id(self, context):
         context.scene['_previous_work_schedule_id'] = current_ws_id
         print(f"✅ DEBUG: _previous_work_schedule_id guardado: {current_ws_id}")
         
+<<<<<<< HEAD
         # Defer the heavy loading operations
         def deferred_load():
             try:
                 print(f"🔄 Loading tasks for work schedule: {current_ws_id}")
                 core.load_task_tree(tool.Sequence, work_schedule=tool.Ifc.get().by_id(current_ws_id))
                 print(f"✅ Tasks loaded for work schedule: {current_ws_id}")
+=======
+        # Defer the heavy loading operations with SIMPLE colortype persistence
+        def deferred_load():
+            try:
+                # SIMPLE SOLUTION - Save ColorTypes before reload
+                try:
+                    import sys
+                    operators_path = "C:/Users/fede_/Desktop/SVisuals/Codigos/Bonsai Bim/4D/Refactorizado/4D-BONSAI/operators"
+                    if operators_path not in sys.path:
+                        sys.path.append(operators_path)
+                    from simple_colortype_persistence import save_colortypes_simple, restore_colortypes_simple
+                    save_colortypes_simple()
+                except Exception as e:
+                    print(f"Could not save colortypes: {e}")
+                
+                print(f"🔄 Loading tasks for work schedule: {current_ws_id}")
+                core.load_task_tree(tool.Sequence, work_schedule=tool.Ifc.get().by_id(current_ws_id))
+                print(f"✅ Tasks loaded for work schedule: {current_ws_id}")
+                
+                # SIMPLE SOLUTION - Restore ColorTypes after reload
+                try:
+                    restore_colortypes_simple()
+                except Exception as e:
+                    print(f"Could not restore colortypes: {e}")
+                    
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
             except Exception as e:
                 print(f"❌ Error loading tasks for work schedule {current_ws_id}: {e}")
             return None
@@ -122,7 +158,11 @@ def update_active_task_index(self, context):
     # --- START: Automatic synchronization ---
     try:
         # Import UnifiedColorTypeManager from animation module
+<<<<<<< HEAD
         from .animation import UnifiedColorTypeManager
+=======
+        from .color_manager_prop import UnifiedColorTypeManager
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
         
         # Sync DEFAULT group (only if no custom groups exist)
         user_groups = UnifiedColorTypeManager.get_user_created_groups(context)
@@ -232,10 +272,33 @@ def update_visualisation_start_finish(
 
 def update_sort_reversed(self: "BIMWorkScheduleProperties", context: bpy.types.Context) -> None:
     if self.active_work_schedule_id:
+<<<<<<< HEAD
+=======
+        # SIMPLE SOLUTION - Save/restore ColorTypes
+        try:
+            import sys
+            operators_path = "C:/Users/fede_/Desktop/SVisuals/Codigos/Bonsai Bim/4D/Refactorizado/4D-BONSAI/operators"
+            if operators_path not in sys.path:
+                sys.path.append(operators_path)
+            from simple_colortype_persistence import save_colortypes_simple, restore_colortypes_simple
+            save_colortypes_simple()
+        except:
+            pass
+            
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
         core.load_task_tree(
             tool.Sequence,
             work_schedule=tool.Ifc.get().by_id(self.active_work_schedule_id),
         )
+<<<<<<< HEAD
+=======
+        
+        # Restore ColorTypes
+        try:
+            restore_colortypes_simple()
+        except:
+            pass
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 
 def update_filter_by_active_schedule(self: "BIMWorkScheduleProperties", context: bpy.types.Context) -> None:
     if obj := context.active_object:

@@ -23,6 +23,7 @@ import isodate
 from bpy.types import Panel
 from typing import Any
 import bonsai.tool as tool
+<<<<<<< HEAD
 import bonsai.bim.helper
 from bonsai.bim.helper import draw_attributes
 from bonsai.bim.module.sequence.data import (
@@ -30,6 +31,19 @@ from bonsai.bim.module.sequence.data import (
     SequenceData,
     TaskICOMData,
 )
+=======
+try:
+    import bonsai.bim.helper
+    from bonsai.bim.helper import draw_attributes
+except ImportError:
+    from .. import helper as bonsai_bim_helper
+    from ..helper import draw_attributes
+    import sys
+    sys.modules['bonsai.bim.helper'] = bonsai_bim_helper
+from ..data import WorkScheduleData
+from ..data import SequenceData
+from ..data import TaskICOMData
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 from .lists_ui import BIM_UL_tasks # Importante para usar el header
 
 
@@ -531,7 +545,11 @@ class BIM_PT_work_schedules(Panel):
 
         # Ensures that the active task has its DEFAULT group synchronized when drawn
         try:
+<<<<<<< HEAD
             from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+=======
+            from ..prop import UnifiedColorTypeManager
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 
             tprops = tool.Sequence.get_task_tree_props()
             if tprops.tasks and self.props.active_task_index < len(tprops.tasks):

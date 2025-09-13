@@ -22,7 +22,11 @@ import bpy
 import re
 from bpy.types import UIList
 import bonsai.tool as tool
+<<<<<<< HEAD
 from bonsai.bim.module.sequence.data import SequenceData
+=======
+from ..data import SequenceData
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 from typing import Any, Optional
 
 
@@ -87,7 +91,11 @@ class BIM_UL_task_filters(UIList):
             elif data_type == 'date':
                 # Para fechas, mostramos el texto y un botón que abre el calendario
                 # For dates, we show the text and a button that opens the calendar
+<<<<<<< HEAD
                 value_row.prop(item, "value_string", text="")
+=======
+                value_row.prop(item, "value_date", text="")
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
                 # ✅ CORRECTED CALENDAR BUTTON
                 op = value_row.operator("bim.filter_datepicker", text="", icon="OUTLINER_DATA_CAMERA")
                 op.rule_index = index  # ✅ ESTO ES CRUCIAL - pasar el índice

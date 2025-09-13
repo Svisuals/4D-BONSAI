@@ -7,14 +7,14 @@ from dateutil import relativedelta
 import bonsai.tool as tool
 
 try:
-    from .prop import update_filter_column
-    from . import prop
+    from ..prop import update_filter_column
+    from .. import prop
     from .ui import calculate_visible_columns_count
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop import update_filter_column
-        import bonsai.bim.module.sequence.prop as prop
-        from bonsai.bim.module.sequence.ui import calculate_visible_columns_count
+        from ..prop.filter import update_filter_column
+        from .. import prop as prop
+        from ..ui import calculate_visible_columns_count
     except Exception:
         def update_filter_column(*args, **kwargs):
             pass
@@ -34,16 +34,19 @@ try:
     from .animation_operators import _ensure_default_group
 except Exception:
     try:
-        from bonsai.bim.module.sequence.animation_operators import _ensure_default_group
+        from .animation_operators import _ensure_default_group
     except Exception:
         def _ensure_default_group(context):
             """Fallback implementation if import fails"""
             pass
 
 try:
-    from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+    from ..prop.color_manager_prop import UnifiedColorTypeManager
 except Exception:
-    UnifiedColorTypeManager = None  # optional
+    try:
+        from ..prop.color_manager_prop import UnifiedColorTypeManager
+    except Exception:
+        UnifiedColorTypeManager = None  # optional
 
 # Constants
 DEMO_KEYS = {"DEMOLITION","REMOVAL","DISPOSAL","DISMANTLE"}
@@ -320,7 +323,7 @@ class UpdateDefaultcolortypeColors(bpy.types.Operator):
 
     def execute(self, context):
         try:
-            from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+            # UnifiedColorTypeManager is already imported at module level
             UnifiedColorTypeManager.update_default_group_colors(context)
             self.report({'INFO'}, "DEFAULT colortype colors updated to new scheme")
             return {'FINISHED'}
@@ -480,7 +483,7 @@ class BIM_OT_show_performance_stats(bpy.types.Operator):
     def execute(self, context):
         try:
             # Import the cache class
-            from bonsai.bim.module.sequence.data import SequenceCache
+            from ..data import SequenceCache
             
             # Get performance stats
             stats = SequenceCache.get_performance_stats()
@@ -535,7 +538,7 @@ class BIM_OT_clear_performance_cache(bpy.types.Operator):
 
     def execute(self, context):
         try:
-            from bonsai.bim.module.sequence.data import SequenceCache
+            from ..data import SequenceCache
             
             SequenceCache.clear()
             self.report({'INFO'}, "Performance cache and statistics cleared")

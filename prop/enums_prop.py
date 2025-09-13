@@ -20,7 +20,11 @@
 
 
 import bonsai.tool as tool
+<<<<<<< HEAD
 from bonsai.bim.module.sequence.data import SequenceData, AnimationColorSchemeData
+=======
+from ..data import SequenceData, AnimationColorSchemeData
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 from .color_manager_prop import UnifiedColorTypeManager
 
 
@@ -46,10 +50,16 @@ def get_operator_items(self, context):
         ] + common_ops
     elif data_type == 'date':
         return [
+<<<<<<< HEAD
             ('GREATER', "After Date", "The date is after the specified one"),
             ('LESS', "Before Date", "The date is before the specified one"),
             ('GTE', "On or After Date", "The date is on or after the specified one"),
             ('LTE', "On or Before Date", "The date is on or before the specified one"),
+=======
+            ('AFTER', "After Date", "The date is after the specified one"),
+            ('BEFORE', "Before Date", "The date is before the specified one"),
+            ('ON', "On Date", "The date is exactly the specified one"),
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
         ] + common_ops
     elif data_type == 'boolean':
         return [
@@ -117,8 +127,11 @@ def get_custom_group_colortype_items(self, context):
         anim_props = tool.Sequence.get_animation_props()
         selected_group = getattr(anim_props, "task_colortype_group_selector", "")
         
+<<<<<<< HEAD
         print(f"🔍 get_custom_group_colortype_items called for task {getattr(self, 'ifc_definition_id', 'unknown')}")
         print(f"🔍 selected_group: '{selected_group}'")
+=======
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
         
         if selected_group and selected_group != "DEFAULT":
             # Direct and flexible reading from JSON
@@ -136,42 +149,82 @@ def get_custom_group_colortype_items(self, context):
             
             # Always include an empty option first to prevent enum errors
             items.append(("", "<none>", "No colortype selected", 0))
+<<<<<<< HEAD
+=======
+            # Also include '0' as a fallback to prevent enum errors when '0' is stored
+            items.append(("0", "<fallback 0>", "Fallback option for '0' values", -1))
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
             
             for i, name in enumerate(sorted(colortype_names)):
                 items.append((name, name, f"colortype from {selected_group}", i + 1))
             
+<<<<<<< HEAD
             print(f"🔍 Found {len(colortype_names)} colortypes: {colortype_names}")
         else:
             print(f"🔍 No valid group selected: '{selected_group}'")
+=======
+        else:
+            # No valid group selected, provide default empty option
+            pass
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
     
     # --- START OF CORRECTION ---
     # If there are no profiles, ensure that at least the null option exists to avoid enum errors.
     except Exception as e:
         print(f"Error getting custom group colortypes: {e}")
         items.append(("", "<error loading colortypes>", "", 0))
+<<<<<<< HEAD
+=======
+        items.append(("0", "<fallback 0>", "Fallback option for '0' values", -1))
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 
     if not items:
         anim_props = tool.Sequence.get_animation_props()
         selected_group = getattr(anim_props, "task_colortype_group_selector", "")
         if not selected_group:
             items.append(("", "<select custom group first>", "", 0))
+<<<<<<< HEAD
         elif selected_group == "DEFAULT":
             items.append(("", "<DEFAULT not allowed here>", "", 0))
         else:
             items.append(("", f"<no colortypes in {selected_group}>", "", 0))
+=======
+            items.append(("0", "<fallback 0>", "Fallback option for '0' values", -1))
+        elif selected_group == "DEFAULT":
+            items.append(("", "<DEFAULT not allowed here>", "", 0))
+            items.append(("0", "<fallback 0>", "Fallback option for '0' values", -1))
+        else:
+            items.append(("", f"<no colortypes in {selected_group}>", "", 0))
+            items.append(("0", "<fallback 0>", "Fallback option for '0' values", -1))
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
     
     # Ensure that the null option is always present if there are no other items
     if not items:
         items.append(("", "<none>", "No colortypes available", 0))
+<<<<<<< HEAD
     # --- END OF CORRECTION ---
     
     print(f"🔍 Final items returned: {[(item[0], item[1]) for item in items]}")
     
     # CRITICAL: Ensure empty option is ALWAYS first and present
+=======
+        items.append(("0", "<fallback 0>", "Fallback option for '0' values", -1))
+    # --- END OF CORRECTION ---
+    
+    
+    # CRITICAL: Ensure empty option and '0' fallback are ALWAYS present
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
     if not any(item[0] == "" for item in items):
         print("🚨 CRITICAL: No empty option found, forcing one")
         items.insert(0, ("", "<none>", "No colortype selected", 0))
     
+<<<<<<< HEAD
+=======
+    if not any(item[0] == "0" for item in items):
+        print("🚨 CRITICAL: No '0' fallback found, adding one")
+        items.append(("0", "<fallback 0>", "Fallback option for '0' values", -1))
+    
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
     # Ensure the empty option is always first
     empty_item = None
     non_empty_items = []
@@ -186,7 +239,10 @@ def get_custom_group_colortype_items(self, context):
     else:
         final_items = [("", "<none>", "No colortype selected", 0)] + non_empty_items
     
+<<<<<<< HEAD
     print(f"🔍 FINAL SORTED items: {[(item[0], item[1]) for item in final_items]}")
+=======
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
     return final_items
 
 def get_task_colortype_items(self, context):
@@ -196,11 +252,18 @@ def get_task_colortype_items(self, context):
         anim_props = tool.Sequence.get_animation_props()
         selected_group = getattr(anim_props, "task_colortype_group_selector", "")
         
+<<<<<<< HEAD
         print(f"🔍 Getting colortypes for custom group: '{selected_group}'")
         
         # CRÃ TICO: Solo mostrar perfiles si hay un grupo personalizado seleccionado
         if selected_group and selected_group != "DEFAULT":
             from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+=======
+        
+        # CRÃ TICO: Solo mostrar perfiles si hay un grupo personalizado seleccionado
+        if selected_group and selected_group != "DEFAULT":
+            from ..prop import UnifiedColorTypeManager
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
             colortypes = UnifiedColorTypeManager.get_group_colortypes(context, selected_group)
             
             for i, name in enumerate(sorted(colortypes.keys())):
@@ -237,7 +300,11 @@ def get_saved_color_schemes(self, context):
 
 def get_internal_ColorType_sets_enum(self, context):
     """Gets enum of ALL available colortype groups, including DEFAULT."""
+<<<<<<< HEAD
     from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+=======
+    from ..prop import UnifiedColorTypeManager
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
     try:
         # Get all groups directly from the source
         all_groups = sorted(list(UnifiedColorTypeManager._read_sets_json(context).keys()))
@@ -269,7 +336,11 @@ def get_all_groups_enum(self, context):
 
 def get_user_created_groups_enum(self, context):
     """Returns EnumProperty items for user-created groups, excluding 'DEFAULT'."""
+<<<<<<< HEAD
     from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+=======
+    from ..prop import UnifiedColorTypeManager
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
     try:
         user_groups = UnifiedColorTypeManager.get_user_created_groups(context)
         if user_groups:

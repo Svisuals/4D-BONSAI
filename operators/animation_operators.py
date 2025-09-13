@@ -4,9 +4,13 @@
 import bpy
 import bonsai.tool as tool
 import ifcopenshell.util.sequence
+<<<<<<< HEAD
 from .. import hud as hud_overlay
+=======
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 from datetime import datetime, timedelta
 from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
+from .. import hud as hud_overlay
 
 # === Animation operators ===
 
@@ -161,7 +165,7 @@ class AddAnimationTaskType(bpy.types.Operator):
         else:
             props.active_color_component_outputs_index = len(coll)-1
         try:
-            from bonsai.bim.module.sequence.prop import cleanup_all_tasks_colortype_mappings
+            from ..prop.task import cleanup_all_tasks_colortype_mappings
             cleanup_all_tasks_colortype_mappings(context)
         except Exception:
             pass
@@ -203,8 +207,8 @@ class AddAnimationCamera(bpy.types.Operator):
             # For animation cameras, we should try to call the full method if possible
             # but have a fallback to simple creation
             try:
-                from . import tool
-                cam_obj = tool.Sequence.add_animation_camera()
+                from .. import tool as local_tool
+                cam_obj = local_tool.Sequence.add_animation_camera()
             except:
                 # Fallback to simple camera creation
                 cam_data = bpy.data.cameras.new(name="4D_Animation_Camera")

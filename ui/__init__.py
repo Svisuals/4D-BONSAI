@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+# Bonsai - OpenBIM Blender Add-on
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 """User Interface (UI) Panels for 4D BIM Scheduling - Modular Organization.
 
 This package contains the Panel (bpy.types.Panel) and UIList (bpy.types.UIList) 
@@ -16,6 +20,10 @@ their centralized registration and unregistration in Blender.
 
 import bpy
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 # 1. Importar todas las clases desde los nuevos módulos de UI
 from .animation_ui import (
     BIM_PT_animation_tools,
@@ -83,4 +91,34 @@ def register():
 def unregister():
     """Des-registra todas las clases de UI en orden inverso."""
     for cls in reversed(classes):
+<<<<<<< HEAD
         bpy.utils.unregister_class(cls)
+=======
+        bpy.utils.unregister_class(cls)
+
+from . import elements
+from . import panels_workplan
+from . import panels_schedule
+from . import panels_animation
+from .panels_workplan import BIM_PT_work_plans, BIM_PT_work_calendars
+
+from .panels_schedule import (
+    BIM_PT_status, BIM_PT_work_schedules, BIM_PT_task_icom,
+    BIM_PT_variance_analysis, BIM_PT_4D_Tools
+)
+from .panels_animation import BIM_PT_animation_color_schemes, BIM_PT_animation_tools
+from .elements import (
+    BIM_UL_animation_group_stack, BIM_UL_task_columns, BIM_UL_task_filters,
+    BIM_UL_saved_filter_sets, BIM_UL_task_inputs, BIM_UL_task_resources,
+    BIM_UL_animation_colors, BIM_UL_task_outputs, BIM_UL_product_input_tasks,
+    BIM_UL_product_output_tasks, BIM_UL_tasks)
+
+# Lista de todos los módulos que contienen clases de UI para registrar
+
+MODULES = [
+    elements,
+    panels_workplan,
+    panels_schedule,
+    panels_animation,   
+]
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138

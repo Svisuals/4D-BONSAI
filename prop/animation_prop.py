@@ -99,6 +99,26 @@ class AnimationColorSchemes(PropertyGroup):
     active_transparency_interpol: FloatProperty(name="Transparency Interpol.", min=0.0, max=1.0, default=1.0)
     end_transparency: FloatProperty(name="End Transparency", min=0.0, max=1.0, default=0.0)
 
+<<<<<<< HEAD
+=======
+    active_to_end_transition: FloatProperty(
+        name="Active->End Transition",
+        description="Porcentaje de la fase activa para la transición al color final. 0 para sin transición",
+        default=0.0,
+        min=0.0,
+        max=1.0,
+        subtype='PERCENTAGE'
+    )
+    start_to_active_transition: FloatProperty(
+        name="Start->Active Transition",
+        description="Porcentaje de la fase activa para la transición desde el color de inicio. 0 para sin transición",
+        default=0.0,
+        min=0.0,
+        max=1.0,
+        subtype='PERCENTAGE'
+    )
+
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
     hide_at_end: BoolProperty(name="Hide When Finished", description="If enabled, the object will become invisible in the End phase", default=False)
     
     if TYPE_CHECKING:

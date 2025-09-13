@@ -125,7 +125,7 @@ class SnapshotWithcolortypes(tool.Ifc.Operator, bpy.types.Operator):
 
     def _execute(self, context):
         print("🚀🚀🚀 DEBUG: SnapshotWithcolortypes._execute() STARTED")
-        from ..prop import UnifiedColorTypeManager
+        from ..prop.color_manager_prop import UnifiedColorTypeManager
         _ensure_default_group(context)
 
         # Save UI state before applying snapshot
@@ -157,14 +157,18 @@ class SnapshotWithcolortypes(tool.Ifc.Operator, bpy.types.Operator):
             
             # CRITICAL: Register HUD handler for snapshots
             from .. import hud
+<<<<<<< HEAD
             if not hud_overlay.is_hud_enabled():
+=======
+            if not hud.is_hud_enabled():
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
                 print("🎬 SNAPSHOT: Registering HUD handler for Timeline display")
-                hud_overlay.register_hud_handler()
+                hud.register_hud_handler()
             else:
                 print("✅ SNAPSHOT: HUD handler already active")
             
             # Force HUD refresh for snapshot mode
-            hud_overlay.refresh_hud()
+            hud.refresh_hud()
             print("🎬 SNAPSHOT: Forced HUD refresh")
 
             # Get snapshot date

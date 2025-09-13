@@ -17,7 +17,11 @@
 # along with Bonsai.  If not, see <http://www.gnu.org/licenses/>.
 
 import bpy
+<<<<<<< HEAD
 from bonsai.bim.module.sequence.data import SequenceData
+=======
+from ..data import SequenceData
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 from bpy.types import PropertyGroup
 from bpy.props import (
     StringProperty,
@@ -93,6 +97,10 @@ def update_filter_column(self, context):
         self.value_integer = 0
         self.value_float = 0.0
         self.value_boolean = False
+<<<<<<< HEAD
+=======
+        self.value_date = ""
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
     except Exception as e:
         print(f"Error in update_filter_column: {e}")
         self.data_type = 'string'
@@ -131,6 +139,7 @@ def get_all_task_columns_enum(self, context):
     for name_type, label, desc in SequenceData.data.get("task_time_columns_enum", []):
         try:
             name, data_type = name_type.split('/')
+<<<<<<< HEAD
             # Reformat to the new standard: "IfcTaskTime.PropertyName||data_type"
             internal_id = f"IfcTaskTime.{name}||{data_type}"
             items.append((internal_id, label, desc))
@@ -138,6 +147,17 @@ def get_all_task_columns_enum(self, context):
             # If the format is unexpected, use a safe default
             internal_id = f"IfcTaskTime.{name_type}||string"
             items.append((internal_id, label, desc))
+=======
+            # Apply the same date type correction as in enums_prop.py
+            final_data_type = 'date' if any(s in label.lower() for s in ['date', 'start', 'finish']) else data_type
+            # Reformat to the new standard: "IfcTaskTime.PropertyName||data_type"
+            internal_id = f"IfcTaskTime.{name}||{final_data_type}"
+            items.append((internal_id, f"Time: {label}", desc))
+        except ValueError:
+            # If the format is unexpected, use a safe default
+            internal_id = f"IfcTaskTime.{name_type}||string"
+            items.append((internal_id, f"Time: {label}", desc))
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 
     # 4. Fallback if no data is available
     if not items:
@@ -227,6 +247,15 @@ class TaskFilterRule(PropertyGroup):
 class BIMTaskFilterProperties(PropertyGroup):
     """Stores the complete configuration of the filter system."""
     
+<<<<<<< HEAD
+=======
+    show_filters: BoolProperty(
+        name="Show Filters",
+        description="Toggle the visibility of the filter panel",
+        default=False
+    )
+    
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
     rules: CollectionProperty(
         name="Filter Rules",
         type=TaskFilterRule,
@@ -305,6 +334,10 @@ class BIMTaskFilterProperties(PropertyGroup):
     )
 
     if TYPE_CHECKING:
+<<<<<<< HEAD
+=======
+        show_filters: bool
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
         rules: bpy.types.bpy_prop_collection_idprop[TaskFilterRule]
         active_rule_index: int
         logic: str

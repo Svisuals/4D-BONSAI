@@ -32,6 +32,7 @@ import bonsai.tool as tool
 import bonsai.bim.helper
 from bpy.types import Panel, UIList
 from bonsai.bim.helper import draw_attributes
+<<<<<<< HEAD
 from bonsai.bim.module.sequence.data import (
     WorkPlansData,
     WorkScheduleData,
@@ -40,6 +41,14 @@ from bonsai.bim.module.sequence.data import (
     AnimationColorSchemeData,
 )
 from ..prop.animation import UnifiedColorTypeManager
+=======
+from ..data import WorkPlansData
+from ..data import WorkScheduleData
+from ..data import SequenceData
+from ..data import TaskICOMData
+from ..data import AnimationColorSchemeData
+from ..prop.color_manager_prop import UnifiedColorTypeManager
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 from ..prop.animation import monitor_predefined_type_change
 from typing import Any, Optional, TYPE_CHECKING
 
@@ -122,10 +131,24 @@ class BIM_PT_animation_color_schemes(Panel):
             header.label(text="Start Appearance", icon='PLAY')
             col = start_box.column()
             col.enabled = bool(getattr(p, "consider_start", True))
+<<<<<<< HEAD
             row = col.row(align=True)
             row.prop(p, "use_start_original_color")
             if not p.use_start_original_color:
                 col.prop(p, "start_color")
+=======
+            
+            # Ajuste para Start Color
+            row = col.row(align=True)
+            row.prop(p, "use_start_original_color") # Checkbox para usar color original
+            
+            if not p.use_start_original_color:
+                # Ahora sí, el color en la misma fila con la etiqueta
+                color_row = col.row(align=True)
+                color_row.label(text="Start Color:")
+                color_row.prop(p, "start_color", text="") # El selector de color sin su propia etiqueta
+
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
             col.prop(p, "start_transparency")
 
             # --- Active / In Progress Appearance ---
@@ -134,6 +157,7 @@ class BIM_PT_animation_color_schemes(Panel):
             header.label(text="Active Appearance", icon='SEQUENCE')
             col = active_box.column()
             col.enabled = bool(getattr(p, "consider_active", True))
+<<<<<<< HEAD
             row = col.row(align=True)
             row.prop(p, "use_active_original_color")
             if not p.use_active_original_color:
@@ -141,18 +165,44 @@ class BIM_PT_animation_color_schemes(Panel):
                     col.prop(p, "in_progress_color")
                 elif hasattr(p, "active_color"):
                     col.prop(p, "active_color")
+=======
+            
+            # Ajuste para In Progress Color
+            row = col.row(align=True)
+            row.prop(p, "use_active_original_color") # Checkbox para usar color original
+            
+            if not p.use_active_original_color:
+                # El color en la misma fila con la etiqueta
+                color_row = col.row(align=True)
+                # Tu código original tenía 'in_progress_color' o 'active_color', lo mantengo
+                if hasattr(p, "in_progress_color"):
+                    color_row.label(text="In Progress Color:")
+                    color_row.prop(p, "in_progress_color", text="")
+                elif hasattr(p, "active_color"):
+                    color_row.label(text="Active Color:")
+                    color_row.prop(p, "active_color", text="")
+            
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
             col.prop(p, "active_start_transparency")
             col.prop(p, "active_finish_transparency")
             col.prop(p, "active_transparency_interpol")
 
+<<<<<<< HEAD
             # --- End Appearance ---
+=======
+           # --- End Appearance ---
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
             end_box = layout.box()
             header = end_box.row(align=True)
             header.label(text="End Appearance", icon='FF')
             col = end_box.column()
             col.enabled = bool(getattr(p, "consider_end", True))
+<<<<<<< HEAD
 
             # <-- START OF MODIFICATION -->
+=======
+            
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
             # Add the new switch to hide at the end
             col.prop(p, "hide_at_end")
 
@@ -1149,7 +1199,10 @@ class BIM_PT_animation_tools(Panel):
         row = layout.row(align=True)
         row.operator("bim.arrange_schedule_texts", text="Auto-Arrange", icon="ALIGN_TOP")
 
+<<<<<<< HEAD
     
 
+=======
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 
 

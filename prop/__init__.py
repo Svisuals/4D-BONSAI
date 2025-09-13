@@ -13,6 +13,7 @@ All PropertyGroups maintain full compatibility with the original prop.py impleme
 """
 
 
+<<<<<<< HEAD
 
 import bpy
 from bpy.props import PointerProperty
@@ -51,6 +52,50 @@ classes = (
     
     # De ui_helpers_prop.py
     IFCStatus, BIMStatusProperties, DatePickerProperties, BIMDateTextProperties,
+=======
+import bpy
+from bpy.props import PointerProperty
+
+# Import classes from specific modules to avoid duplicates
+from .misc import BIMTaskTypeColor, IFCStatus, BIMStatusProperties
+from .calendar import WorkCalendar, RecurrenceComponent, BIMWorkCalendarProperties, DatePickerProperties, BIMDateTextProperties
+from .filter import TaskFilterRule, BIMTaskFilterProperties, SavedFilterSet
+from .task import TaskcolortypeGroupChoice, Task, TaskResource, TaskProduct, BIMTaskTreeProperties
+from .schedule import WorkPlan, BIMWorkPlanProperties, BIMWorkScheduleProperties
+from .animation import AnimationColorSchemes, AnimationColorTypeGroupItem, BIMAnimationProperties
+from .camera_hud import BIMCameraOrbitProperties
+
+# Import manager and callback functions
+from .color_manager_prop import UnifiedColorTypeManager
+from .filter import update_filter_column
+from .camera_hud import update_schedule_display_parent_constraint
+
+# --- 2. Crear una tupla con todas las clases a registrar ---
+classes = (
+    # Miscellaneous
+    BIMTaskTypeColor, IFCStatus, BIMStatusProperties,
+    
+    # Calendar
+    WorkCalendar, RecurrenceComponent, BIMWorkCalendarProperties,
+    DatePickerProperties, BIMDateTextProperties,
+    
+    # Task filtering
+    TaskFilterRule, BIMTaskFilterProperties, SavedFilterSet,
+    
+    # Tasks
+    TaskcolortypeGroupChoice, Task, TaskResource, TaskProduct,
+    BIMTaskTreeProperties,
+    
+    # Schedules
+    WorkPlan, BIMWorkPlanProperties, BIMWorkScheduleProperties,
+    
+    # Animation
+    AnimationColorSchemes, AnimationColorTypeGroupItem,
+    BIMAnimationProperties,
+    
+    # Camera
+    BIMCameraOrbitProperties,
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 )
 
 # --- 3. Funciones de registro y desregistro para todo el paquete ---
@@ -71,3 +116,48 @@ def unregister():
 
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
+<<<<<<< HEAD
+=======
+
+# Export all classes for easy importing
+__all__ = [
+    # Animation
+    'UnifiedColorTypeManager',
+    'AnimationColorSchemes',
+    'AnimationColorTypeGroupItem',
+    'BIMAnimationProperties',
+    
+    # Camera & HUD
+    'BIMCameraOrbitProperties',
+    
+    # Tasks
+    'TaskcolortypeGroupChoice',
+    'Task',
+    'TaskResource',
+    'TaskProduct',
+    'BIMTaskTreeProperties',
+    
+    # Schedules
+    'WorkPlan',
+    'BIMWorkPlanProperties',
+    'BIMWorkScheduleProperties',
+    
+    # Filters
+    'TaskFilterRule',
+    'BIMTaskFilterProperties',
+    'SavedFilterSet',
+    
+    # Calendar
+    'WorkCalendar',
+    'RecurrenceComponent',
+    'BIMWorkCalendarProperties',
+    'DatePickerProperties',
+    'BIMDateTextProperties',
+    
+    # Miscellaneous
+    'BIMTaskTypeColor',
+    'IFCStatus',
+    'BIMStatusProperties'
+]
+
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138

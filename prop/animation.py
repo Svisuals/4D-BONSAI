@@ -19,7 +19,11 @@
 import bpy
 import json
 import bonsai.tool as tool
+<<<<<<< HEAD
 from bonsai.bim.module.sequence.data import SequenceData, AnimationColorSchemeData
+=======
+from ..data import SequenceData, AnimationColorSchemeData
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 from mathutils import Color
 from bpy.types import PropertyGroup
 from bpy.props import (
@@ -35,6 +39,7 @@ from bpy.props import (
 from typing import TYPE_CHECKING, Dict, List, Set
 
 # ============================================================================
+<<<<<<< HEAD
 # UNIFIED COLORTYPE MANAGER - CENTRAL CLASS FOR MANAGING PROFILES
 # ============================================================================
 
@@ -609,6 +614,13 @@ class UnifiedColorTypeManager:
                         
         except Exception as e:
             print(f"Error applying colortype data: {e}")
+=======
+# IMPORT UNIFIED COLORTYPE MANAGER FROM CORRECT MODULE
+# ============================================================================
+
+# Import the UnifiedColorTypeManager from the centralized color_manager_prop module
+from .color_manager_prop import UnifiedColorTypeManager
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 
 # ============================================================================
 # ANIMATION CALLBACK FUNCTIONS
@@ -639,8 +651,11 @@ def get_custom_group_colortype_items(self, context):
         anim_props = tool.Sequence.get_animation_props()
         selected_group = getattr(anim_props, "task_colortype_group_selector", "")
         
+<<<<<<< HEAD
         print(f"🔍 get_custom_group_colortype_items called for task {getattr(self, 'ifc_definition_id', 'unknown')}")
         print(f"🔍 selected_group: '{selected_group}'")
+=======
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
         
         if selected_group and selected_group != "DEFAULT":
             # Direct and flexible reading from JSON
@@ -652,8 +667,13 @@ def get_custom_group_colortype_items(self, context):
             for colortype in colortypes_list:
                 if isinstance(colortype, dict) and "name" in colortype:
                     # Ensure we only add valid non-numeric string names
+<<<<<<< HEAD
                     name = str(colortype["name"])
                     if name and not name.isdigit():
+=======
+                    name = str(colortype["name"]).strip()
+                    if name and not name.isdigit() and name != "0" and len(name) > 0:
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
                         colortype_names.append(name)
             
             # Always include an empty option first to prevent enum errors
@@ -662,9 +682,15 @@ def get_custom_group_colortype_items(self, context):
             for i, name in enumerate(sorted(colortype_names)):
                 items.append((name, name, f"colortype from {selected_group}", i + 1))
             
+<<<<<<< HEAD
             print(f"🔍 Found {len(colortype_names)} colortypes: {colortype_names}")
         else:
             print(f"🔍 No valid group selected: '{selected_group}'")
+=======
+        else:
+            # No valid group selected, provide default empty option
+            pass
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
     
     # If there are no profiles, ensure that at least the null option exists to avoid enum errors.
     except Exception as e:
@@ -685,7 +711,10 @@ def get_custom_group_colortype_items(self, context):
     if not items:
         items.append(("", "<none>", "No colortypes available", 0))
     
+<<<<<<< HEAD
     print(f"🔍 Final items returned: {[(item[0], item[1]) for item in items]}")
+=======
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
     
     # CRITICAL: Ensure empty option is ALWAYS first and present
     if not any(item[0] == "" for item in items):
@@ -706,7 +735,10 @@ def get_custom_group_colortype_items(self, context):
     else:
         final_items = [("", "<none>", "No colortype selected", 0)] + non_empty_items
     
+<<<<<<< HEAD
     print(f"🔍 FINAL SORTED items: {[(item[0], item[1]) for item in final_items]}")
+=======
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
     return final_items
 
 def update_color_full(self, context):
@@ -997,7 +1029,11 @@ def update_legend_hud_on_group_change(self, context):
         # Cuando se activa/desactiva un grupo, es crucial actualizar el snapshot
         # del estado de la UI. El modo "Live Color Updates" depende de este
         # snapshot para saber qué perfiles aplicar.
+<<<<<<< HEAD
         from .operators.schedule_task_operators import snapshot_all_ui_state
+=======
+        from ..operators.schedule_task_operators import snapshot_all_ui_state
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
         snapshot_all_ui_state(context)
 
         print(f"🔄 GROUP CHANGE CALLBACK: Group '{self.group}' enabled changed to: {self.enabled}")
@@ -1313,6 +1349,14 @@ def cleanup_all_tasks_colortype_mappings(context):
         # Do not raise; operators call this after user actions and must not crash
         pass
 
+<<<<<<< HEAD
+=======
+# Alias for compatibility with main Bonsai installation
+def blcleanup_all_tasks_ifcopentype_mappings(context):
+    """Alias for cleanup_all_tasks_colortype_mappings to fix import errors"""
+    return cleanup_all_tasks_colortype_mappings(context)
+
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 def monitor_predefined_type_change(context):
     """Monitors changes in PredefinedType and auto-syncs DEFAULT"""
     try:
@@ -1329,6 +1373,7 @@ def monitor_predefined_type_change(context):
             UnifiedColorTypeManager.sync_default_group_to_predefinedtype(context, task_pg)
 
     except Exception as e:
+<<<<<<< HEAD
         print(f"[ERROR] monitor_predefined_type_change: {e}")
 
 # ============================================================================
@@ -1434,3 +1479,6 @@ def get_task_colortype_items(self, context):
         
     except Exception:
         return [("DEFAULT", "Default", "Default colortype")]
+=======
+        print(f"[ERROR] monitor_predefined_type_change: {e}")
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138

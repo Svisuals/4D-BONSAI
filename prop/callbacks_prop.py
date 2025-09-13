@@ -29,7 +29,11 @@ import ifcopenshell.util.attribute
 import ifcopenshell.util.date
 import bonsai.tool as tool
 import bonsai.core.sequence as core
+<<<<<<< HEAD
 from bonsai.bim.module.sequence.data import SequenceData, AnimationColorSchemeData, refresh as refresh_sequence_data
+=======
+from ..data import SequenceData, AnimationColorSchemeData, refresh as refresh_sequence_data
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 import bonsai.bim.module.resource.data
 import bonsai.bim.module.pset.data
 from mathutils import Color
@@ -43,7 +47,10 @@ from .color_manager_prop import UnifiedColorTypeManager
 
 # Hacemos una importación circular segura
 from . import enums_prop
+<<<<<<< HEAD
 from .enums_prop import get_custom_group_colortype_items
+=======
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 
 
 
@@ -827,7 +834,11 @@ def update_active_task_index(self, context):
     bonsai.bim.module.pset.data.refresh()
 
     if self.editing_task_type == "SEQUENCE":
+<<<<<<< HEAD
         tool.Sequence.load_task_properties()
+=======
+        tool.Sequence.load_task_properties(task=None)
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 
     try:
         tprops = tool.Sequence.get_task_tree_props()
@@ -1058,7 +1069,11 @@ def updateTaskPredefinedType(self: "Task", context: bpy.types.Context) -> None:
         # 1. Get the new PredefinedType value directly from the task.
         #    This is more robust than searching the attribute collection.
         try:
+<<<<<<< HEAD
             from bonsai.bim.module.sequence.data import SequenceData
+=======
+            from ..data import SequenceData
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
             task_data = SequenceData.data["tasks"][self.ifc_definition_id]
             new_predefined_type = task_data.get("PredefinedType", "NOTDEFINED") or "NOTDEFINED"
         except Exception:
@@ -1201,7 +1216,11 @@ def update_task_colortype_group_selector(self, context):
             print(f"📄 Custom group selected: {self.task_colortype_group_selector}")
             
             # Load profiles from this group into the UI to make them available
+<<<<<<< HEAD
             from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+=======
+            from ..prop import UnifiedColorTypeManager
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
             UnifiedColorTypeManager.load_colortypes_into_collection(self, context, self.task_colortype_group_selector)
             
             # OPTIONALLY sync to ColorType_groups for editing if user wants
@@ -1300,7 +1319,11 @@ def update_ColorType_group(self, context):
                     safe_set_selected_colortype_in_active_group(task, valid_colortype_names[1])
                 else:
                     safe_set_selected_colortype_in_active_group(task, "")
+<<<<<<< HEAD
                 # --- FIN DE LA CORRECCIÓN ---
+=======
+                
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
     except Exception as e:
         print(f"[ERROR] Error in update_colortype_group: {e}")
 
@@ -1319,7 +1342,11 @@ def updateAssignedResourceUsage(self: "TaskResource", context: object) -> None:
     if resource.Usage and resource.Usage.ScheduleUsage == self.schedule_usage:
         return
     tool.Resource.run_edit_resource_time(resource, attributes={"ScheduleUsage": self.schedule_usage})
+<<<<<<< HEAD
     tool.Sequence.load_task_properties()
+=======
+    tool.Sequence.load_task_properties(task=None)
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
     tool.Resource.load_resource_properties()
     tool.Sequence.refresh_task_resources()
     bonsai.bim.module.resource.data.refresh()
@@ -1560,7 +1587,11 @@ def update_gpu_hud_visibility(self, context):
             getattr(self, "enable_3d_legend_hud", False)
         )
 
+<<<<<<< HEAD
         from bonsai.bim.module.sequence import hud as hud_overlay
+=======
+        from .. import hud as hud_overlay
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 
         def deferred_update():
             try:
@@ -1704,7 +1735,11 @@ def force_hud_refresh(self, context):
         def delayed_refresh():
             try:
                 # Ensure handlers are registered
+<<<<<<< HEAD
                 import bonsai.bim.module.sequence.hud as hud_overlay
+=======
+                from .. import hud as hud_overlay
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
                 
                 # CRITICAL: Also update 3D Legend HUD when Legend HUD settings change
                 try:
@@ -1968,12 +2003,17 @@ def toggle_live_color_updates(self, context):
 def update_legend_hud_on_group_change(self, context):
     """Callback que se ejecuta cuando cambia el estado enabled de un grupo"""
     try:
+<<<<<<< HEAD
         # --- INICIO DE LA CORRECCIÓN ---
+=======
+        
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
         # Cuando se activa/desactiva un grupo, es crucial actualizar el snapshot
         # del estado de la UI. El modo "Live Color Updates" depende de este
         # snapshot para saber qué perfiles aplicar.
         from ..operators.schedule_task_operators import snapshot_all_ui_state
         snapshot_all_ui_state(context)
+<<<<<<< HEAD
         # --- FIN DE LA CORRECCIÓN ---
 
         print(f"🔄 GROUP CHANGE CALLBACK: Group '{self.group}' enabled changed to: {self.enabled}")
@@ -1982,6 +2022,16 @@ def update_legend_hud_on_group_change(self, context):
         _sync_animation_color_schemes_with_active_groups(context)
         
         # ... (código para actualizar el HUD de la leyenda) ...
+=======
+       
+
+        print(f"🔄 GROUP CHANGE CALLBACK: Group '{self.group}' enabled changed to: {self.enabled}")
+        
+       
+        _sync_animation_color_schemes_with_active_groups(context)
+        
+        
+>>>>>>> 7c0c987dee437856081a6ffee6f0b5d6d9efa138
 
         # Invalidar caché del legend HUD para refrescar
         from ..hud import invalidate_legend_hud_cache, refresh_hud
