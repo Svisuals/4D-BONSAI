@@ -251,3 +251,13 @@ def unregister():
     """Unregisters all operator classes in reverse order."""
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
+
+# Explicit imports for main module access
+ExportP6 = io_operators.ExportP6
+ExportMSP = io_operators.ExportMSP
+ImportWorkScheduleCSV = io_operators.ImportWorkScheduleCSV
+ImportP6 = io_operators.ImportP6
+ImportP6XER = io_operators.ImportP6XER
+ImportPP = io_operators.ImportPP
+ImportMSP = io_operators.ImportMSP
+ResetCameraSettings = camera_operators.ResetCameraSettings
