@@ -9,16 +9,16 @@ import bonsai.tool as tool
 import bonsai.core.sequence as core
 
 try:
-    from .prop import update_filter_column
-    from . import prop
+    from ..prop import update_filter_column
+    from .. import prop
     from .ui import calculate_visible_columns_count
     from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop import update_filter_column
-        import bonsai.bim.module.sequence.prop as prop
-        from bonsai.bim.module.sequence.ui import calculate_visible_columns_count
-        from bonsai.bim.module.sequence.schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
+        from ..prop.filter import update_filter_column
+        from .. import prop as prop
+        from ..ui import calculate_visible_columns_count
+        from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
     except Exception:
         def update_filter_column(*args, **kwargs):
             pass
@@ -117,7 +117,7 @@ class AssignProduct(bpy.types.Operator, tool.Ifc.Operator):
                 )
             else:
                 core.assign_products(tool.Ifc, tool.Sequence, tool.Spatial, task=tool.Ifc.get().by_id(self.task))
-            tool.Sequence.load_task_properties()
+            tool.Sequence.load_task_properties(task=None)
         finally:
             restore_all_ui_state(context)
 
@@ -142,7 +142,7 @@ class UnassignProduct(bpy.types.Operator, tool.Ifc.Operator):
                 )
             else:
                 core.unassign_products(tool.Ifc, tool.Sequence, tool.Spatial, task=tool.Ifc.get().by_id(self.task))
-            tool.Sequence.load_task_properties()
+            tool.Sequence.load_task_properties(task=None)
             task_ifc = tool.Ifc.get().by_id(self.task)
             tool.Sequence.update_task_ICOM(task_ifc)
         finally:
