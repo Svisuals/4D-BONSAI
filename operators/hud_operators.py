@@ -3,6 +3,7 @@
 
 import bpy
 import bonsai.tool as tool
+from .. import hud as hud_overlay
 
 # ============================================================================
 # 3D TEXT HUD OPERATORS
@@ -383,7 +384,6 @@ class Setup3DLegendHUD(bpy.types.Operator):
     
     def _get_active_colortype_data(self):
         try:
-            from .. import hud_overlay
             hud_instance = hud_overlay.schedule_hud if hasattr(hud_overlay, 'schedule_hud') and hud_overlay.schedule_hud else hud_overlay.ScheduleHUD()
             return hud_instance.get_active_colortype_legend_data(include_hidden=False)
         except Exception as e:
@@ -674,7 +674,7 @@ class EnableScheduleHUD(bpy.types.Operator):
             camera_props = anim_props.camera_orbit
             if not camera_props.enable_text_hud:
                 camera_props.enable_text_hud = True
-            from .. import hud_overlay
+            from .. import hud
             if not hud_overlay.is_hud_enabled():
                 hud_overlay.register_hud_handler()
             hud_overlay.refresh_hud()
@@ -696,7 +696,7 @@ class DisableScheduleHUD(bpy.types.Operator):
             camera_props = anim_props.camera_orbit
             if camera_props.enable_text_hud:
                 camera_props.enable_text_hud = False
-            from .. import hud_overlay
+            from .. import hud
             hud_overlay.unregister_hud_handler()
             for area in context.screen.areas:
                 if getattr(area, "type", None) == 'VIEW_3D':
@@ -715,7 +715,7 @@ class ToggleScheduleHUD(bpy.types.Operator):
 
     def execute(self, context):
         try:
-            from .. import hud_overlay
+            from .. import hud
             if hud_overlay.is_hud_enabled():
                 bpy.ops.bim.disable_schedule_hud()
             else:
@@ -733,7 +733,7 @@ class RefreshScheduleHUD(bpy.types.Operator):
 
     def execute(self, context):
         try:
-            from .. import hud_overlay
+            from .. import hud
             hud_overlay.ensure_hud_handlers()
             hud_overlay.refresh_hud()
             for window in context.window_manager.windows:
@@ -769,7 +769,7 @@ class LegendHudcolortypeScrollDown(bpy.types.Operator):
         anim_props = tool.Sequence.get_animation_props()
         camera_props = anim_props.camera_orbit
         current_offset = getattr(camera_props, 'legend_hud_colortype_scroll_offset', 0)
-        from .. import hud_overlay
+        from .. import hud
         if hasattr(hud_overlay, 'schedule_hud') and hud_overlay.schedule_hud:
             all_colortype_data = hud_overlay.schedule_hud.get_active_colortype_legend_data(include_hidden=True)
             total_colortypes = len(all_colortype_data) if all_colortype_data else 0

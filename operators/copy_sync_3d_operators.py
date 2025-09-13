@@ -3,6 +3,7 @@
 
 import bpy
 import bonsai.tool as tool
+from .. import hud as hud_overlay
 from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state, _save_3d_texts_state, _restore_3d_texts_state
 from .animation_operators import _get_animation_settings, _compute_product_frames, _ensure_default_group
 
@@ -155,7 +156,7 @@ class SnapshotWithcolortypes(tool.Ifc.Operator, bpy.types.Operator):
             print("✅ DEBUG: Set is_snapshot_mode flag")
             
             # CRITICAL: Register HUD handler for snapshots
-            from .. import hud_overlay
+            from .. import hud
             if not hud_overlay.is_hud_enabled():
                 print("🎬 SNAPSHOT: Registering HUD handler for Timeline display")
                 hud_overlay.register_hud_handler()
