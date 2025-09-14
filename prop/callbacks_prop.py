@@ -1226,37 +1226,8 @@ def update_task_colortype_group_selector(self, context):
             except Exception as e:
                 print(f"⚠ Error syncing task colortypes: {e}")
 
-            # NUEVO: Sincronizar con controlador GN para animación en tiempo real
-            try:
-                sync_gn_controller_colortype(context, self.task_colortype_group_selector)
-            except Exception as e:
-                print(f"⚠️ Could not sync GN controller: {e}")
-
     except Exception as e:
         print(f"❌ Error in update_task_colortype_group_selector: {e}")
-
-
-def sync_gn_controller_colortype(context, selected_group):
-    """Sync Geometry Nodes controller with Animation Settings ColorType selector"""
-    try:
-        # Find GN controller objects
-        controllers = [obj for obj in context.scene.objects
-                      if hasattr(obj, "BonsaiGNController")]
-
-        for controller in controllers:
-            if hasattr(controller.BonsaiGNController, "colortype_group_to_display"):
-                old_value = controller.BonsaiGNController.colortype_group_to_display
-                controller.BonsaiGNController.colortype_group_to_display = selected_group
-                print(f"🎮 Synced GN controller '{controller.name}': '{old_value}' → '{selected_group}'")
-
-        # Force viewport update to show changes immediately
-        if controllers:
-            for area in context.screen.areas:
-                if area.type == 'VIEW_3D':
-                    area.tag_redraw()
-
-    except Exception as e:
-        print(f"❌ Failed to sync GN controller: {e}")
 
 
 def monitor_predefined_type_change(context):
@@ -1983,31 +1954,11 @@ def toggle_live_color_updates(self, context):
     print(f"[DEBUG] toggle_live_color_updates called, enable_live_color_updates = {self.enable_live_color_updates}")
     try:
         if self.enable_live_color_updates:
-            # Enable keyframes Live Color system
             tool.Sequence.register_live_color_update_handler()
-            print("Live color updates enabled for keyframes.")
-
-            # INTEGRATION: Enable Geometry Nodes Live Color system
-            try:
-                from ..tool.gn_sequence import register_gn_live_color_handler
-                register_gn_live_color_handler()
-                print("Live color updates enabled for Geometry Nodes.")
-            except Exception as gn_e:
-                print(f"Could not enable GN live colors: {gn_e}")
-
+            print("Live color updates enabled.")
         else:
-            # Disable keyframes Live Color system
             tool.Sequence.unregister_live_color_update_handler()
-            print("Live color updates disabled for keyframes.")
-
-            # INTEGRATION: Disable Geometry Nodes Live Color system
-            try:
-                from ..tool.gn_sequence import unregister_gn_live_color_handler
-                unregister_gn_live_color_handler()
-                print("Live color updates disabled for Geometry Nodes.")
-            except Exception as gn_e:
-                print(f"Could not disable GN live colors: {gn_e}")
-
+            print("Live color updates disabled.")
     except Exception as e:
         print(f"Error toggling live color updates: {e}")
         import traceback
@@ -2024,20 +1975,6 @@ def update_legend_hud_on_group_change(self, context):
         from ..operators.schedule_task_operators import snapshot_all_ui_state
         snapshot_all_ui_state(context)
         # --- FIN DE LA CORRECCIÓN ---
-
-        # Update GN4D controller displays when ColorType group changes
-        update_gn_controller_colortype_display(context)
-
-        # INTEGRATION: Clear GN ColorType mapping cache when group changes (Live Scheme Color)
-        try:
-            from ..tool.gn_sequence import detect_colortype_group_change
-            detect_colortype_group_change()
-            print("🔄 GN ColorType mapping cleared due to group change")
-        except Exception as gn_e:
-            print(f"⚠️ Could not update GN ColorType mapping: {gn_e}")
-
-    except Exception as e:
-        print(f"⚠️ Error in group change callback: {e}")
 
         print(f"🔄 GROUP CHANGE CALLBACK: Group '{self.group}' enabled changed to: {self.enabled}")
         
@@ -2140,34 +2077,4 @@ def update_selected_date(self: "DatePickerProperties", context: bpy.types.Contex
 
 
 
-
-
-
-
-def update_gn_controller_colortype_display(context):
-    """Update ColorType display in all GN4D controller panels when Animation Settings change"""
-    try:
-        # Get the currently active ColorType group name
-        from .color_manager_prop import UnifiedColorTypeManager
-        active_group = UnifiedColorTypeManager.get_active_group_name(context)
-        if not active_group:
-            active_group = "DEFAULT"
-
-        print(f"🔄 Updating GN controllers with ColorType: {active_group}")
-
-        # Update all GN4D controller objects
-        for obj in context.scene.objects:
-            if obj.get("is_gn_controller", False):
-                # Update the colortype_group_to_display property
-                if hasattr(obj, "BonsaiGNController"):
-                    obj.BonsaiGNController.colortype_group_to_display = active_group
-                    print(f"   Updated GN controller '{obj.name}' to show: {active_group}")
-
-        # Force UI refresh
-        for area in context.screen.areas:
-            if area.type == 'PROPERTIES':
-                area.tag_redraw()
-
-    except Exception as e:
-        print(f"⚠️ Error updating GN controller displays: {e}")
 
