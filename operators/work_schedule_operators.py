@@ -1104,7 +1104,7 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                     # Limpiar la lista de perfiles ocultos para mostrar todos
                     camera_props.legend_hud_visible_colortypes = ""
                     # Invalidar caché del legend HUD
-                    from bonsai.bim.module.sequence.hud_overlay import invalidate_legend_hud_cache
+                    from ..hud import invalidate_legend_hud_cache
                     invalidate_legend_hud_cache()
                     print("🎨 colortype group visibility restored in HUD Legend")
             except Exception as legend_e:

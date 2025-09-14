@@ -18,12 +18,19 @@ from . import schedule_sequence_operators
 from . import schedule_operators
 from . import work_plan_operators
 from . import color_scheme_operators
+from . import animation_management_operators
 from .animation_operators import CreateAnimation, ClearAnimation, AddAnimationTaskType, RemoveAnimationTaskType, AddAnimationCamera, ClearPreviousAnimation, ClearPreviousSnapshot, SyncAnimationByDate
 
 # A single tuple containing all operator classes to be registered
 
 classes = (
     # from camera_operators.py
+    camera_operators.RefreshCameraSelectors,
+    camera_operators.ForceCameraPropertyUpdate,
+    camera_operators.SetActiveAnimationCamera,
+    camera_operators.SetActiveSnapshotCamera,
+    camera_operators.TestCameraDetection,
+    camera_operators.DebugListAllCameras,
     camera_operators.ResetCameraSettings,
     camera_operators.Align4DCameraToView,
     camera_operators.AddSnapshotCamera,
@@ -117,6 +124,7 @@ classes = (
     filter_operators.DisableStatusFilters,
     filter_operators.ActivateStatusFilters,
     filter_operators.SelectStatusFilter,
+    filter_operators.AssignStatus,
     filter_operators.AddTaskFilter,
     filter_operators.RemoveTaskFilter,
     filter_operators.ClearAllTaskFilters,
@@ -223,6 +231,11 @@ classes = (
     animation_operators.ClearPreviousAnimation,
     animation_operators.ClearPreviousSnapshot,
     animation_operators.SyncAnimationByDate,
+
+    # from animation_management_operators.py
+    animation_management_operators.RunAsyncTaskWithProgress,
+    animation_management_operators.CreateUpdate4DAnimation,
+    animation_management_operators.AddGNViewController,
     
     # from navigation_operators.py
     navigation_operators.NavigateColumnsLeft,
@@ -238,6 +251,7 @@ classes = (
     config_operators.BIM_OT_verify_colortype_json,
     config_operators.BIM_OT_fix_colortype_hide_at_end_immediate,
     config_operators.RefreshSnapshotTexts,
+    config_operators.CreateStaticSnapshotTexts,
     config_operators.BIM_OT_show_performance_stats,
     config_operators.BIM_OT_clear_performance_cache,
 )
@@ -251,3 +265,13 @@ def unregister():
     """Unregisters all operator classes in reverse order."""
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
+
+# Explicit imports for main module access
+ExportP6 = io_operators.ExportP6
+ExportMSP = io_operators.ExportMSP
+ImportWorkScheduleCSV = io_operators.ImportWorkScheduleCSV
+ImportP6 = io_operators.ImportP6
+ImportP6XER = io_operators.ImportP6XER
+ImportPP = io_operators.ImportPP
+ImportMSP = io_operators.ImportMSP
+ResetCameraSettings = camera_operators.ResetCameraSettings
