@@ -313,18 +313,30 @@ def restore_all_ui_state(context):
                     # Si la tarea NO tiene grupo activo, usar el valor capturado de animation_color_schemes
                     if not task_is_active and animation_color_schemes:
                         print(f"🎨 DEBUG RESTORE: Task {tid} - Setting animation_color_schemes from snapshot: '{animation_color_schemes}'")
-                        prop.safe_set_animation_color_schemes(t, animation_color_schemes)
+                        from ..prop.animation import safe_set_animation_color_schemes
+                        safe_set_animation_color_schemes(t, animation_color_schemes)
                     elif not task_is_active:
-                        print(f"🎨 DEBUG RESTORE: Task {tid} - No animation_color_schemes value, using fallback")
-                        prop.safe_set_animation_color_schemes(t, "")
+                        print(f"🎨 DEBUG RESTORE: Task {tid} - No animation_color_schemes value, using first valid enum option")
+                        # Don't pass empty string, let the safe_set function handle the fallback
+                        try:
+                            # Get the first valid enum option
+                            from ..prop.animation import get_animation_color_schemes_items, safe_set_animation_color_schemes
+                            valid_items = get_animation_color_schemes_items(t, bpy.context)
+                            first_valid = valid_items[0][0] if valid_items else ""
+                            safe_set_animation_color_schemes(t, first_valid)
+                        except Exception as e:
+                            print(f"⚠️ Could not determine valid enum options for task {tid}: {e}")
+                            # Skip setting if we can't determine valid options
                     else:
                         # Si la tarea SÍ tiene grupo activo, sincronizar animation_color_schemes con el valor del grupo
                         if selected_active_colortype:
                             print(f"🔄 DEBUG RESTORE: Task {tid} - Syncing animation_color_schemes with active group value: '{selected_active_colortype}'")
-                            prop.safe_set_animation_color_schemes(t, selected_active_colortype)
+                            from ..prop.animation import safe_set_animation_color_schemes
+                            safe_set_animation_color_schemes(t, selected_active_colortype)
                         else:
                             print(f"🔄 DEBUG RESTORE: Task {tid} - Has active group but no selected colortype, using snapshot value: '{animation_color_schemes}'")
-                            prop.safe_set_animation_color_schemes(t, animation_color_schemes)
+                            from ..prop.animation import safe_set_animation_color_schemes
+                            safe_set_animation_color_schemes(t, animation_color_schemes)
                     
                     print(f"🔧 DEBUG RESTORE: Task {tid} - active={cfg.get('active')}, selected_colortype='{selected_active_colortype}'")
                 except Exception as e:

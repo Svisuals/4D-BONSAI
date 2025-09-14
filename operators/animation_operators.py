@@ -4,7 +4,7 @@
 import bpy
 import bonsai.tool as tool
 import ifcopenshell.util.sequence
-from .. import hud_overlay
+from .. import hud as hud_overlay
 from datetime import datetime, timedelta
 from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
 
@@ -41,7 +41,15 @@ class CreateAnimation(bpy.types.Operator, tool.Ifc.Operator):
         # Levanta la bandera para indicar que la animación ya existe y es válida.
         anim_props.is_animation_created = True
         print("✅ Animation flag SET to TRUE.")
-        # --- FIN DE LA MODIFICACIÓN ---
+        
+        try:
+            camera_props = tool.Sequence.get_animation_props().camera_orbit
+            if camera_props.enable_3d_legend_hud:
+                print("✅ 3D Legend HUD is enabled, ensuring it is created...")
+                bpy.ops.bim.setup_3d_legend_hud()
+        except Exception as e:
+            print(f"⚠️ Could not auto-create 3D Legend HUD during animation creation: {e}")
+
 
         return {'FINISHED'}
 
@@ -525,7 +533,7 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
                         camera_props.legend_hud_selected_colortypes = set()
                     
                     # Invalidar caché del legend HUD
-                    from bonsai.bim.module.sequence.hud_overlay import invalidate_legend_hud_cache
+                    from ..hud import invalidate_legend_hud_cache
                     invalidate_legend_hud_cache()
                     print("🧹 Active colortype group cleared from HUD Legend")
             except Exception as legend_e:
@@ -587,6 +595,60 @@ class SyncAnimationByDate(bpy.types.Operator):
 
 
 # Removed SyncAnimationDateSource - sync auto functionality eliminated
+
+def create_4d_animation_legacy(context):
+    """Creates 4D animation using the legacy keyframe system"""
+    print("🎬 Creating keyframe-based 4D animation...")
+
+    try:
+        # Get the active work schedule
+        work_schedule = tool.Sequence.get_active_work_schedule()
+        if not work_schedule:
+            raise Exception("No active work schedule found")
+
+        # Get animation settings
+        settings = _get_animation_settings(context)
+        if not settings:
+            raise Exception("Could not get animation settings")
+
+        # Clear any previous animation
+        _clear_previous_animation(context)
+
+        # Compute product frames
+        frames = _compute_product_frames(context, work_schedule, settings)
+        if not frames:
+            print("⚠️ No products found to animate")
+            return
+
+        # Apply colortype animation
+        _apply_colortype_animation(context, frames, settings)
+
+        # Add timeline text if available
+        try:
+            if hasattr(tool.Sequence, 'add_text_animation_handler'):
+                tool.Sequence.add_text_animation_handler(settings)
+        except Exception as e:
+            print(f"Could not add timeline text: {e}")
+
+        # Add task bars if available
+        try:
+            from bonsai.bim.module.sequence.core.sequence import add_task_bars
+            add_task_bars(tool.Sequence)
+        except Exception as e:
+            print(f"Could not add task bars: {e}")
+
+        # Set object shading
+        try:
+            if hasattr(tool.Sequence, 'set_object_shading'):
+                tool.Sequence.set_object_shading()
+        except Exception as e:
+            print(f"Could not set object shading: {e}")
+
+        print(f"✅ Legacy animation created for {len(frames)} products")
+
+    except Exception as e:
+        print(f"❌ Error creating legacy animation: {e}")
+        raise
 
 def _restore_3d_texts_state():
     """Restore 3D texts to their previous state after snapshot"""

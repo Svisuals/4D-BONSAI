@@ -450,12 +450,48 @@ class RefreshSnapshotTexts(bpy.types.Operator):
                 "total_frames": 1,
             }
 
-            # Rebuild 3D texts collection
+            # *** FIX: For snapshots, create static 3D texts WITHOUT animation handler ***
+            # This prevents the texts from animating when they should be fixed
             try:
-                tool.Sequence.add_text_animation_handler(snapshot_settings)
+                print("📸 RefreshSnapshotTexts: Creating STATIC 3D texts for snapshot mode")
+
+                # Check if we're in snapshot mode
+                is_snapshot_mode = context.scene.get("is_snapshot_mode", False)
+
+                if is_snapshot_mode:
+                    # SNAPSHOT MODE: Create static texts without animation handler
+                    print("📸 Snapshot mode detected - creating static 3D texts")
+
+                    # Create the texts collection and objects, but do NOT register animation handler
+                    tool.Sequence.create_text_objects_static(snapshot_settings)
+
+                    print("✅ Static 3D texts created for snapshot mode")
+                else:
+                    # NORMAL MODE: Use animation handler as before
+                    print("🎬 Normal mode - using animation handler")
+                    tool.Sequence.add_text_animation_handler(snapshot_settings)
+
             except Exception as e:
-                self.report({'ERROR'}, f"Failed to rebuild 3D texts: {e}")
-                return {'CANCELLED'}
+                # Fallback: Try the old method if the static method doesn't exist
+                print(f"⚠️ Static method failed, trying fallback: {e}")
+                try:
+                    # Create texts but immediately unregister the animation handler
+                    tool.Sequence.add_text_animation_handler(snapshot_settings)
+
+                    # If in snapshot mode, unregister the animation handler to prevent animation
+                    if context.scene.get("is_snapshot_mode", False):
+                        print("📸 Unregistering animation handler for snapshot mode")
+                        # Try to unregister the handler that was just registered
+                        try:
+                            from .operator import _local_unregister_text_handler
+                            _local_unregister_text_handler()
+                            print("✅ Animation handler unregistered for snapshot")
+                        except Exception as unreg_e:
+                            print(f"⚠️ Could not unregister animation handler: {unreg_e}")
+
+                except Exception as fallback_e:
+                    self.report({'ERROR'}, f"Failed to rebuild 3D texts: {fallback_e}")
+                    return {'CANCELLED'}
 
             # Optional auto-arrange
             try:
@@ -467,6 +503,91 @@ class RefreshSnapshotTexts(bpy.types.Operator):
             return {'FINISHED'}
         except Exception as e:
             self.report({'ERROR'}, f"Unexpected error: {e}")
+            return {'CANCELLED'}
+
+
+class CreateStaticSnapshotTexts(bpy.types.Operator):
+    bl_idname = "bim.create_static_snapshot_texts"
+    bl_label = "Create Static 3D Texts (Snapshot Only)"
+    bl_description = "Creates static 3D texts for snapshot mode without registering any animation handlers"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        try:
+            print("📸 CreateStaticSnapshotTexts: Creating static texts for snapshot-only mode")
+
+            import bonsai.tool as tool
+
+            # Get snapshot date from work schedule properties
+            ws_props = tool.Sequence.get_work_schedule_props()
+            start_str = getattr(ws_props, "visualisation_start", None) if ws_props else None
+
+            if not start_str or start_str == "-":
+                self.report({'ERROR'}, "No snapshot date set")
+                return {'CANCELLED'}
+
+            # Parse the snapshot date
+            parse = getattr(tool.Sequence, "parse_isodate_datetime", None) or getattr(tool.Sequence, "parse_isodate", None)
+            if start_str and parse:
+                start_dt = parse(start_str)
+            else:
+                from datetime import datetime as _dt
+                start_dt = _dt.now()
+
+            snapshot_settings = {
+                "start": start_dt,
+                "finish": start_dt,
+                "start_frame": context.scene.frame_current,
+                "total_frames": 1,
+            }
+
+            # Mark as snapshot mode to prevent animation handler registration
+            context.scene["is_snapshot_mode"] = True
+
+            # Create static texts WITHOUT animation handler
+            tool.Sequence.create_text_objects_static(snapshot_settings)
+
+            # *** APPLY VISIBILITY BASED ON CHECKBOX STATE ***
+            # Ensure the created texts respect the "3D HUD Render" checkbox setting
+            try:
+                anim_props = tool.Sequence.get_animation_props()
+                camera_props = anim_props.camera_orbit
+                should_hide = not getattr(camera_props, "show_3d_schedule_texts", False)
+
+                # Apply visibility to the newly created texts
+                texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
+                if texts_collection:
+                    texts_collection.hide_viewport = should_hide
+                    texts_collection.hide_render = should_hide
+
+                    # Also apply to individual objects
+                    for obj in texts_collection.objects:
+                        obj.hide_viewport = should_hide
+                        obj.hide_render = should_hide
+
+                    print(f"📸 Static texts visibility set: hidden={should_hide} (checkbox state: {getattr(camera_props, 'show_3d_schedule_texts', False)})")
+
+            except Exception as e:
+                print(f"⚠️ Could not apply visibility to static texts: {e}")
+
+            # Optional auto-arrange
+            try:
+                bpy.ops.bim.arrange_schedule_texts()
+            except Exception:
+                pass
+
+            # Report success with visibility status
+            try:
+                visibility_status = "visible" if not should_hide else "hidden"
+                self.report({'INFO'}, f"Static snapshot 3D texts created ({visibility_status})")
+            except:
+                self.report({'INFO'}, "Static snapshot 3D texts created")
+
+            return {'FINISHED'}
+
+        except Exception as e:
+            self.report({'ERROR'}, f"Failed to create static texts: {e}")
+            print(f"❌ CreateStaticSnapshotTexts error: {e}")
             return {'CANCELLED'}
 
 
