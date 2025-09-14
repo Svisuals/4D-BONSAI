@@ -72,6 +72,7 @@ if TYPE_CHECKING:
 
 class Sequence(bonsai.core.tool.Sequence):
 
+    ELEMENT_STATUSES = ("NEW", "EXISTING", "DEMOLISH", "TEMPORARY", "OTHER", "NOTKNOWN", "UNSET")
 
     # === START OF ADDED CODE ===
     @classmethod
@@ -3830,6 +3831,10 @@ class Sequence(bonsai.core.tool.Sequence):
                 not getattr(ColorType, 'consider_end', True)
             )
 
+            # DEBUG: Let's see what's happening with ColorType configuration
+            print(f"🔍 Task '{task.Name}' ColorType config: start={getattr(ColorType, 'consider_start', False)}, active={getattr(ColorType, 'consider_active', True)}, end={getattr(ColorType, 'consider_end', True)}")
+            print(f"🔍 Is priority mode: {is_priority_mode}")
+
             # If it is priority mode, IGNORE DATES and use the full range.
             if is_priority_mode:
                 print(f"🔒 Tarea '{task.Name}' en modo prioritario. Ignorando fechas.")
@@ -4689,10 +4694,10 @@ class Sequence(bonsai.core.tool.Sequence):
                     pass
 
             text_configs = [
-                {"name": "Schedule_Date","position": (0, 10, 5),"size": 1.2,"align": "CENTER","color": (1, 1, 1, 1),"type": "date"},
-                {"name": "Schedule_Week","position": (0, 10, 4),"size": 1.0,"align": "CENTER","color": (0.8, 0.8, 1, 1),"type": "week"},
-                {"name": "Schedule_Day_Counter","position": (0, 10, 3),"size": 0.8,"align": "CENTER","color": (1, 1, 0.8, 1),"type": "day_counter"},
-                {"name": "Schedule_Progress","position": (0, 10, 2),"size": 1.0,"align": "CENTER","color": (0.8, 1, 0.8, 1),"type": "progress"},
+                {"name": "Schedule_Date", "position": (0, 10, 5), "size": 1.2, "align": "CENTER", "color": (1, 1, 1, 1), "type": "date"},
+                {"name": "Schedule_Week", "position": (0, 10, 4), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "week"},
+                {"name": "Schedule_Day_Counter", "position": (0, 10, 3), "size": 0.8, "align": "CENTER", "color": (1, 1, 1, 1), "type": "day_counter"},
+                {"name": "Schedule_Progress", "position": (0, 10, 2), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "progress"},
             ]
 
             created_texts = []
@@ -4735,6 +4740,177 @@ class Sequence(bonsai.core.tool.Sequence):
                 print(f"Error in auto-HUD setup: {e}")
             cls._register_multi_text_handler(settings)
             return created_texts
+
+    @classmethod
+    def create_text_objects_static(cls, settings):
+        """Creates static 3D text objects for snapshot mode (NO animation handler registration)"""
+        from datetime import timedelta
+        print("📸 Creating STATIC 3D text objects for snapshot mode")
+
+        collection_name = "Schedule_Display_Texts"
+        if collection_name in bpy.data.collections:
+            collection = bpy.data.collections[collection_name]
+            # Clear previous objects
+            for obj in list(collection.objects):
+                try:
+                    bpy.data.objects.remove(obj, do_unlink=True)
+                except Exception:
+                    pass
+        else:
+            collection = bpy.data.collections.new(collection_name)
+            try:
+                bpy.context.scene.collection.children.link(collection)
+            except Exception:
+                pass
+
+        text_configs = [
+                {"name": "Schedule_Date", "position": (0, 10, 5), "size": 1.2, "align": "CENTER", "color": (1, 1, 1, 1), "type": "date"},
+                {"name": "Schedule_Week", "position": (0, 10, 4), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "week"},
+                {"name": "Schedule_Day_Counter", "position": (0, 10, 3), "size": 0.8, "align": "CENTER", "color": (1, 1, 1, 1), "type": "day_counter"},
+                {"name": "Schedule_Progress", "position": (0, 10, 2), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "progress"},
+            ]
+
+        created_texts = []
+        for config in text_configs:
+            text_obj = cls._create_static_text(config, settings, collection)
+            created_texts.append(text_obj)
+
+        print(f"✅ Created {len(created_texts)} static 3D text objects for snapshot mode")
+        return created_texts
+
+    @classmethod
+    def _create_static_text(cls, config, settings, collection):
+        """Creates a single static 3D text object with fixed content based on snapshot date"""
+        text_curve = bpy.data.curves.new(name=config["name"], type='FONT')
+        text_curve.size = config["size"]
+        text_curve.align_x = config["align"]
+        text_curve.align_y = 'CENTER'
+        text_curve["text_type"] = config["type"]
+
+        # Get the snapshot date from settings
+        snapshot_date = settings.get("start") if isinstance(settings, dict) else getattr(settings, "start", None)
+
+        # Set the text content based on the type and snapshot date
+        text_type = config["type"].lower()
+        if text_type == "date":
+            if snapshot_date:
+                try:
+                    text_curve.body = snapshot_date.strftime("%d/%m/%Y")
+                except Exception:
+                    text_curve.body = str(snapshot_date).split("T")[0]
+            else:
+                text_curve.body = "Date: --"
+
+        elif text_type == "week":
+            text_curve.body = cls._calculate_static_week_text(snapshot_date)
+        elif text_type == "day_counter":
+            text_curve.body = cls._calculate_static_day_text(snapshot_date)
+        elif text_type == "progress":
+            text_curve.body = cls._calculate_static_progress_text(snapshot_date)
+        else:
+            text_curve.body = f"Static {config['type']}"
+
+        # Create the text object
+        text_obj = bpy.data.objects.new(config["name"], text_curve)
+        text_obj.location = config["position"]
+
+        # Set color if available
+        if "color" in config:
+            color = config["color"]
+            if hasattr(text_obj, "color"):
+                text_obj.color = color
+
+        collection.objects.link(text_obj)
+
+        print(f"📝 Created static text: {config['name']} = '{text_curve.body}'")
+        return text_obj
+
+    @classmethod
+    def _calculate_static_week_text(cls, snapshot_date):
+        """Calculate static week text for snapshot mode"""
+        try:
+            if not snapshot_date:
+                return "Week --"
+
+            # Get schedule range for week calculation
+            sch_start, sch_finish = cls.get_schedule_date_range()
+            if not sch_start:
+                return "Week --"
+
+            cd_d = snapshot_date.date()
+            fss_d = sch_start.date()
+            delta_days = (cd_d - fss_d).days
+
+            if cd_d < fss_d:
+                week_number = 0
+            else:
+                week_number = max(1, (delta_days // 7) + 1)
+
+            return f"Week {week_number}"
+        except Exception as e:
+            print(f"❌ Error calculating static week: {e}")
+            return "Week --"
+
+    @classmethod
+    def _calculate_static_day_text(cls, snapshot_date):
+        """Calculate static day text for snapshot mode"""
+        try:
+            if not snapshot_date:
+                return "Day --"
+
+            # Get schedule range for day calculation
+            sch_start, sch_finish = cls.get_schedule_date_range()
+            if not sch_start:
+                return "Day --"
+
+            cd_d = snapshot_date.date()
+            fss_d = sch_start.date()
+            delta_days = (cd_d - fss_d).days
+
+            if cd_d < fss_d:
+                day_number = 0
+            else:
+                day_number = max(1, delta_days + 1)
+
+            return f"Day {day_number}"
+        except Exception as e:
+            print(f"❌ Error calculating static day: {e}")
+            return "Day --"
+
+    @classmethod
+    def _calculate_static_progress_text(cls, snapshot_date):
+        """Calculate static progress text for snapshot mode"""
+        try:
+            if not snapshot_date:
+                return "Progress: --%"
+
+            # Get schedule range for progress calculation
+            sch_start, sch_finish = cls.get_schedule_date_range()
+            if not (sch_start and sch_finish):
+                return "Progress: --%"
+
+            cd_d = snapshot_date.date()
+            fss_d = sch_start.date()
+            fse_d = sch_finish.date()
+
+            if cd_d < fss_d:
+                progress_pct = 0
+            elif cd_d >= fse_d:
+                progress_pct = 100
+            else:
+                total_schedule_days = (fse_d - fss_d).days
+                if total_schedule_days <= 0:
+                    progress_pct = 100
+                else:
+                    delta_days = (cd_d - fss_d).days
+                    progress_pct = (delta_days / total_schedule_days) * 100
+                    progress_pct = round(progress_pct)
+                    progress_pct = max(0, min(100, progress_pct))
+
+            return f"Progress: {progress_pct}%"
+        except Exception as e:
+            print(f"❌ Error calculating static progress: {e}")
+            return "Progress: --%"
 
     @classmethod
     def _create_animated_text(cls, config, settings, collection):
