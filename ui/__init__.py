@@ -21,17 +21,6 @@ from .animation_ui import (
     BIM_PT_animation_tools,
     BIM_PT_animation_color_schemes,
 )
-# Import new panels for Geometry Nodes integration
-from .panels_animation_new import (
-    BIM_PT_sequence_animation,
-    BIM_PT_gn_controller_settings,
-    BIM_PT_appearance_profiles,
-)
-# Import viewport panels
-from .viewport_panels import (
-    BIM_PT_4D_Animation_Viewport,
-    BIM_PT_4D_Controllers_Viewport,
-)
 from .lists_ui import (
     BIM_UL_animation_group_stack,
     BIM_UL_task_columns,
@@ -51,13 +40,10 @@ from .management_ui import (
     BIM_PT_4D_Tools,
 )
 from .schedule_ui import (
-    BIM_PT_colortype_maintenance,
+    BIM_PT_status,
     BIM_PT_work_schedules,
     BIM_PT_task_icom,
     BIM_PT_variance_analysis,
-)
-from .panels_schedule import (
-    BIM_PT_status,
 )
 
 # 2. Agrupar todas las clases en una sola tupla para facilitar el registro
@@ -65,13 +51,6 @@ classes = (
     # Paneles de Animación
     BIM_PT_animation_tools,
     BIM_PT_animation_color_schemes,
-    # New Geometry Nodes Animation Panels
-    BIM_PT_sequence_animation,
-    BIM_PT_gn_controller_settings,
-    BIM_PT_appearance_profiles,
-    # Viewport Panels
-    BIM_PT_4D_Animation_Viewport,
-    BIM_PT_4D_Controllers_Viewport,
     # Clases de Listas (UIList)
     BIM_UL_animation_group_stack,
     BIM_UL_task_columns,
@@ -90,7 +69,6 @@ classes = (
     BIM_PT_4D_Tools,
     # Paneles de Cronograma
     BIM_PT_status,
-    BIM_PT_colortype_maintenance,
     BIM_PT_work_schedules,
     BIM_PT_task_icom,
     BIM_PT_variance_analysis,
