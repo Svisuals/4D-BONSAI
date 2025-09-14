@@ -23,14 +23,14 @@ import bonsai.core.sequence as core
 
 
 try:
-    from .prop import update_filter_column
-    from . import prop
+    from ..prop import update_filter_column
+    from .. import prop
     from .ui import calculate_visible_columns_count
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop import update_filter_column
-        import bonsai.bim.module.sequence.prop as prop
-        from bonsai.bim.module.sequence.ui import calculate_visible_columns_count
+        from ..prop.filter import update_filter_column
+        from .. import prop as prop
+        from ..ui import calculate_visible_columns_count
     except Exception:
         def update_filter_column(*args, **kwargs):
             pass
@@ -51,12 +51,12 @@ from .animation_operators import _clear_previous_animation, _get_animation_setti
 from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
 
 try:
-    from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+    from ..prop.color_manager_prop import UnifiedColorTypeManager
 except Exception:
     UnifiedColorTypeManager = None  # optional
 
 try:
-    from bonsai.bim.module.sequence.prop import TaskcolortypeGroupChoice
+    from ..prop.task import TaskcolortypeGroupChoice
 except Exception:
     TaskcolortypeGroupChoice = None  # optional
 
@@ -342,7 +342,7 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
 
         # 4. Forzar la recarga de los datos y el redibujado de la UI.
         try:
-            from bonsai.bim.module.sequence.data import SequenceData, WorkScheduleData
+            from ..data import SequenceData, WorkScheduleData
             SequenceData.load()
             WorkScheduleData.load()
             for area in context.screen.areas:
@@ -815,14 +815,36 @@ class EnableEditingWorkScheduleTasks(bpy.types.Operator):
         # --- PASO 3: ESTABLECER EL NUEVO CRONOGRAMA ACTIVO Y CARGAR DATOS ---
         # Obtenemos la instancia del cronograma a partir de su ID
         work_schedule_instance = tool.Ifc.get().by_id(self.work_schedule)
+        print(f"🔍 DEBUG EnableEditingWorkScheduleTasks: Cronograma ID {self.work_schedule}, instancia: {work_schedule_instance}")
         
-        # Llamamos a tu función 'core' que se encarga de la lógica principal de activación
-        core.enable_editing_work_schedule_tasks(tool.Sequence, work_schedule=work_schedule_instance)
+        # SOLUCIÓN: Llamar directamente a nuestros métodos específicos
+        # En lugar de confiar en la herencia, llamamos directamente a nuestras clases
         
-        # Recargamos el árbol de tareas y las propiedades, como en tu versión original.
-        # Esto es necesario para que la UI muestre las tareas del nuevo cronograma.
-        tool.Sequence.load_task_tree(work_schedule_instance)
-        tool.Sequence.load_task_properties()
+        # 1. Establecer el cronograma activo usando IFCDataSequence directamente
+        print("🔍 DEBUG: Llamando IFCDataSequence.enable_editing_work_schedule_tasks directamente")
+        from bonsai.tool.sequence.ifc_data_sequence import IFCDataSequence
+        IFCDataSequence.enable_editing_work_schedule_tasks(work_schedule_instance)
+        
+        # 2. Cargar el árbol de tareas usando TaskManagementSequence directamente
+        print("🔍 DEBUG: Llamando TaskManagementSequence.load_task_tree directamente")
+        from bonsai.tool.sequence.task_management_sequence import TaskManagementSequence
+        TaskManagementSequence.load_task_tree(work_schedule_instance)
+        
+        # 3. Cargar propiedades de tareas usando TaskManagementSequence directamente (pero con el contexto de herencia)
+        print("🔍 DEBUG: Llamando TaskManagementSequence.load_task_properties directamente")
+        
+        # Necesitamos usar tool.Sequence porque load_task_properties requiere múltiples mixins
+        # Pero debemos asegurarnos de que se ejecute nuestro método, no el de la base
+        original_method = tool.Sequence.load_task_properties
+        print(f"🔍 DEBUG: Método load_task_properties viene de: {original_method}")
+        
+        # Llamar directamente al método de TaskManagementSequence con el contexto correcto
+        try:
+            TaskManagementSequence.load_task_properties.__func__(tool.Sequence, task=None)
+        except Exception as e:
+            print(f"🔍 DEBUG: Error en load_task_properties directo: {e}")
+            # Fallback al método original si falla
+            tool.Sequence.load_task_properties(task=None)
 
         # --- PASO 4: RESTAURAR EL ESTADO GENERAL DE LA UI ---
         # Restauramos el scroll y la selección que guardamos en el paso 2.
@@ -842,8 +864,10 @@ class DisableEditingWorkSchedule(bpy.types.Operator):
         # USAR EL MISMO PATRÓN QUE LOS FILTROS (que funciona correctamente):
         snapshot_all_ui_state(context)  # >>> 1. Guardar estado ANTES de cancelar
         
-        # >>> 2. Ejecutar la operación de cancelar (que puede resetear/limpiar datos)
-        core.disable_editing_work_schedule(tool.Sequence)
+        # >>> 2. Ejecutar la operación de cancelar usando llamada directa
+        print("🔍 DEBUG: Llamando IFCDataSequence.disable_editing_work_schedule directamente")
+        from bonsai.tool.sequence.ifc_data_sequence import IFCDataSequence
+        IFCDataSequence.disable_editing_work_schedule()
         
         return {"FINISHED"}
 
@@ -854,6 +878,13 @@ class SortWorkScheduleByIdAsc(bpy.types.Operator, tool.Ifc.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def _execute(self, context):
+        # SIMPLE SOLUTION - Save/restore ColorTypes
+        try:
+            from .simple_colortype_persistence import save_colortypes_simple, restore_colortypes_simple
+            save_colortypes_simple()
+        except:
+            pass
+        
         props = tool.Sequence.get_work_schedule_props()
         # Set sort column to Identification and ascending
         props.sort_column = "IfcTask.Identification"
@@ -863,6 +894,13 @@ class SortWorkScheduleByIdAsc(bpy.types.Operator, tool.Ifc.Operator):
             core.load_task_tree(tool.Ifc, tool.Sequence)
         except Exception:
             pass
+            
+        # Restore ColorTypes
+        try:
+            restore_colortypes_simple()
+        except:
+            pass
+            
         return {"FINISHED"}
 
 

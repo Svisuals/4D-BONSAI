@@ -4690,10 +4690,10 @@ class Sequence(bonsai.core.tool.Sequence):
                     pass
 
             text_configs = [
-                {"name": "Schedule_Date", "position": (0, 10, 5), "size": 1.2, "align": "CENTER", "color": (1, 1, 1, 1), "type": "date"},
-                {"name": "Schedule_Week", "position": (0, 10, 4), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "week"},
-                {"name": "Schedule_Day_Counter", "position": (0, 10, 3), "size": 0.8, "align": "CENTER", "color": (1, 1, 1, 1), "type": "day_counter"},
-                {"name": "Schedule_Progress", "position": (0, 10, 2), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "progress"},
+                {"name": "Schedule_Date","position": (0, 10, 5),"size": 1.2,"align": "CENTER","color": (1, 1, 1, 1),"type": "date"},
+                {"name": "Schedule_Week","position": (0, 10, 4),"size": 1.0,"align": "CENTER","color": (0.8, 0.8, 1, 1),"type": "week"},
+                {"name": "Schedule_Day_Counter","position": (0, 10, 3),"size": 0.8,"align": "CENTER","color": (1, 1, 0.8, 1),"type": "day_counter"},
+                {"name": "Schedule_Progress","position": (0, 10, 2),"size": 1.0,"align": "CENTER","color": (0.8, 1, 0.8, 1),"type": "progress"},
             ]
 
             created_texts = []
@@ -4760,11 +4760,11 @@ class Sequence(bonsai.core.tool.Sequence):
                 pass
 
         text_configs = [
-                {"name": "Schedule_Date", "position": (0, 10, 5), "size": 1.2, "align": "CENTER", "color": (1, 1, 1, 1), "type": "date"},
-                {"name": "Schedule_Week", "position": (0, 10, 4), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "week"},
-                {"name": "Schedule_Day_Counter", "position": (0, 10, 3), "size": 0.8, "align": "CENTER", "color": (1, 1, 1, 1), "type": "day_counter"},
-                {"name": "Schedule_Progress", "position": (0, 10, 2), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "progress"},
-            ]
+            {"name": "Schedule_Date", "position": (0, 10, 5), "size": 1.2, "align": "CENTER", "color": (1, 1, 1, 1), "type": "date"},
+            {"name": "Schedule_Week", "position": (0, 10, 4), "size": 1.0, "align": "CENTER", "color": (0.8, 0.8, 1, 1), "type": "week"},
+            {"name": "Schedule_Day_Counter", "position": (0, 10, 3), "size": 0.8, "align": "CENTER", "color": (1, 1, 0.8, 1), "type": "day_counter"},
+            {"name": "Schedule_Progress", "position": (0, 10, 2), "size": 1.0, "align": "CENTER", "color": (0.8, 1, 0.8, 1), "type": "progress"},
+        ]
 
         created_texts = []
         for config in text_configs:

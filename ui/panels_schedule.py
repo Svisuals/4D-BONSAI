@@ -31,44 +31,50 @@ from bonsai.bim.module.sequence.data import SequenceData, WorkScheduleData, Task
 from .elements import BIM_UL_tasks
 
 
+
 class BIM_PT_status(Panel):
     bl_label = "Status"
     bl_idname = "BIM_PT_status"
+    bl_options = {"DEFAULT_CLOSED"}
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "scene"
-    bl_parent_id = "BIM_PT_tab_status"
-    bl_options = {"HIDE_HEADER"}
+    bl_parent_id = "BIM_PT_variance_analysis"
 
     @classmethod
     def poll(cls, context):
-        return tool.Ifc.get()
+        props = tool.Sequence.get_work_schedule_props()
+        return props and props.active_work_schedule_id and props.editing_type == "TASKS"
 
     def draw(self, context):
-        self.props = tool.Sequence.get_status_props()
-        assert self.layout
 
+        # ColorType maintenance buttons
+
+        row = self.layout.row(align=True)
+
+        row.operator('bim.cleanup_colortype_groups', icon='TRASH', text='Clean Invalid ColorTypes')
+
+        row.operator('bim.initialize_colortype_system', icon='PLUS', text='Init DEFAULT All Tasks')
+
+
+        self.props = tool.Sequence.get_status_props()
+
+        assert self.layout
         if not self.props.is_enabled:
             row = self.layout.row()
             row.operator("bim.enable_status_filters", icon="GREASEPENCIL")
             return
 
         row = self.layout.row(align=True)
-        row.label(text="Elements Statuses:")
+        row.label(text="Statuses found in the project:")
         row.operator("bim.activate_status_filters", icon="FILE_REFRESH", text="")
         row.operator("bim.disable_status_filters", icon="CANCEL", text="")
 
-        box = self.layout.box()
         for status in self.props.statuses:
-            row = box.row(align=True)
+            row = self.layout.row(align=True)
             row.label(text=status.name)
-            # Check if status has elements (simplified without StatusData)
-            if hasattr(status, 'has_elements') and status.has_elements:
-                row.label(text="", icon="ASSET_MANAGER")
             row.prop(status, "is_visible", text="", emboss=False, icon="HIDE_OFF" if status.is_visible else "HIDE_ON")
-            row.operator("bim.select_status_filter", icon="RESTRICT_SELECT_OFF", text="").status = status.name
-            row.operator("bim.assign_status", icon="BRUSH_DATA", text="").status = status.name
-
+            row.operator("bim.select_status_filter", icon="RESTRICT_SELECT_OFF", text="").name = status.name
 
 class BIM_PT_work_schedules(Panel):
     bl_label = "Work Schedules"

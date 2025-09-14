@@ -80,18 +80,6 @@ class ScheduleHUD:
     def invalidate_legend_cache(self):
         """Invalidates the legend data cache to force an update"""
         self.legend_hud.invalidate_legend_cache()
-    
-    def get_camera_props(self):
-        """Helper to get camera properties"""
-        try:
-            import bonsai.tool as tool
-            animation_props = tool.Sequence.get_animation_props()
-            if hasattr(animation_props, 'camera_orbit') and animation_props.camera_orbit:
-                return animation_props.camera_orbit
-            return None
-        except Exception as e:
-            print(f"❌ Error getting camera props: {e}")
-            return None
 
     def get_schedule_data(self):
         """Extracts data from the current schedule"""
@@ -107,19 +95,11 @@ class ScheduleHUD:
 
             # Get settings and data - this is shared across all components
             text_settings, timeline_settings, legend_settings = self.get_hud_settings()
-
-            # Check if any HUD components are enabled - exit early if all disabled
-            if not any([text_settings.get('enabled', False),
+            
+            if not any([text_settings.get('enabled', False), 
                        timeline_settings.get('enabled', False),
                        legend_settings.get('enabled', False)]):
-                # Don't spam the console - only log once per state change
-                if not hasattr(self, '_last_disabled_logged') or not self._last_disabled_logged:
-                    print("💤 All HUD components disabled - handler will remain quiet until enabled")
-                    self._last_disabled_logged = True
                 return
-
-            # Reset the logging flag when HUD is enabled
-            self._last_disabled_logged = False
 
             data = self._get_schedule_data()
             if not data:
@@ -136,16 +116,109 @@ class ScheduleHUD:
                 self.timeline_hud.draw(data, timeline_settings, viewport_width, viewport_height)
             
             if legend_settings.get('enabled', False):
-                print(f"🎨 LEGEND HUD: Drawing with {len(self.legend_hud.get_active_colortype_legend_data())} legend items")
                 self.legend_hud.draw(data, legend_settings, viewport_width, viewport_height)
-            else:
-                print(f"🙈 LEGEND HUD: Disabled - enable_legend_hud={getattr(self.get_camera_props(), 'enable_legend_hud', 'NOT_FOUND')}")
 
         except Exception as e:
             print(f"Bonsai HUD draw error: {e}")
             import traceback
             traceback.print_exc()
 
+    def _get_hud_settings(self):
+        """Get HUD settings - shared method for all components"""
+        try:
+            import bonsai.tool as tool
+            anim_props = tool.Sequence.get_animation_props()
+            camera_props = anim_props.camera_orbit
+
+            # TEXT HUD SETTINGS
+            text_settings = {
+                'enabled': getattr(camera_props, 'enable_text_hud', False),
+                'position': getattr(camera_props, 'hud_position', 'TOP_RIGHT'),
+                'margin_h': getattr(camera_props, 'hud_margin_horizontal', 0.05),
+                'margin_v': getattr(camera_props, 'hud_margin_vertical', 0.05),
+                'spacing': getattr(camera_props, 'hud_text_spacing', 0.08),
+                'scale': getattr(camera_props, 'hud_scale_factor', 1.0),
+                'text_color': getattr(camera_props, 'hud_text_color', (1.0, 1.0, 1.0, 1.0)),
+                'background_color': getattr(camera_props, 'hud_background_color', (0.0, 0.0, 0.0, 0.8)),
+                'padding_h': getattr(camera_props, 'hud_padding_horizontal', 10.0),
+                'padding_v': getattr(camera_props, 'hud_padding_vertical', 8.0),
+                'text_shadow_enabled': getattr(camera_props, 'hud_text_shadow_enabled', True),
+                'text_shadow_offset': (
+                    getattr(camera_props, 'hud_text_shadow_offset_x', 1.0),
+                    getattr(camera_props, 'hud_text_shadow_offset_y', -1.0)
+                ),
+                'text_shadow_color': getattr(camera_props, 'hud_text_shadow_color', (0.0, 0.0, 0.0, 0.8)),
+                'background_enabled': True,
+                'border_enabled': getattr(camera_props, 'hud_border_width', 0.0) > 0,
+                'border_color': getattr(camera_props, 'hud_border_color', (1.0, 1.0, 1.0, 0.5)),
+                'hud_show_date': getattr(camera_props, 'hud_show_date', True),
+                'hud_show_week': getattr(camera_props, 'hud_show_week', True),
+                'hud_show_day': getattr(camera_props, 'hud_show_day', True),
+                'hud_show_progress': getattr(camera_props, 'hud_show_progress', True),
+            }
+
+            # TIMELINE HUD SETTINGS
+            timeline_settings = {
+                'enabled': getattr(camera_props, 'enable_timeline_hud', False),
+                'position': getattr(camera_props, 'timeline_hud_position', 'BOTTOM'),
+                'margin_h': getattr(camera_props, 'timeline_hud_margin_horizontal', 0.0),
+                'margin_v': getattr(camera_props, 'timeline_hud_margin_vertical', 0.05),
+                'height': getattr(camera_props, 'timeline_hud_height', 80),
+                'width_ratio': getattr(camera_props, 'timeline_hud_width', 0.8),
+                'background_enabled': True,
+                'background_color': (0.1, 0.1, 0.1, 0.7),
+                'border_enabled': True,
+                'border_color': (0.5, 0.5, 0.5, 1.0),
+                'show_years': True,
+                'show_months': True,
+                'show_weeks': True,
+                'show_year_labels': True,
+                'show_month_labels': True,
+                'show_week_labels': True,
+                'show_current_date_label': True,
+                'year_height_ratio': 0.3,
+                'month_height_ratio': 0.4,
+                'week_height_ratio': 0.3,
+                'current_date_color': (1.0, 0.0, 0.0, 1.0),
+                'current_date_width': 2.0,
+                'year_current_color': (0.0, 0.8, 0.0, 0.8),
+                'year_past_color': (0.5, 0.5, 0.5, 0.6),
+                'year_future_color': (0.2, 0.4, 0.8, 0.6),
+                'month_current_color': (0.0, 0.6, 0.8, 0.7),
+                'month_past_color': (0.4, 0.4, 0.4, 0.5),
+                'month_future_color': (0.1, 0.3, 0.6, 0.5),
+                'week_current_color': (0.8, 0.8, 0.0, 0.8),
+                'week_past_color': (0.3, 0.3, 0.3, 0.4),
+                'week_future_color': (0.0, 0.2, 0.4, 0.4),
+            }
+
+            # LEGEND HUD SETTINGS
+            legend_settings = {
+                'enabled': getattr(camera_props, 'enable_legend_hud', False),
+                'position': getattr(camera_props, 'legend_hud_position', 'TOP_LEFT'),
+                'margin_h': getattr(camera_props, 'legend_hud_margin_horizontal', 0.05),
+                'margin_v': getattr(camera_props, 'legend_hud_margin_vertical', 0.5),
+                'scale': getattr(camera_props, 'legend_hud_scale', 1.0),
+                'background_enabled': True,
+                'background_color': getattr(camera_props, 'legend_hud_background_color', (0.0, 0.0, 0.0, 0.8)),
+                'border_enabled': True,
+                'border_color': (0.5, 0.5, 0.5, 1.0),
+                'padding': getattr(camera_props, 'legend_hud_padding_horizontal', 12.0),
+                'item_height': 20,
+                'item_width': 150,
+                'color_indicator_size': 12,
+                'text_color': getattr(camera_props, 'legend_hud_text_color', (1.0, 1.0, 1.0, 1.0)),
+                'show_title': getattr(camera_props, 'legend_hud_show_title', True),
+                'title_text': getattr(camera_props, 'legend_hud_title_text', 'ColorTypes'),
+                'title_color': getattr(camera_props, 'legend_hud_title_color', (1.0, 1.0, 1.0, 1.0)),
+                'title_height': 25,
+            }
+
+            return text_settings, timeline_settings, legend_settings
+
+        except Exception as e:
+            print(f"❌ Error getting HUD settings: {e}")
+            return {}, {}, {}
     
     def get_hud_settings(self):
         """Gets complete HUD configuration from properties"""
@@ -203,12 +276,8 @@ class ScheduleHUD:
                 snapshot_date and snapshot_date.strip() not in ('', '-')
             ) or scene_snapshot_mode
             
-            # Only log snapshot detection on state changes
-            current_snapshot_state = (is_snapshot_ui_active, scene_snapshot_mode, is_snapshot_mode_active)
-            if not hasattr(self, '_last_snapshot_state') or self._last_snapshot_state != current_snapshot_state:
-                print(f"🔍 SNAPSHOT DETECTION: is_snapshot_ui_active={is_snapshot_ui_active}, scene_snapshot_mode={scene_snapshot_mode}")
-                print(f"🔍 SNAPSHOT DETECTION: snapshot_date='{snapshot_date}', is_snapshot_mode_active={is_snapshot_mode_active}")
-                self._last_snapshot_state = current_snapshot_state
+            print(f"🔍 SNAPSHOT DETECTION: is_snapshot_ui_active={is_snapshot_ui_active}, scene_snapshot_mode={scene_snapshot_mode}")
+            print(f"🔍 SNAPSHOT DETECTION: snapshot_date='{snapshot_date}', is_snapshot_mode_active={is_snapshot_mode_active}")
             
             # --- TIMELINE HUD SETTINGS (NEW) ---
             # Enable Timeline HUD automatically for snapshots (following v90 behavior)
@@ -235,15 +304,8 @@ class ScheduleHUD:
             }
             
             # --- LEGEND HUD SETTINGS (NEW) ---
-            legend_enabled = getattr(camera_props, 'enable_legend_hud', False)
-
-            # Only log legend debug info on state changes
-            if not hasattr(self, '_last_legend_enabled') or self._last_legend_enabled != legend_enabled:
-                print(f"🔍 LEGEND DEBUG: enable_legend_hud property = {legend_enabled}")
-                self._last_legend_enabled = legend_enabled
-            
             legend_hud_settings = {
-                'enabled': legend_enabled,
+                'enabled': getattr(camera_props, 'enable_legend_hud', False),
                 'position': getattr(camera_props, 'legend_hud_position', 'TOP_LEFT'),
                 'margin_h': getattr(camera_props, 'legend_hud_margin_horizontal', 0.05),
                 'margin_v': getattr(camera_props, 'legend_hud_margin_vertical', 0.5),
@@ -266,14 +328,6 @@ class ScheduleHUD:
                 'selected_colortypes': getattr(camera_props, 'legend_hud_selected_colortypes', set()),
                 'auto_scale': getattr(camera_props, 'legend_hud_auto_scale', True),
                 'max_width': getattr(camera_props, 'legend_hud_max_width', 0.3),  # 30% of viewport width
-                # Column visibility settings
-                'show_start_column': getattr(camera_props, 'legend_hud_show_start_column', False),
-                'show_active_column': getattr(camera_props, 'legend_hud_show_active_column', True),
-                'show_end_column': getattr(camera_props, 'legend_hud_show_end_column', False),
-                'show_start_title': getattr(camera_props, 'legend_hud_show_start_title', False),
-                'show_active_title': getattr(camera_props, 'legend_hud_show_active_title', False),
-                'show_end_title': getattr(camera_props, 'legend_hud_show_end_title', False),
-                'column_spacing': getattr(camera_props, 'legend_hud_column_spacing', 16.0)
             }
             
             return text_hud_settings, timeline_hud_settings, legend_hud_settings
@@ -297,28 +351,80 @@ class ScheduleHUD:
             viz_finish = tool.Sequence.get_finish_date()
             print(f"📅 HUD: Using visualization range: {viz_start} to {viz_finish}")
             
-              # full_schedule_start y full_schedule_end SIEMPRE representarán el rango unificado completo para el fondo del HUD.
+            # Check if we should use unified timeline
+            # This happens when user has used Guess to set a unified date range
             full_schedule_start, full_schedule_end = None, None
             try:
                 active_schedule = tool.Sequence.get_active_work_schedule()
+                print(f"🔍 Active schedule: {active_schedule.Name if active_schedule else 'NONE'}")
+                
                 if active_schedule:
-                    # Siempre obtenemos el rango unificado para el fondo de la línea de tiempo.
-                    unified_start, unified_end = self._get_unified_schedule_range(active_schedule)
-                    if unified_start and unified_end:
-                        full_schedule_start, full_schedule_end = unified_start, unified_end
-                        print(f"📊 HUD: Usando rango unificado para la barra de tiempo: {full_schedule_start.strftime('%Y-%m-%d')} -> {full_schedule_end.strftime('%Y-%m-%d')}")
-
-                # Fallback si no se pudo obtener el rango unificado.
-                if not (full_schedule_start and full_schedule_end):
-                    full_schedule_start, full_schedule_end = viz_start, viz_finish
-                    if full_schedule_start:
-                         print(f"⚠️ HUD: Usando rango de visualización como fallback para la barra de tiempo.")
-
+                    # Check if current viz range spans multiple schedule types (indicates unified range)
+                    if viz_start and viz_finish and self._is_unified_range(active_schedule, viz_start, viz_finish):
+                        print("🔗 HUD: Detected unified range - using for timeline display")
+                        full_schedule_start, full_schedule_end = viz_start, viz_finish
+                    else:
+                        print("📅 HUD: Using specific schedule type range")
+                        full_schedule_start, full_schedule_end = tool.Sequence.get_schedule_date_range()
+                    
+                    if full_schedule_start and full_schedule_end:
+                        print(f"📊 Cronograma completo: {full_schedule_start.strftime('%Y-%m-%d')} → {full_schedule_end.strftime('%Y-%m-%d')}")
+                    else:
+                        print(f"⚠️ Cronograma activo encontrado pero sin fechas válidas")
+                        print(f"🔍 Intentando método alternativo...")
+                        
+                        # ALTERNATIVE METHOD: Get dates directly from tasks
+                        try:
+                            import ifcopenshell.util.sequence
+                            tasks = ifcopenshell.util.sequence.get_root_tasks(active_schedule)
+                            print(f"🔍 Tareas encontradas: {len(tasks) if tasks else 0}")
+                            
+                            if tasks:
+                                all_dates = []
+                                for task in tasks:
+                                    task_time = getattr(task, 'TaskTime', None)
+                                    if task_time:
+                                        start = getattr(task_time, 'ScheduleStart', None)
+                                        finish = getattr(task_time, 'ScheduleFinish', None)
+                                        print(f"🔍 Tarea '{task.Name}': {start} → {finish}")
+                                        if start:
+                                            all_dates.append(start)
+                                        if finish:
+                                            all_dates.append(finish)
+                                
+                                if all_dates:
+                                    # Convert strings to datetime if necessary
+                                    from datetime import datetime
+                                    datetime_dates = []
+                                    for date in all_dates:
+                                        if isinstance(date, str):
+                                            try:
+                                                # Parsear ISO format
+                                                dt = datetime.fromisoformat(date.replace('Z', '+00:00'))
+                                                datetime_dates.append(dt)
+                                            except:
+                                                print(f"❌ Error parseando fecha: {date}")
+                                        else:
+                                            datetime_dates.append(date)
+                                    
+                                    if datetime_dates:
+                                        full_schedule_start = min(datetime_dates)
+                                        full_schedule_end = max(datetime_dates)
+                                        print(f"📊 Fechas obtenidas de tareas: {full_schedule_start.strftime('%Y-%m-%d')} → {full_schedule_end.strftime('%Y-%m-%d')}")
+                                else:
+                                    print(f"❌ No se encontraron fechas en las tareas")
+                        except Exception as e:
+                            print(f"❌ Error en método alternativo: {e}")
+                            import traceback
+                            traceback.print_exc()
+                else:
+                    print(f"⚠️ No hay cronograma activo seleccionado")
+                    
             except Exception as e:
-                print(f"⚠️ Error obteniendo el rango unificado del cronograma: {e}")
-                # Fallback final si todo falla
-                full_schedule_start, full_schedule_end = viz_start, viz_finish
-          
+                print(f"⚠️ Error obteniendo fechas del cronograma: {e}")
+                import traceback
+                traceback.print_exc()
+
             # --- IMPROVED MODE DETECTION LOGIC ---
             # Usar múltiples fuentes para determinar el modo snapshot de forma fiable
             snapshot_date = getattr(work_props, 'visualisation_start', None)
@@ -428,79 +534,76 @@ class ScheduleHUD:
             start_frame = scene.frame_start
             end_frame = scene.frame_end
 
-            # 1. CALCULAR LA FECHA ACTUAL DE LA ANIMACIÓN (CURRENT_DATE)
-            # Se basa en el rango de visualización que elegiste manualmente (Start Date y Finish Date en la UI).
+            # Calculate current date based on frame (using selected range)
             if end_frame > start_frame and viz_start and viz_finish:
                 progress = (current_frame - start_frame) / (end_frame - start_frame)
                 progress = max(0.0, min(1.0, progress))
+
                 duration = viz_finish - viz_start
                 current_date = viz_start + (duration * progress)
             elif viz_start:
                 current_date = viz_start
             else:
+                # Fallback: usar fecha actual si no hay fechas de visualización
                 from datetime import datetime
                 current_date = datetime.now()
                 print("⚠️ Sin fechas de visualización configuradas, usando fecha actual")
 
-            # --- LÓGICA CORREGIDA PARA CONTADORES CON REFERENCIA ABSOLUTA ---
-            day_from_schedule = 0
-            week_number = 0
-            progress_pct = 0
-            total_days_in_schedule = (full_schedule_end - full_schedule_start).days + 1 if full_schedule_start and full_schedule_end else 1
-
-            if active_schedule:
-                # 2. OBTENER EL RANGO DE FECHAS REAL DEL TIPO DE CRONOGRAMA ACTIVO (Schedule, Actual, etc.)
-                #    Esta será nuestra referencia absoluta para los contadores.
-                reference_start, reference_finish = tool.Sequence.guess_date_range(active_schedule)
-
-                if reference_start and reference_finish:
-                    print(f"🎯 HUD Counters: Using absolute reference range {reference_start.strftime('%Y-%m-%d')} to {reference_finish.strftime('%Y-%m-%d')}")
+            # IMPROVED: Calculate metrics using full schedule with EXACT v7 logic
+            if full_schedule_start and full_schedule_end:
+                print(f"🎯 Calculando métricas con cronograma completo usando lógica v7")
+                
+                # Convert to dates only for precise calculations (exact v7 logic)
+                cd_d = current_date.date()
+                fss_d = full_schedule_start.date()
+                fse_d = full_schedule_end.date()
+                
+                # NEW LOGIC: Handle dates before the schedule with 0 values
+                delta_days = (cd_d - fss_d).days
+                
+                if cd_d < fss_d:
+                    # Si current_date es anterior al inicio del cronograma: day=0, week=0, progress=0%
+                    # If current_date is before the start of the schedule: day=0, week=0, progress=0%
+                    day_from_schedule = 0
+                    week_number = 0
+                    progress_pct = 0  # 0% real, se mostrará internamente como 0.1
+                else:
+                    # 1. DAY: from the start of the FULL SCHEDULE (starting at 1)
+                    day_from_schedule = max(1, delta_days + 1)
                     
-                    cd_d = current_date.date()
-                    ref_start_d = reference_start.date()
-                    ref_finish_d = reference_finish.date()
-
-                    # 3. CALCULAR EL PROGRESO, DÍA Y SEMANA RELATIVO A LA REFERENCIA ABSOLUTA
-                    delta_days = (cd_d - ref_start_d).days
-
-                    if cd_d < ref_start_d:
-                        # La animación está en una fecha anterior al inicio del cronograma de referencia.
-                        day_from_schedule = 0
-                        week_number = 0
-                        progress_pct = 0
+                    # 2. WEEK: desde inicio del CRONOGRAMA COMPLETO (comenzando en W1) 
+                    week_number = max(1, (delta_days // 7) + 1)
+                    
+                    # 3. PROGRESS: relativo al CRONOGRAMA COMPLETO [0..100] comenzando en 0%
+                    total_schedule_days = (fse_d - fss_d).days
+                    
+                    if delta_days <= 0:
+                        progress_pct = 0  # 0% real
+                    elif cd_d >= fse_d or total_schedule_days <= 0:
+                        progress_pct = 100
                     else:
-                        # La animación ha alcanzado o pasado la fecha de inicio de referencia.
-                        day_from_schedule = max(1, delta_days + 1)
-                        week_number = max(1, (delta_days // 7) + 1)
-
-                        total_reference_days = (ref_finish_d - ref_start_d).days
-                        
-                        if delta_days < 0:
-                            progress_pct = 0
-                        elif cd_d >= ref_finish_d or total_reference_days <= 0:
-                            progress_pct = 100
-                        else:
-                            # EL PROGRESO SE CALCULA SOBRE LA DURACIÓN TOTAL DEL CRONOGRAMA DE REFERENCIA
-                            progress_pct = (delta_days / total_reference_days) * 100
-                            progress_pct = round(progress_pct)
-                    
-                    total_days_in_schedule = (ref_finish_d - ref_start_d).days + 1
-
-                    return {
-                        'full_schedule_start': full_schedule_start,
-                        'full_schedule_end': full_schedule_end,
-                        'current_date': current_date,
-                        'start_date': viz_start,
-                        'finish_date': viz_finish,
-                        'current_frame': current_frame,
-                        'total_days': total_days_in_schedule,
-                        'elapsed_days': day_from_schedule,
-                        'week_number': int(max(0, week_number)),
-                        'progress_pct': progress_pct,
-                        'day_of_week': current_date.strftime('%A'),
-                        'schedule_name': active_schedule.Name if active_schedule else 'No Schedule',
-                        'is_snapshot': False,
-                    }
+                        progress_pct = (delta_days / total_schedule_days) * 100
+                        progress_pct = round(progress_pct)
+                
+                # CORRECTION: Use the values calculated from the full schedule for the display.
+                # 'total_days' and 'elapsed_days' now reflect the full schedule.
+                total_days_full_schedule = (fse_d - fss_d).days + 1
+                
+                return {
+                    'full_schedule_start': full_schedule_start,
+                    'full_schedule_end': full_schedule_end,
+                    'current_date': current_date,
+                    'start_date': viz_start,
+                    'finish_date': viz_finish,
+                    'current_frame': current_frame,
+                    'total_days': total_days_full_schedule,
+                    'elapsed_days': day_from_schedule,
+                    'week_number': int(max(0, week_number)),
+                    'progress_pct': progress_pct,
+                    'day_of_week': current_date.strftime('%A'),
+                    'schedule_name': active_schedule.Name if active_schedule else 'No Schedule',
+                    'is_snapshot': False, # No es snapshot si llegamos aquí
+                }
             else:
                 print(f"⚠️ Sin fechas de cronograma completo, usando fallback")
 
@@ -892,82 +995,11 @@ class ScheduleHUD:
         except Exception as e:
             print(f"Error drawing rounded rect: {e}")
 
-    def _get_unified_schedule_range(self, work_schedule):
-        """
-        Calcula el rango de fechas unificado analizando TODOS los 4 tipos de cronograma.
-        Devuelve el inicio más temprano y el fin más tardío de todos ellos.
-        """
-        from datetime import datetime
-        import ifcopenshell.util.sequence
-
-        if not work_schedule:
-            return None, None
-
-        all_starts = []
-        all_finishes = []
-
-        # Analizar todos los tipos de cronograma: SCHEDULE, ACTUAL, EARLY, LATE
-        for schedule_type in ["SCHEDULE", "ACTUAL", "EARLY", "LATE"]:
-            start_attr = f"{schedule_type.capitalize()}Start"
-            finish_attr = f"{schedule_type.capitalize()}Finish"
-
-            root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
-
-            def get_all_tasks_recursive(tasks):
-                result = []
-                for task in tasks:
-                    result.append(task)
-                    nested = ifcopenshell.util.sequence.get_nested_tasks(task)
-                    if nested:
-                        result.extend(get_all_tasks_recursive(nested))
-                return result
-
-            all_tasks = get_all_tasks_recursive(root_tasks)
-
-            for task in all_tasks:
-                start_date = ifcopenshell.util.sequence.derive_date(task, start_attr, is_earliest=True)
-                if start_date:
-                    all_starts.append(start_date)
-
-                finish_date = ifcopenshell.util.sequence.derive_date(task, finish_attr, is_latest=True)
-                if finish_date:
-                    all_finishes.append(finish_date)
-
-        if not all_starts or not all_finishes:
-            return None, None
-
-        unified_start = min(all_starts)
-        unified_finish = max(all_finishes)
-
-        print(f"✅ UNIFIED HUD: Timeline range spans {unified_start.strftime('%Y-%m-%d')} to {unified_finish.strftime('%Y-%m-%d')}")
-        return unified_start, unified_finish
-        
-
 
 def draw_hud_callback():
     """Callback that runs every frame to draw the HUD"""
     try:
-        # Quick performance check - if no HUD components were enabled for several frames,
-        # temporarily reduce the frequency of checks to save performance
-        if hasattr(schedule_hud, '_consecutive_disabled_calls'):
-            schedule_hud._consecutive_disabled_calls += 1
-
-            # Skip every 10 calls if HUD has been disabled for a while
-            if schedule_hud._consecutive_disabled_calls > 30 and schedule_hud._consecutive_disabled_calls % 10 != 0:
-                return
-        else:
-            schedule_hud._consecutive_disabled_calls = 0
-
         schedule_hud.draw()
-
-        # Reset counter if HUD is active
-        if hasattr(schedule_hud, '_last_disabled_logged') and not schedule_hud._last_disabled_logged:
-            schedule_hud._consecutive_disabled_calls = 0
-
-        # Periodically check if handler should be cleaned up
-        if hasattr(schedule_hud, '_consecutive_disabled_calls') and schedule_hud._consecutive_disabled_calls % 100 == 0:
-            cleanup_idle_hud_handler()
-
     except Exception as e:
         print(f"🔴 HUD callback error: {e}")
         import traceback
@@ -1028,40 +1060,6 @@ def ensure_hud_handlers():
     global _hud_enabled
     if not _hud_enabled:
         register_hud_handler()
-
-def cleanup_idle_hud_handler():
-    """Clean up HUD handler if it's been idle for too long to save performance"""
-    global schedule_hud, _hud_enabled
-
-    if hasattr(schedule_hud, '_consecutive_disabled_calls'):
-        # If HUD has been disabled for more than 300 calls (~10 seconds at 30fps), unregister it
-        if schedule_hud._consecutive_disabled_calls > 300:
-            print("💤 HUD handler has been idle for too long, unregistering to save performance")
-            unregister_hud_handler()
-            schedule_hud._consecutive_disabled_calls = 0
-
-def auto_manage_hud_handler():
-    """Automatically manage HUD handler based on whether any components are enabled"""
-    try:
-        import bonsai.tool as tool
-        anim_props = tool.Sequence.get_animation_props()
-        camera_props = anim_props.camera_orbit
-
-        any_hud_enabled = (
-            getattr(camera_props, 'enable_text_hud', False) or
-            getattr(camera_props, 'enable_timeline_hud', False) or
-            getattr(camera_props, 'enable_legend_hud', False)
-        )
-
-        if any_hud_enabled and not _hud_enabled:
-            print("🔄 HUD components enabled, registering handler")
-            register_hud_handler()
-        elif not any_hud_enabled and _hud_enabled:
-            # Don't immediately unregister - let cleanup_idle_hud_handler handle it
-            pass
-
-    except Exception as e:
-        print(f"⚠️ Error in auto HUD management: {e}")
 
 
 def invalidate_legend_hud_cache():
@@ -1167,129 +1165,3 @@ def draw_color_indicator(x, y, size, color):
         
     except Exception as e:
         print(f"❌ Error drawing color indicator: {e}")
-
-
-def draw_hud_callback():
-    """Callback that runs every frame to draw the HUD"""
-    try:
-        # Always use regular draw - snapshot detection is now handled inside get_schedule_data()
-        # This ensures proper data flow while preventing animation for snapshots
-        schedule_hud.draw()
-    except Exception as e:
-        print(f"🔴 HUD callback error: {e}")
-        import traceback
-        traceback.print_exc()
-
-# Global instance of the HUD
-schedule_hud = ScheduleHUD()
-
-def register_hud_handler():
-    """Registers the HUD drawing handler"""
-    global _hud_draw_handler, _hud_enabled
-    if _hud_draw_handler is not None:
-        unregister_hud_handler()
-    try:
-        _hud_draw_handler = bpy.types.SpaceView3D.draw_handler_add(
-            draw_hud_callback, (), 'WINDOW', 'POST_PIXEL'
-        )
-        _hud_enabled = True
-        print("✅ HUD handler registered successfully")
-        # Force immediate redraw
-        wm = bpy.context.window_manager
-        for window in wm.windows:
-            screen = window.screen
-            for area in screen.areas:
-                if area.type == 'VIEW_3D':
-                    area.tag_redraw()
-    except Exception as e:
-        print(f"🔴 Error registering HUD handler: {e}")
-        _hud_enabled = False
-
-def unregister_hud_handler():
-    """Unregisters the HUD drawing handler"""
-    global _hud_draw_handler, _hud_enabled
-    if _hud_draw_handler is not None:
-        try:
-            bpy.types.SpaceView3D.draw_handler_remove(_hud_draw_handler, 'WINDOW')
-            print("✅ HUD handler unregistered successfully")
-        except Exception as e:
-            print(f"🔴 Error removing HUD handler: {e}")
-        _hud_draw_handler = None
-    _hud_enabled = False
-
-def is_hud_enabled():
-    """Checks if the HUD is active"""
-    return _hud_enabled
-
-def ensure_hud_handlers():
-    """Ensures that all handlers are registered correctly"""
-    global _hud_enabled
-
-def invalidate_legend_hud_cache():
-    """Función global para invalidar el caché del Legend HUD cuando cambien los grupos de animación"""
-    global schedule_hud
-    if 'schedule_hud' in globals() and schedule_hud and hasattr(schedule_hud, 'invalidate_legend_cache'):
-        schedule_hud.invalidate_legend_cache()
-        print("🔄 Legend HUD cache invalidated globally")
-    
-    # Also update 3D Legend HUD if it exists and is enabled
-    try:
-        import bonsai.tool as tool
-        anim_props = tool.Sequence.get_animation_props()
-        camera_props = anim_props.camera_orbit
-        
-        if getattr(camera_props, 'enable_3d_legend_hud', False):
-            # Check if 3D Legend HUD exists
-            hud_exists = False
-            for obj in bpy.data.objects:
-                if obj.get("is_3d_legend_hud", False):
-                    hud_exists = True
-                    break
-            
-            if hud_exists:
-                print("🔄 Updating 3D Legend HUD due to ColorType change")
-                bpy.ops.bim.update_3d_legend_hud()
-    except Exception as e:
-        print(f"⚠️ Failed to auto-update 3D Legend HUD: {e}")
-    
-    print(f"🔍 Estado actual: _hud_enabled={_hud_enabled}")
-    if not _hud_enabled:
-        print("🔧 Registrando handlers del HUD automáticamente...")
-        register_hud_handler()
-    else:
-        print("✅ Handlers ya están activos")
-
-def refresh_hud():
-    """Forces a viewport refresh to update the HUD"""
-    try:
-        wm = bpy.context.window_manager
-        for window in wm.windows:
-            screen = window.screen
-            for area in screen.areas:
-                if area.type == 'VIEW_3D':
-                    area.tag_redraw()
-        print("🔄 HUD refresh requested")
-    except Exception as e:
-        print(f"🔴 HUD refresh error: {e}")
-
-# 🔧 ADDITIONAL DIAGNOSTIC FUNCTION
-def debug_hud_state():
-    """Diagnostic function to debug the HUD state"""
-    print("\n🔍 === HUD DEBUG STATE ===")
-    print(f"Handler enabled: {_hud_enabled}")
-    print(f"Handler object: {_hud_draw_handler}")
-    try:
-        import bonsai.tool as tool
-        anim_props = tool.Sequence.get_animation_props()
-        camera_props = anim_props.camera_orbit
-        hud_enabled = getattr(camera_props, 'enable_text_hud', False)
-        print(f"Property enable_text_hud: {hud_enabled}")
-        # Verificar datos de cronograma
-        data = schedule_hud.get_schedule_data()
-        print(f"Schedule data available: {data is not None}")
-        if data:
-            print(f"  Current date: {data.get('current_date')}")
-            print(f"  Frame: {data.get('current_frame')}")
-    except Exception as e:
-        print(f"Error in debug: {e}")
-    print("=== END DEBUG ===\n")

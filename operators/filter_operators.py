@@ -13,12 +13,12 @@ from typing import TYPE_CHECKING
 
 # --- Bloque de importaciones y fallbacks ---
 try:
-    from .prop import update_filter_column
-    from . import prop
+    from ..prop import update_filter_column
+    from .. import prop
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop import update_filter_column
-        import bonsai.bim.module.sequence.prop as prop
+        from ..prop.filter import update_filter_column
+        from .. import prop as prop
     except Exception:
         def update_filter_column(*args, **kwargs): pass
         class PropFallback:
@@ -29,13 +29,13 @@ except Exception:
         prop = PropFallback()
 
 # =============================================================================
-# ▼▼▼ SISTEMA DE SNAPSHOT/RESTORE COMPLETO (BASADO EN V125 FUNCIONAL) ▼▼▼
+# ▼▼▼ REMOVED COMPLEX SYSTEM - Using SIMPLE solution instead ▼▼▼
 # =============================================================================
 
-# Variable global para cache de estado de tareas (usada por filtros)
-_persistent_task_state = {}
+# SIMPLE SOLUTION - removed all complex snapshot/restore system
+# Now using simple_colortype_persistence.py instead
 
-def snapshot_all_ui_state(context):
+def snapshot_all_ui_state_DISABLED(context):
     """
     Captura el estado completo de TODAS las tareas del cronograma activo.
     Basado en la v125 que funcionaba perfectamente.
@@ -265,7 +265,7 @@ def deferred_restore_task_state():
             
     return None # Finaliza el temporizador
 
-def restore_all_ui_state(context):
+def restore_all_ui_state_DISABLED(context):
     """
     Restaura el estado completo de la UI desde snapshot + caché persistente.
     Basado en la v125 que funcionaba perfectamente.
@@ -667,33 +667,30 @@ class AssignStatus(bpy.types.Operator, tool.Ifc.Operator):
 class ApplyTaskFilters(bpy.types.Operator):
     bl_idname = "bim.apply_task_filters"; bl_label = "Apply Task Filters"; bl_options = {"REGISTER", "UNDO"}
     def execute(self, context):
-        # SISTEMA V125 FUNCIONAL: Snapshot → Recarga → Restore
-        try:
-            snapshot_all_ui_state(context)
-        except Exception as e:
-            print(f"Bonsai WARNING: snapshot_all_ui_state falló: {e}")
+        # SIMPLE SOLUTION - Like v60 but SIMPLE
+        from .simple_colortype_persistence import save_colortypes_simple, restore_colortypes_simple
         
-        # Recarga destructiva de tareas
+        # 1. Save ColorTypes SIMPLE
+        save_colortypes_simple()
+        
+        # 2. Reload tasks (this destroys ColorTypes)
         try:
             ws = tool.Sequence.get_active_work_schedule()
             if ws: 
                 tool.Sequence.load_task_tree(ws)
-                tool.Sequence.load_task_properties()
+                tool.Sequence.load_task_properties(task=None)
         except Exception as e: 
-            print(f"Bonsai WARNING: Task tree reload failed: {e}")
+            print(f"Task tree reload failed: {e}")
         
-        # Restaurar estado completo
-        try:
-            restore_all_ui_state(context)
-        except Exception as e:
-            print(f"Bonsai WARNING: restore_all_ui_state falló: {e}")
+        # 3. Restore ColorTypes SIMPLE  
+        restore_colortypes_simple()
         
-        # Lógica de colores de varianza
+        # 4. Variance colors (keep this)
         try:
             if not tool.Sequence.has_variance_calculation_in_tasks(): 
                 tool.Sequence.clear_variance_colors_only()
         except Exception as e: 
-            print(f"⚠️ Error in variance color check: {e}")
+            print(f"Variance color check error: {e}")
         
         return {'FINISHED'}
 
@@ -728,8 +725,8 @@ class ApplyLookaheadFilter(bpy.types.Operator):
         if self.time_window == 'THIS_WEEK': filter_start = today - timedelta(days=today.weekday()); filter_end = filter_start + timedelta(days=6)
         elif self.time_window == 'LAST_WEEK': filter_start = today - timedelta(days=today.weekday(), weeks=1); filter_end = filter_start + timedelta(days=6)
         else: weeks = int(self.time_window.split('_')[0]); filter_start = today; filter_end = today + timedelta(weeks=weeks)
-        rule1 = props.filters.rules.add(); rule1.is_active = True; rule1.column = start_column; rule1.operator = "LTE"; rule1.value_string = filter_end.strftime("%Y-%m-%d")
-        rule2 = props.filters.rules.add(); rule2.is_active = True; rule2.column = finish_column; rule2.operator = "GTE"; rule2.value_string = filter_start.strftime("%Y-%m-%d")
+        rule1 = props.filters.rules.add(); rule1.is_active = True; rule1.column = start_column; rule1.operator = "BEFORE"; rule1.value_date = filter_end.strftime("%Y-%m-%d")
+        rule2 = props.filters.rules.add(); rule2.is_active = True; rule2.column = finish_column; rule2.operator = "AFTER"; rule2.value_date = filter_start.strftime("%Y-%m-%d")
         props.filters.logic = "AND"; tool.Sequence.update_visualisation_date(filter_start, filter_end); bpy.ops.bim.apply_task_filters(); self.report({"INFO"}, f"Filter applied: {self.time_window.replace('_', ' ')}"); return {"FINISHED"}
 
 # =============================================================================
@@ -840,7 +837,7 @@ class FilterDatePicker(bpy.types.Operator):
         if self.rule_index < 0 or self.rule_index >= len(props.filters.rules): self.report({'ERROR'}, "Invalid filter rule index."); return {'CANCELLED'}
         selected_date_str = context.scene.DatePickerProperties.selected_date
         if not selected_date_str: self.report({'ERROR'}, "No date selected."); return {'CANCELLED'}
-        target_rule = props.filters.rules[self.rule_index]; target_rule.value_string = selected_date_str
+        target_rule = props.filters.rules[self.rule_index]; target_rule.value_date = selected_date_str
         try: bpy.ops.bim.apply_task_filters()
         except Exception as e: print(f"Error applying filters: {e}")
         self.report({'INFO'}, f"Date set to: {selected_date_str}"); return {"FINISHED"}
@@ -848,7 +845,7 @@ class FilterDatePicker(bpy.types.Operator):
         if self.rule_index < 0: self.report({'ERROR'}, "No rule index specified."); return {'CANCELLED'}
         props = tool.Sequence.get_work_schedule_props()
         if self.rule_index >= len(props.filters.rules): self.report({'ERROR'}, "Invalid filter rule index."); return {'CANCELLED'}
-        current_date_str = props.filters.rules[self.rule_index].value_string; date_picker_props = context.scene.DatePickerProperties
+        current_date_str = props.filters.rules[self.rule_index].value_date; date_picker_props = context.scene.DatePickerProperties
         if current_date_str and current_date_str.strip():
             try: current_date = datetime.fromisoformat(current_date_str.split('T')[0])
             except Exception:

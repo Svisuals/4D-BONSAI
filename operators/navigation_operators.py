@@ -8,7 +8,7 @@ try:
     from .ui import calculate_visible_columns_count
 except Exception:
     try:
-        from bonsai.bim.module.sequence.ui import calculate_visible_columns_count
+        from ..ui import calculate_visible_columns_count
     except Exception:
         def calculate_visible_columns_count(context):
             return 3  # Safe fallback

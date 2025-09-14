@@ -230,63 +230,19 @@ class BIM_PT_animation_tools(Panel):
                 icon=tool.Blender.SEQUENCE_COLOR_SCHEME_ICON,
             )
 
-        # === ANIMATION ENGINE SELECTOR ===
-        engine_box = self.layout.box()
-        engine_box.label(text="Animation Engine:", icon="SETTINGS")
-        engine_row = engine_box.row(align=True)
-        engine_row.prop(self.animation_props, "animation_engine", expand=True)
-
-        # === GEOMETRY NODES ENGINE SPECIFIC CONTROLS ===
-        if self.animation_props.animation_engine == 'GEOMETRY_NODES':
-            gn_box = self.layout.box()
-            gn_box.label(text="Geometry Nodes Controls:", icon="GEOMETRY_NODES")
-
-            # Controller management
-            controller_row = gn_box.row(align=True)
-            controller_row.operator("bim.add_gn_view_controller", text="Add Controller", icon="ADD")
-
-            # Show active controllers info and controls
-            try:
-                import bpy
-                controllers = [obj for obj in bpy.context.scene.objects if hasattr(obj, "BonsaiGNController")]
-                if controllers:
-                    info_row = gn_box.row()
-                    info_row.label(text=f"Active Controllers: {len(controllers)}", icon="EMPTY_AXIS")
-
-                    # Show controller-specific settings for the active object
-                    active_obj = bpy.context.active_object
-                    if active_obj and hasattr(active_obj, "BonsaiGNController"):
-                        ctrl_props = active_obj.BonsaiGNController
-                        ctrl_box = gn_box.box()
-                        ctrl_box.label(text=f"Controller: {active_obj.name}", icon="EMPTY_AXIS")
-
-                        # Schedule type selector
-                        ctrl_row = ctrl_box.row(align=True)
-                        ctrl_row.prop(ctrl_props, "schedule_type_to_display", text="Display")
-
-                        # ColorType group selector
-                        if hasattr(ctrl_props, "colortype_group_to_display"):
-                            ctrl_row = ctrl_box.row(align=True)
-                            ctrl_row.prop(ctrl_props, "colortype_group_to_display", text="ColorType Group")
-                else:
-                    info_row = gn_box.row()
-                    info_row.label(text="No controllers found - Add one to get started", icon="INFO")
-            except Exception as e:
-                error_row = gn_box.row()
-                error_row.label(text=f"Error: {e}", icon="ERROR")
-
         # === MAIN BUTTONS - Animation Settings ===
         main_actions_box = self.layout.box()
         main_actions_box.label(text="Animation Actions:", icon="OUTLINER_OB_CAMERA")
 
-        # Main button - Updated to use new operator
+        # Main button
         main_row = main_actions_box.row()
         op = main_row.operator(
-            "bim.create_update_4d_animation",
+            "bim.visualise_work_schedule_date_range",
             text="Create / Update Animation",
             icon="OUTLINER_OB_CAMERA")
+        op.work_schedule = self.props.active_work_schedule_id
 
-        # Reset Button
+        # Reset Button - DUPLICATE
         reset_row = main_actions_box.row()
         reset_row.operator("bim.clear_previous_animation", text="Reset", icon="TRASH")
 
@@ -1127,11 +1083,6 @@ class BIM_PT_animation_color_schemes(Panel):
             if not p.use_start_original_color:
                 col.prop(p, "start_color")
             col.prop(p, "start_transparency")
-            # NEW: Geometry Nodes effect for Start
-            if hasattr(p, "start_gn_effect"):
-                gn_row = col.row(align=True)
-                gn_row.label(text="GN Effect:", icon="GEOMETRY_NODES")
-                gn_row.prop(p, "start_gn_effect", text="")
 
             # --- Active / In Progress Appearance ---
             active_box = layout.box()
@@ -1149,11 +1100,6 @@ class BIM_PT_animation_color_schemes(Panel):
             col.prop(p, "active_start_transparency")
             col.prop(p, "active_finish_transparency")
             col.prop(p, "active_transparency_interpol")
-            # NEW: Geometry Nodes effect for Active
-            if hasattr(p, "active_gn_effect"):
-                gn_row = col.row(align=True)
-                gn_row.label(text="GN Effect:", icon="GEOMETRY_NODES")
-                gn_row.prop(p, "active_gn_effect", text="")
 
             # --- End Appearance ---
             end_box = layout.box()
@@ -1179,11 +1125,4 @@ class BIM_PT_animation_color_schemes(Panel):
             row_transparency = col.row(align=True)
             row_transparency.enabled = not p.hide_at_end
             row_transparency.prop(p, "end_transparency")
-
-            # NEW: Geometry Nodes effect for End
-            if hasattr(p, "end_gn_effect"):
-                gn_row = col.row(align=True)
-                gn_row.enabled = not p.hide_at_end  # Disable if hiding at end
-                gn_row.label(text="GN Effect:", icon="GEOMETRY_NODES")
-                gn_row.prop(p, "end_gn_effect", text="")
 

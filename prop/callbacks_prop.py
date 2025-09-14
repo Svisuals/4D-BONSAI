@@ -1226,37 +1226,8 @@ def update_task_colortype_group_selector(self, context):
             except Exception as e:
                 print(f"⚠ Error syncing task colortypes: {e}")
 
-            # NUEVO: Sincronizar con controlador GN para animación en tiempo real
-            try:
-                sync_gn_controller_colortype(context, self.task_colortype_group_selector)
-            except Exception as e:
-                print(f"⚠️ Could not sync GN controller: {e}")
-
     except Exception as e:
         print(f"❌ Error in update_task_colortype_group_selector: {e}")
-
-
-def sync_gn_controller_colortype(context, selected_group):
-    """Sync Geometry Nodes controller with Animation Settings ColorType selector"""
-    try:
-        # Find GN controller objects
-        controllers = [obj for obj in context.scene.objects
-                      if hasattr(obj, "BonsaiGNController")]
-
-        for controller in controllers:
-            if hasattr(controller.BonsaiGNController, "colortype_group_to_display"):
-                old_value = controller.BonsaiGNController.colortype_group_to_display
-                controller.BonsaiGNController.colortype_group_to_display = selected_group
-                print(f"🎮 Synced GN controller '{controller.name}': '{old_value}' → '{selected_group}'")
-
-        # Force viewport update to show changes immediately
-        if controllers:
-            for area in context.screen.areas:
-                if area.type == 'VIEW_3D':
-                    area.tag_redraw()
-
-    except Exception as e:
-        print(f"❌ Failed to sync GN controller: {e}")
 
 
 def monitor_predefined_type_change(context):
@@ -2005,12 +1976,6 @@ def update_legend_hud_on_group_change(self, context):
         snapshot_all_ui_state(context)
         # --- FIN DE LA CORRECCIÓN ---
 
-        # Update GN4D controller displays when ColorType group changes
-        update_gn_controller_colortype_display(context)
-
-    except Exception as e:
-        print(f"⚠️ Error in group change callback: {e}")
-
         print(f"🔄 GROUP CHANGE CALLBACK: Group '{self.group}' enabled changed to: {self.enabled}")
         
         # NUEVA FUNCIONALIDAD: Sincronizar animation_color_schemes automáticamente
@@ -2112,34 +2077,4 @@ def update_selected_date(self: "DatePickerProperties", context: bpy.types.Contex
 
 
 
-
-
-
-
-def update_gn_controller_colortype_display(context):
-    """Update ColorType display in all GN4D controller panels when Animation Settings change"""
-    try:
-        # Get the currently active ColorType group name
-        from .color_manager_prop import UnifiedColorTypeManager
-        active_group = UnifiedColorTypeManager.get_active_group_name(context)
-        if not active_group:
-            active_group = "DEFAULT"
-
-        print(f"🔄 Updating GN controllers with ColorType: {active_group}")
-
-        # Update all GN4D controller objects
-        for obj in context.scene.objects:
-            if obj.get("is_gn_controller", False):
-                # Update the colortype_group_to_display property
-                if hasattr(obj, "BonsaiGNController"):
-                    obj.BonsaiGNController.colortype_group_to_display = active_group
-                    print(f"   Updated GN controller '{obj.name}' to show: {active_group}")
-
-        # Force UI refresh
-        for area in context.screen.areas:
-            if area.type == 'PROPERTIES':
-                area.tag_redraw()
-
-    except Exception as e:
-        print(f"⚠️ Error updating GN controller displays: {e}")
 
