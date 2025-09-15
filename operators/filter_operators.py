@@ -471,21 +471,49 @@ class ClearTaskStateCache(bpy.types.Operator):
 # ▼▼▼ OPERADORES DE FILTRO DE ESTADO ▼▼▼
 # =============================================================================
 class EnableStatusFilters(bpy.types.Operator):
-    bl_idname = "bim.enable_status_filters"; bl_label = "Enable Status Filters"; bl_options = {"REGISTER", "UNDO"}
+    bl_idname = "bim.enable_status_filters"
+    bl_label = "Enable Status Filters"
+    bl_options = {"REGISTER", "UNDO"}
+
     def execute(self, context):
-        props = tool.Sequence.get_status_props(); props.is_enabled = True; hidden_statuses = {s.name for s in props.statuses if not s.is_visible}; props.statuses.clear(); statuses = set()
+        from collections import Counter
+        props = tool.Sequence.get_status_props()
+        props.is_enabled = True
+        hidden_statuses = {s.name for s in props.statuses if not s.is_visible}
+
+        props.statuses.clear()
+
+        statuses_used = Counter()
+        user_defined_statuses = set()
         for element in tool.Ifc.get().by_type("IfcPropertyEnumeratedValue"):
             if element.Name == "Status":
-                if element.PartOfPset and isinstance(element.EnumerationValues, tuple):
+                enum_values = element.EnumerationValues
+                if element.PartOfPset and isinstance(enum_values, tuple):
                     pset = element.PartOfPset[0]
-                    if pset.Name.startswith("Pset_") and pset.Name.endswith("Common"): statuses.update(element.EnumerationValues)
-                    elif pset.Name == "EPset_Status": statuses.update(element.EnumerationValues)
-            elif element.Name == "UserDefinedStatus": statuses.add(element.NominalValue)
-        statuses = ["No Status"] + sorted([s.wrappedValue for s in statuses])
+                    pset_name = pset.Name
+                    if pset_name.startswith("Pset_") and pset_name.endswith("Common"):
+                        statuses_used.update([s.wrappedValue for s in enum_values])
+                    elif pset_name == "EPset_Status":  # Our secret sauce
+                        statuses_used.update([s.wrappedValue for s in enum_values])
+            elif element.Name == "UserDefinedStatus":
+                status = element.NominalValue.wrappedValue
+                statuses_used[element.NominalValue.wrappedValue] += 1
+                user_defined_statuses.add(status)
+
+        statuses = ["No Status"]
+        statuses.extend(tool.Sequence.ELEMENT_STATUSES)
+        statuses.extend(user_defined_statuses)
+
         for status in statuses:
-            new = props.statuses.add(); new.name = status
-            if new.name in hidden_statuses: new.is_visible = False
-        visible_statuses = {s.name for s in props.statuses if s.is_visible}; tool.Sequence.set_visibility_by_status(visible_statuses); return {"FINISHED"}
+            new = props.statuses.add()
+            new.name = status
+            if new.name in hidden_statuses:
+                new.is_visible = False
+            new.has_elements = bool(statuses_used[status])
+
+        visible_statuses = {s.name for s in props.statuses if s.is_visible}
+        tool.Sequence.set_visibility_by_status(visible_statuses)
+        return {"FINISHED"}
 
 class DisableStatusFilters(bpy.types.Operator):
     bl_idname = "bim.disable_status_filters"; bl_label = "Disable Status Filters"; bl_description = "Deactivate status filters panel"; bl_options = {"REGISTER", "UNDO"}
@@ -500,13 +528,133 @@ class ActivateStatusFilters(bpy.types.Operator):
         visible_statuses = {s.name for s in props.statuses if s.is_visible}; tool.Sequence.set_visibility_by_status(visible_statuses); return {"FINISHED"}
 
 class SelectStatusFilter(bpy.types.Operator):
-    bl_idname = "bim.select_status_filter"; bl_label = "Select Status Filter"; bl_description = "Select elements with the specified status"; bl_options = {"REGISTER", "UNDO"}; name: bpy.props.StringProperty()
+    bl_idname = "bim.select_status_filter"; bl_label = "Select Status Filter"; bl_description = "Select elements with the specified status"; bl_options = {"REGISTER", "UNDO"}
+    status: bpy.props.StringProperty()
+
     def execute(self, context):
-        query = f"IfcProduct, /Pset_.*Common/.Status={self.name} + IfcProduct, EPset_Status.Status={self.name}"
-        if self.name == "No Status": query = f"IfcProduct, /Pset_.*Common/.Status=NULL, EPset_Status.Status=NULL"
+        import ifcopenshell.util.selector
+        query = f"IfcProduct, /Pset_.*Common/.Status={self.status} + IfcProduct, EPset_Status.Status={self.status}"
+        if self.status == "No Status": query = f"IfcProduct, /Pset_.*Common/.Status=NULL, EPset_Status.Status=NULL"
         for element in ifcopenshell.util.selector.filter_elements(tool.Ifc.get(), query):
             obj = tool.Ifc.get_object(element)
             if obj: obj.select_set(True)
+        return {"FINISHED"}
+
+class AssignStatus(bpy.types.Operator, tool.Ifc.Operator):
+    bl_idname = "bim.assign_status"
+    bl_label = "Assign Status"
+    bl_description = "Assign status to the selected elements.\n\nAlt+CLICK to unassign the status."
+    bl_options = {"REGISTER", "UNDO"}
+
+    should_override_previous_status: bpy.props.BoolProperty(
+        name="Override Previous Status",
+        description=(
+            "Whether assigning new status should override previous one.\n\n"
+            "IFC allows storing multiple statuses for the same element. "
+            "This option can be disabled to take advantage of that."
+        ),
+        default=True,
+    )
+    status: bpy.props.StringProperty()
+    should_unassign_status: bpy.props.BoolProperty(
+        options={"SKIP_SAVE"},
+    )
+
+    def invoke(self, context, event):
+        self.should_unassign_status = event.alt
+        return self.execute(context)
+
+    def _execute(self, context):
+        import ifcopenshell.api.pset
+        import ifcopenshell.util.element
+        import bonsai.bim.schema
+        from functools import cache
+
+        # TODO: UserDefinedStatus
+        if self.status not in tool.Sequence.ELEMENT_STATUSES:
+            self.report({"ERROR"}, "Assigning user defined statuses or 'No Status' is not yet supported.")
+            return {"CANCELLED"}
+
+        EPSET_NAME = "EPset_Status"
+        elements_changed = 0
+        ifc_file = tool.Ifc.get()
+
+        @cache
+        def get_common_pset_name(element):
+            templates = bonsai.bim.schema.ifc.psetqto.get_applicable(
+                element.is_a(),
+                pset_only=True,
+                schema=tool.Ifc.get_schema(),
+            )
+            for template in templates:
+                template_name = template.Name
+                if template_name.startswith("Pset_") and template_name.endswith("Common"):
+                    return template_name
+
+        for obj in tool.Blender.get_selected_objects():
+            if not (element := tool.Ifc.get_entity(obj)) or not element.is_a("IfcProduct"):
+                continue
+
+            psets = ifcopenshell.util.element.get_psets(element, psets_only=True)
+            common_pset_name = get_common_pset_name(element)
+
+            existing_psets = [
+                pset_name for pset_name in psets if pset_name == EPSET_NAME or pset_name == common_pset_name
+            ]
+            # Common pset comes first.
+            existing_psets.sort(key=lambda x: x == EPSET_NAME)
+
+            if not existing_psets:
+                if self.should_unassign_status:
+                    continue
+                pset_name = common_pset_name or EPSET_NAME
+                pset = ifcopenshell.api.pset.add_pset(ifc_file, element, pset_name)
+                ifcopenshell.api.pset.edit_pset(ifc_file, pset, properties={"Status": [self.status]})
+                elements_changed += 1
+                continue
+
+            pset_changed = False
+            for pset_i, pset_name in enumerate(existing_psets):
+                pset_data = psets[pset_name]
+                status_data = pset_data.get("Status", ...)
+
+                if self.should_unassign_status:
+                    if status_data is ... or not status_data:
+                        continue
+                    # Already unassigned.
+                    if self.status not in status_data:
+                        continue
+                    status_data.remove(self.status)
+
+                else:
+                    if status_data is None or status_data is ...:
+                        status_data = [self.status]
+                    elif self.status in status_data:
+                        # Already assigned.
+                        continue
+                    else:
+                        if self.should_override_previous_status:
+                            status_data = [self.status]
+                        else:
+                            status_data.append(self.status)
+
+                if pset_i > 0:
+                    # Try to maintain status in just 1 pset.
+                    if not self.should_unassign_status:
+                        status_data.remove(self.status)
+
+                ifcopenshell.api.pset.edit_pset(
+                    ifc_file, pset=ifc_file.by_id(pset_data["id"]), properties={"Status": status_data}
+                )
+                pset_changed = True
+            elements_changed += pset_changed
+
+        self.report(
+            {"INFO"},
+            f"Status '{self.status}' "
+            f"{'un' * self.should_unassign_status}assigned {'from' if self.should_unassign_status else 'to'} "
+            f"{elements_changed} elements.",
+        )
         return {"FINISHED"}
 # =============================================================================
 # ▲▲▲ FIN DE OPERADORES DE FILTRO DE ESTADO ▲▲▲

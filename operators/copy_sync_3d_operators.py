@@ -3,6 +3,7 @@
 
 import bpy
 import bonsai.tool as tool
+from .. import hud as hud_overlay
 from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state, _save_3d_texts_state, _restore_3d_texts_state
 from .animation_operators import _get_animation_settings, _compute_product_frames, _ensure_default_group
 
@@ -155,7 +156,7 @@ class SnapshotWithcolortypes(tool.Ifc.Operator, bpy.types.Operator):
             print("✅ DEBUG: Set is_snapshot_mode flag")
             
             # CRITICAL: Register HUD handler for snapshots
-            from .. import hud_overlay
+            from .. import hud
             if not hud_overlay.is_hud_enabled():
                 print("🎬 SNAPSHOT: Registering HUD handler for Timeline display")
                 hud_overlay.register_hud_handler()
@@ -306,12 +307,31 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
             # Force viewport update to ensure everything is ready
             bpy.context.view_layer.update()
             
-            # Refresh texts to show correct snapshot date/info (solo si ya existen)
+            # *** ENHANCED FIX: Use appropriate text creation method ***
+            # If no 3D texts exist, create static ones; if they exist, refresh them properly
             try:
-                bpy.ops.bim.refresh_snapshot_texts()
-                print("✅ DEBUG: 3D texts refreshed for snapshot date")
+                texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
+                has_existing_texts = texts_collection and len(texts_collection.objects) > 0
+
+                if has_existing_texts:
+                    # There are existing texts, use the enhanced refresh method
+                    print("📸 DEBUG: Existing 3D texts found, using refresh method")
+                    bpy.ops.bim.refresh_snapshot_texts()
+                    print("✅ DEBUG: 3D texts refreshed for snapshot date")
+                else:
+                    # No existing texts, create static ones for snapshot-only mode
+                    print("📸 DEBUG: No existing 3D texts, creating static ones for snapshot")
+                    bpy.ops.bim.create_static_snapshot_texts()
+                    print("✅ DEBUG: Static 3D texts created for snapshot")
+
             except Exception as e:
-                print(f"⚠️ DEBUG: Failed to refresh snapshot texts: {e}")
+                print(f"⚠️ DEBUG: Failed to handle snapshot texts: {e}")
+                # Fallback: try the old refresh method
+                try:
+                    bpy.ops.bim.refresh_snapshot_texts()
+                    print("✅ DEBUG: Fallback 3D texts refresh succeeded")
+                except Exception as fallback_e:
+                    print(f"❌ DEBUG: Fallback also failed: {fallback_e}")
                 
         except Exception as e:
             print(f"⚠️ DEBUG: Could not update 3D texts visibility: {e}")
