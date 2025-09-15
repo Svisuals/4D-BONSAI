@@ -25,7 +25,7 @@ from . import operators
 
 
 classes = (
-    
+
     # UI Panels & Lists from ui.py
     ui.BIM_PT_work_plans,
     ui.BIM_PT_work_schedules,
@@ -47,6 +47,9 @@ classes = (
     ui.BIM_UL_product_input_tasks,
     ui.BIM_UL_product_output_tasks,
     ui.BIM_PT_animation_color_schemes,
+    # NEW: Viewport panels
+    ui.BIM_PT_4D_Animation_Viewport,
+    ui.BIM_PT_4D_Controllers_Viewport,
 )
 
 # --- Optional registration: ClearAnimationAdvanced (guarded) ---

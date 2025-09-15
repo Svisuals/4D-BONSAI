@@ -8,14 +8,14 @@ import bonsai.tool as tool
 
 
 try:
-    from ..prop import update_filter_column
-    from .. import prop
+    from .prop import update_filter_column
+    from . import prop
     from .ui import calculate_visible_columns_count
 except Exception:
     try:
-        from ..prop.filter import update_filter_column
-        from .. import prop as prop
-        from ..ui import calculate_visible_columns_count
+        from bonsai.bim.module.sequence.prop import update_filter_column
+        import bonsai.bim.module.sequence.prop as prop
+        from bonsai.bim.module.sequence.ui import calculate_visible_columns_count
     except Exception:
         def update_filter_column(*args, **kwargs):
             pass
@@ -61,22 +61,16 @@ import time
 import calendar
 import isodate
 import bonsai.core.sequence as core
-from .. import helper as helper
+import bonsai.bim.module.sequence.helper as helper
 from .animation_operators import _clear_previous_animation, _get_animation_settings, _compute_product_frames, _ensure_default_group
 try:
-    from ..prop.color_manager_prop import UnifiedColorTypeManager
+    from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
 except Exception:
-    try:
-        from ..prop.color_manager_prop import UnifiedColorTypeManager
-    except Exception:
-        UnifiedColorTypeManager = None  # optional
+    UnifiedColorTypeManager = None  # optional
 try:
-    from ..prop.task import TaskcolortypeGroupChoice
+    from bonsai.bim.module.sequence.prop import TaskcolortypeGroupChoice
 except Exception:
-    try:
-        from ..prop.task import TaskcolortypeGroupChoice
-    except Exception:
-        TaskcolortypeGroupChoice = None  # optional
+    TaskcolortypeGroupChoice = None  # optional
 
 import ifcopenshell.util.sequence
 import ifcopenshell.util.selector
@@ -526,7 +520,7 @@ class RemoveTask(bpy.types.Operator, tool.Ifc.Operator):
 
                 tool.Sequence.load_task_tree(ws)
 
-                tool.Sequence.load_task_properties(task=None)
+                tool.Sequence.load_task_properties()
 
         except Exception:
 
@@ -714,7 +708,7 @@ class CopyTask(bpy.types.Operator, tool.Ifc.Operator):
 
                 tool.Sequence.load_task_tree(ws)
 
-                tool.Sequence.load_task_properties(task=None)
+                tool.Sequence.load_task_properties()
 
         except Exception:
 
@@ -769,7 +763,7 @@ class ReorderTask(bpy.types.Operator, tool.Ifc.Operator):
 
                 tool.Sequence.load_task_tree(ws)
 
-                tool.Sequence.load_task_properties(task=None)
+                tool.Sequence.load_task_properties()
 
         except Exception:
 
@@ -805,7 +799,7 @@ class ClearPreviousAnimation(bpy.types.Operator, tool.Ifc.Operator):
                         all_colortype_names = []
                         for group_item in anim_props.animation_group_stack:
                             group_name = group_item.group
-                            from .prop.color_manager_prop import UnifiedColorTypeManager
+                            from .prop import UnifiedColorTypeManager
                             group_colortypes = UnifiedColorTypeManager.get_group_colortypes(bpy.context, group_name)
                             if group_colortypes:
                                 all_colortype_names.extend(group_colortypes.keys())
@@ -878,7 +872,7 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
                         all_colortype_names = []
                         for group_item in anim_props.animation_group_stack:
                             group_name = group_item.group
-                            from .prop.color_manager_prop import UnifiedColorTypeManager
+                            from .prop import UnifiedColorTypeManager
                             group_colortypes = UnifiedColorTypeManager.get_group_colortypes(bpy.context, group_name)
                             if group_colortypes:
                                 all_colortype_names.extend(group_colortypes.keys())

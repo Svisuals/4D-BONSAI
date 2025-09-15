@@ -18,6 +18,7 @@
 
 
 import bpy
+import bonsai.tool as tool
 from bpy.types import PropertyGroup
 from bpy.props import (
     PointerProperty, StringProperty, EnumProperty,

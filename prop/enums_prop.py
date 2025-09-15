@@ -106,6 +106,7 @@ def get_animation_color_schemes_items(self, context):
     return items
 
 
+# TODO: This function is duplicated from animation.py - consider using the cached version
 def get_custom_group_colortype_items(self, context):
     """
     Gets colortype items ONLY from the selected custom group (excludes DEFAULT).

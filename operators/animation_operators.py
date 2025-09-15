@@ -278,6 +278,14 @@ def _clear_previous_animation(context) -> None:
             tool.Sequence._unregister_frame_change_handler()
             print("  - Handler de textos 3D desregistrado.")
 
+        # Limpiar sistema Geometry Nodes si está activo
+        try:
+            from ..tool import gn_sequence
+            gn_sequence.cleanup_enhanced_gn_system()
+            print("  - Sistema Geometry Nodes limpiado.")
+        except Exception as e:
+            print(f"  - Error limpiando GN system: {e}")
+
         # --- 2. LIMPIAR OBJETOS DE LA ESCENA ---
         # Eliminar objetos generados por la animación (textos, barras, etc.)
         for coll_name in ["Schedule_Display_Texts", "Bar Visual", "Schedule_Display_3D_Legend"]:

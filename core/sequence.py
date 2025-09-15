@@ -19,20 +19,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Union
 
-# Import animation functions with fallback
-try:
-    from ..prop.color_manager_prop import UnifiedColorTypeManager
-except ImportError:
-    # Fallback for when running from the original location
-    try:
-        from .prop.color_manager_prop import UnifiedColorTypeManager
-    except ImportError:
-        # Ultimate fallback - create dummy class
-        class UnifiedColorTypeManager:
-            @staticmethod
-            def sync_default_colortype_for_task(task_pg, predefined_type):
-                pass
-
 if TYPE_CHECKING:
     import bpy
     import ifcopenshell
@@ -103,7 +89,7 @@ def edit_work_schedule(
         # SOLUCIÓN INTELIGENTE: Preservar cronograma original en lugar de resetear automáticamente
         try:
             # Refresh ALL schedule-related data
-            from ..data import SequenceData, WorkScheduleData
+            from bonsai.bim.module.sequence.data import SequenceData, WorkScheduleData
             SequenceData.load()
             WorkScheduleData.load()
             
@@ -209,61 +195,52 @@ def enable_editing_work_schedule_tasks(
     # Only set active schedule, DO NOT load task tree immediately
     # El operador manejará la secuencia correcta: callback → load_task_tree → restore
     # The operator will handle the correct sequence: callback → load_task_tree → restore
-    print(f"🔍 DEBUG core.enable_editing_work_schedule_tasks: cronograma {work_schedule}")
-    print(f"🔍 DEBUG: sequence es: {sequence}")
-    print(f"🔍 DEBUG: Verificando si tiene el método: {hasattr(sequence, 'enable_editing_work_schedule_tasks')}")
-    method = getattr(sequence, 'enable_editing_work_schedule_tasks', None)
-    print(f"🔍 DEBUG: Método encontrado: {method}")
-    if method:
-        print(f"🔍 DEBUG: Método está definido en: {method.__qualname__}")
-    print(f"🔍 DEBUG: Llamando sequence.enable_editing_work_schedule_tasks")
     sequence.enable_editing_work_schedule_tasks(work_schedule)
-    print("🔍 DEBUG core.enable_editing_work_schedule_tasks: completado")
 
 
 def load_task_tree(sequence: type[tool.Sequence], work_schedule) -> None:
     sequence.load_task_tree(work_schedule)
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def expand_task(sequence: type[tool.Sequence], task: ifcopenshell.entity_instance) -> None:
     sequence.expand_task(task)
     work_schedule = sequence.get_active_work_schedule()
     sequence.load_task_tree(work_schedule)
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def expand_all_tasks(sequence: type[tool.Sequence]) -> None:
     sequence.expand_all_tasks()
     work_schedule = sequence.get_active_work_schedule()
     sequence.load_task_tree(work_schedule)
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def contract_task(sequence: type[tool.Sequence], task: ifcopenshell.entity_instance) -> None:
     sequence.contract_task(task)
     work_schedule = sequence.get_active_work_schedule()
     sequence.load_task_tree(work_schedule)
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def contract_all_tasks(sequence: type[tool.Sequence]) -> None:
     sequence.contract_all_tasks()
     work_schedule = sequence.get_active_work_schedule()
     sequence.load_task_tree(work_schedule)
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def remove_task(ifc: type[tool.Ifc], sequence: type[tool.Sequence], task: ifcopenshell.entity_instance) -> None:
     ifc.run("sequence.remove_task", task=task)
     work_schedule = sequence.get_active_work_schedule()
     sequence.load_task_tree(work_schedule)
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
     sequence.disable_selecting_deleted_task()
 
 
 def load_task_properties(sequence: type[tool.Sequence]) -> None:
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def disable_editing_work_schedule(sequence: type[tool.Sequence]) -> None:
@@ -275,7 +252,7 @@ def add_summary_task(
 ) -> None:
     ifc.run("sequence.add_task", work_schedule=work_schedule)
     sequence.load_task_tree(work_schedule)
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def add_task(
@@ -284,7 +261,7 @@ def add_task(
     ifc.run("sequence.add_task", parent_task=parent_task)
     work_schedule = sequence.get_active_work_schedule()
     sequence.load_task_tree(work_schedule)
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def enable_editing_task_attributes(sequence: type[tool.Sequence], task: ifcopenshell.entity_instance) -> None:
@@ -299,10 +276,10 @@ def _auto_sync_task_predefined_type(task_id: int, predefined_type: str) -> None:
     try:
         import bpy
         import bonsai.tool as tool
-        # UnifiedColorTypeManager is already imported at module level
+        from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
 
         # 1. Find the task in UI properties (task_pg)
-        tprops = sequence.get_task_tree_props()
+        tprops = tool.Sequence.get_task_tree_props()
         task_pg = next((t for t in tprops.tasks if t.ifc_definition_id == task_id), None)
 
         if task_pg:
@@ -330,24 +307,8 @@ def edit_task(ifc: type[tool.Ifc], sequence: type[tool.Sequence], task: ifcopens
     ifc.run("sequence.edit_task", task=task, attributes=attributes)
 
     # 2. Reload data from IFC so cache is updated
-    try:
-        from ..data import SequenceData
-        SequenceData.load() # Complete reload to ensure consistency
-    except ImportError:
-        # Nuestro SequenceData está en una ubicación diferente, intentar con ruta específica
-        try:
-            import sys
-            import os
-            # Buscar nuestro directorio 4D-BONSAI
-            custom_path = r"C:\Users\fede_\Desktop\SVisuals\Codigos\Bonsai Bim\4D\Refactorizado\4D-BONSAI"
-            if os.path.exists(custom_path):
-                sys.path.insert(0, custom_path)
-                from data import SequenceData
-                SequenceData.load()
-            else:
-                print("⚠️ No se pudo encontrar SequenceData personalizado, continuando sin reload")
-        except Exception as e:
-            print(f"⚠️ Error al cargar SequenceData personalizado: {e}, continuando sin reload")
+    from bonsai.bim.module.sequence.data import SequenceData
+    SequenceData.load() # Complete reload to ensure consistency
     sequence.load_task_properties(task=task)
 
     # 3. Trigger synchronization if PredefinedType changed
@@ -372,7 +333,7 @@ def duplicate_task(ifc: type[tool.Ifc], sequence: type[tool.Sequence], task: ifc
     ifc.run("sequence.duplicate_task", task=task)
     work_schedule = sequence.get_active_work_schedule()
     sequence.load_task_tree(work_schedule)
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def disable_editing_task(sequence: type[tool.Sequence]) -> None:
@@ -404,7 +365,7 @@ def edit_task_time(
 def assign_predecessor(ifc: type[tool.Ifc], sequence: type[tool.Sequence], task: ifcopenshell.entity_instance) -> None:
     predecessor_task = sequence.get_highlighted_task()
     ifc.run("sequence.assign_sequence", relating_process=task, related_process=predecessor_task)
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def unassign_predecessor(
@@ -412,19 +373,19 @@ def unassign_predecessor(
 ) -> None:
     predecessor_task = sequence.get_highlighted_task()
     ifc.run("sequence.unassign_sequence", relating_process=task, related_process=predecessor_task)
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def assign_successor(ifc: type[tool.Ifc], sequence: type[tool.Sequence], task: ifcopenshell.entity_instance) -> None:
     successor_task = sequence.get_highlighted_task()
     ifc.run("sequence.assign_sequence", relating_process=successor_task, related_process=task)
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def unassign_successor(ifc: type[tool.Ifc], sequence: type[tool.Sequence], task: ifcopenshell.entity_instance) -> None:
     successor_task = sequence.get_highlighted_task()
     ifc.run("sequence.unassign_sequence", relating_process=successor_task, related_process=task)
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def assign_products(
@@ -521,7 +482,7 @@ def edit_work_calendar(
     attributes = sequence.get_work_calendar_attributes()
     ifc.run("sequence.edit_work_calendar", work_calendar=work_calendar, attributes=attributes)
     sequence.disable_editing_work_calendar()
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def enable_editing_work_calendar(sequence: type[tool.Sequence], work_calendar: ifcopenshell.entity_instance) -> None:
@@ -605,7 +566,7 @@ def edit_task_calendar(
 ) -> None:
     ifc.run("control.assign_control", relating_control=work_calendar, related_object=task)
     ifc.run("sequence.cascade_schedule", task=task)
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def remove_task_calendar(
@@ -616,12 +577,12 @@ def remove_task_calendar(
 ) -> None:
     ifc.run("control.unassign_control", relating_control=work_calendar, related_object=task)
     ifc.run("sequence.cascade_schedule", task=task)
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def enable_editing_task_sequence(sequence: type[tool.Sequence]) -> None:
     sequence.enable_editing_task_sequence()
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def disable_editing_task_time(sequence: type[tool.Sequence]) -> None:
@@ -646,7 +607,7 @@ def unassign_lag_time(
     ifc: type[tool.Ifc], sequence: type[tool.Sequence], rel_sequence: ifcopenshell.entity_instance
 ) -> None:
     ifc.run("sequence.unassign_lag_time", rel_sequence=rel_sequence)
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def assign_lag_time(ifc: type[tool.Ifc], rel_sequence: ifcopenshell.entity_instance) -> None:
@@ -659,7 +620,7 @@ def edit_sequence_attributes(
     attributes = sequence.get_rel_sequence_attributes()
     ifc.run("sequence.edit_sequence", rel_sequence=rel_sequence, attributes=attributes)
     sequence.disable_editing_rel_sequence()
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def edit_sequence_lag_time(
@@ -668,7 +629,7 @@ def edit_sequence_lag_time(
     attributes = sequence.get_lag_time_attributes()
     ifc.run("sequence.edit_lag_time", lag_time=lag_time, attributes=attributes)
     sequence.disable_editing_rel_sequence()
-    sequence.load_task_properties(task=None)
+    sequence.load_task_properties()
 
 
 def disable_editing_rel_sequence(sequence: type[tool.Sequence]) -> None:
@@ -714,7 +675,7 @@ def add_task_column(sequence: type[tool.Sequence], column_type: str, name: str, 
     work_schedule = sequence.get_active_work_schedule()
     if work_schedule:
         sequence.load_task_tree(work_schedule)
-        sequence.load_task_properties(task=None)
+        sequence.load_task_properties()
 
 
 def remove_task_column(sequence: type[tool.Sequence], name: str) -> None:
@@ -726,7 +687,7 @@ def set_task_sort_column(sequence: type[tool.Sequence], column: str) -> None:
     work_schedule = sequence.get_active_work_schedule()
     if work_schedule:
         sequence.load_task_tree(work_schedule)
-        sequence.load_task_properties(task=None)
+        sequence.load_task_properties()
 
 
 def calculate_task_duration(
@@ -736,7 +697,7 @@ def calculate_task_duration(
     work_schedule = sequence.get_active_work_schedule()
     if work_schedule:
         sequence.load_task_tree(work_schedule)
-        sequence.load_task_properties(task=None)
+        sequence.load_task_properties()
 
 
 def load_animation_color_scheme(
@@ -953,7 +914,7 @@ def reorder_task_nesting(
         ifc.run("nest.reorder_nesting", item=task, new_index=new_index)
         work_schedule = sequence.get_active_work_schedule()
         sequence.load_task_tree(work_schedule)
-        sequence.load_task_properties(task=None)
+        sequence.load_task_properties()
 
 
 def create_baseline(

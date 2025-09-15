@@ -325,6 +325,26 @@ class UnifiedColorTypeManager:
             return []
 
     @staticmethod
+    def get_active_group_name(context) -> str:
+        """Get the currently active ColorType group name from Animation Settings."""
+        try:
+            # Try to get from Animation Settings
+            anim_props = tool.Sequence.get_animation_props()
+            if hasattr(anim_props, 'animation_group_stack') and anim_props.animation_group_stack:
+                # Find the first enabled group in the stack
+                for item in anim_props.animation_group_stack:
+                    if getattr(item, 'enabled', False):
+                        return getattr(item, 'group', 'DEFAULT')
+
+            # Fallback: if no active group found, return first available group or DEFAULT
+            all_groups = UnifiedColorTypeManager.get_all_groups(context)
+            return all_groups[0] if all_groups else 'DEFAULT'
+
+        except Exception as e:
+            print(f"⚠️ Error getting active group name: {e}")
+            return 'DEFAULT'
+
+    @staticmethod
     def get_colortypes_from_specific_group(context, group_name: str) -> list:
         """Get colortype names from a specific group (for use in enums)"""
         try:

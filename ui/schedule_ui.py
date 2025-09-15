@@ -34,15 +34,14 @@ from .lists_ui import BIM_UL_tasks # Importante para usar el header
 
 
 
-
-class BIM_PT_status(Panel):
-    bl_label = "Status"
-    bl_idname = "BIM_PT_status"
-    bl_options = {"DEFAULT_CLOSED"}
+class BIM_PT_colortype_maintenance(Panel):
+    bl_label = "ColorType Maintenance"
+    bl_idname = "BIM_PT_colortype_maintenance"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "scene"
-    bl_parent_id = "BIM_PT_variance_analysis"
+    bl_parent_id = "BIM_PT_work_schedules"
+    bl_options = {"DEFAULT_CLOSED"}
 
     @classmethod
     def poll(cls, context):
@@ -50,34 +49,10 @@ class BIM_PT_status(Panel):
         return props and props.active_work_schedule_id and props.editing_type == "TASKS"
 
     def draw(self, context):
-
         # ColorType maintenance buttons
-
         row = self.layout.row(align=True)
-
         row.operator('bim.cleanup_colortype_groups', icon='TRASH', text='Clean Invalid ColorTypes')
-
         row.operator('bim.initialize_colortype_system', icon='PLUS', text='Init DEFAULT All Tasks')
-
-
-        self.props = tool.Sequence.get_status_props()
-
-        assert self.layout
-        if not self.props.is_enabled:
-            row = self.layout.row()
-            row.operator("bim.enable_status_filters", icon="GREASEPENCIL")
-            return
-
-        row = self.layout.row(align=True)
-        row.label(text="Statuses found in the project:")
-        row.operator("bim.activate_status_filters", icon="FILE_REFRESH", text="")
-        row.operator("bim.disable_status_filters", icon="CANCEL", text="")
-
-        for status in self.props.statuses:
-            row = self.layout.row(align=True)
-            row.label(text=status.name)
-            row.prop(status, "is_visible", text="", emboss=False, icon="HIDE_OFF" if status.is_visible else "HIDE_ON")
-            row.operator("bim.select_status_filter", icon="RESTRICT_SELECT_OFF", text="").name = status.name
 
 
 class BIM_PT_work_schedules(Panel):

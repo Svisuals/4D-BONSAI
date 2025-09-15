@@ -3888,41 +3888,77 @@ class Sequence(bonsai.core.tool.Sequence):
         task_config = None
         
         try:
-            cache_key = "_task_colortype_snapshot_cache_json"
-            cache_raw = context.scene.get(cache_key)
-            if cache_raw:
-                cached_data = json.loads(cache_raw)
-                task_config = cached_data.get(task_id_str)
+            # Try multiple possible cache keys
+            cache_keys = [
+                "_task_colortype_snapshot_cache_json",
+                "_task_colortype_snapshot_json_WS_1224",  # The key from debug output
+                "_task_colortype_snapshot_json"
+            ]
+
+            task_config = None
+            for cache_key in cache_keys:
+                cache_raw = context.scene.get(cache_key)
+                if cache_raw:
+                    print(f"   📂 Found cache data in key: {cache_key}")
+                    cached_data = json.loads(cache_raw)
+                    task_config = cached_data.get(task_id_str)
+                    if task_config:
+                        print(f"   ✅ Found config for task {task_id_str} in cache")
+                        break
+                    else:
+                        print(f"   ⚠️ Cache key {cache_key} exists but no config for task {task_id_str}")
+
+            if not task_config:
+                print(f"   ❌ No task config found in any cache key for task {task_id_str}")
+
         except Exception as e:
             print(f"Bonsai WARNING: Could not read task config cache: {e}")
             task_config = None
 
         # 1) Specific assignment by group in the task
         if task_config:
-            for choice in task_config.get("groups", []):
+            print(f"   📋 Found task config with {len(task_config.get('groups', []))} group assignments:")
+            for i, choice in enumerate(task_config.get("groups", [])):
                 is_enabled = choice.get("enabled", False)
                 group_name = choice.get("group_name")
                 selected_value = choice.get("selected_value") or choice.get("selected_colortype")
+                print(f"     [{i}] group='{group_name}', enabled={is_enabled}, selected='{selected_value}'")
                 if group_name == active_group_name and is_enabled and selected_value:
+                    print(f"   🎯 MATCH! Using specific assignment: '{selected_value}' for group '{active_group_name}'")
                     ColorType = cls.load_ColorType_from_group(active_group_name, selected_value)
                     if ColorType:
                         return ColorType
+        else:
+            print(f"   📋 No task config found in cache for task {task.id()}")
 
         task_predefined_type = getattr(task, "PredefinedType", "NOTDEFINED") or "NOTDEFINED"
+        task_name = getattr(task, "Name", "Unknown")
+
+        print(f"🔍 DEBUG get_assigned_ColorType_for_task: Task '{task_name}' (ID:{task.id()})")
+        print(f"   - PredefinedType: '{task_predefined_type}'")
+        print(f"   - Active group: '{active_group_name}'")
 
         # 2) PredefinedType in active group
         ColorType = cls.load_ColorType_from_group(active_group_name, task_predefined_type)
         if ColorType:
+            print(f"   ✅ Found ColorType '{task_predefined_type}' in group '{active_group_name}'")
             return ColorType
+        else:
+            print(f"   ❌ ColorType '{task_predefined_type}' NOT found in group '{active_group_name}'")
 
         # If the active group wasn't DEFAULT and we didn't find a profile,
         # explicitly fall back to the DEFAULT group. This is more predictable.
         if active_group_name != "DEFAULT":
+            print(f"   🔄 Trying fallback to DEFAULT group for '{task_predefined_type}'")
             default_profile = cls.load_ColorType_from_group("DEFAULT", task_predefined_type)
             if default_profile:
+                print(f"   ✅ Found '{task_predefined_type}' in DEFAULT group")
                 return default_profile
+            else:
+                print(f"   ❌ '{task_predefined_type}' NOT found in DEFAULT group either")
 
         # As an absolute last resort (which should not be reached), return the "NOTDEFINED" profile.
+        print(f"   ⚠️ Using NOTDEFINED fallback for task '{task_name}'")
         return cls.load_ColorType_from_group("DEFAULT", "NOTDEFINED")
 
     @classmethod
@@ -3935,8 +3971,15 @@ class Sequence(bonsai.core.tool.Sequence):
         except Exception:
             data = {}
         group_data = data.get(group_name, {})
+
+        # DEBUG: Show available ColorTypes in the group
+        available_types = [prof_data.get("name", "") for prof_data in group_data.get("ColorTypes", [])]
+        print(f"🔍 DEBUG load_ColorType_from_group: Looking for '{ColorType_name}' in group '{group_name}'")
+        print(f"   Available ColorTypes in '{group_name}': {available_types}")
+
         for prof_data in group_data.get("ColorTypes", []):
             if prof_data.get("name") == ColorType_name:
+                print(f"   ✅ Found ColorType '{ColorType_name}' in group '{group_name}'")
                 return type('AnimationColorSchemes', (object,), {
                     'name': prof_data.get("name", ""),
                     'consider_start': prof_data.get("consider_start", True),
@@ -3955,6 +3998,8 @@ class Sequence(bonsai.core.tool.Sequence):
                     'end_transparency': prof_data.get("end_transparency", 0.0),
                     'hide_at_end': bool(prof_data.get("hide_at_end", prof_data.get("name") in {"DEMOLITION","REMOVAL","DISPOSAL","DISMANTLE"})),
                 })()
+
+        print(f"   ❌ ColorType '{ColorType_name}' NOT FOUND in group '{group_name}'")
         return None
 
     @classmethod
@@ -4690,10 +4735,10 @@ class Sequence(bonsai.core.tool.Sequence):
                     pass
 
             text_configs = [
-                {"name": "Schedule_Date","position": (0, 10, 5),"size": 1.2,"align": "CENTER","color": (1, 1, 1, 1),"type": "date"},
-                {"name": "Schedule_Week","position": (0, 10, 4),"size": 1.0,"align": "CENTER","color": (0.8, 0.8, 1, 1),"type": "week"},
-                {"name": "Schedule_Day_Counter","position": (0, 10, 3),"size": 0.8,"align": "CENTER","color": (1, 1, 0.8, 1),"type": "day_counter"},
-                {"name": "Schedule_Progress","position": (0, 10, 2),"size": 1.0,"align": "CENTER","color": (0.8, 1, 0.8, 1),"type": "progress"},
+                {"name": "Schedule_Date", "position": (0, 10, 5), "size": 1.2, "align": "CENTER", "color": (1, 1, 1, 1), "type": "date"},
+                {"name": "Schedule_Week", "position": (0, 10, 4), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "week"},
+                {"name": "Schedule_Day_Counter", "position": (0, 10, 3), "size": 0.8, "align": "CENTER", "color": (1, 1, 1, 1), "type": "day_counter"},
+                {"name": "Schedule_Progress", "position": (0, 10, 2), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "progress"},
             ]
 
             created_texts = []
@@ -4760,11 +4805,11 @@ class Sequence(bonsai.core.tool.Sequence):
                 pass
 
         text_configs = [
-            {"name": "Schedule_Date", "position": (0, 10, 5), "size": 1.2, "align": "CENTER", "color": (1, 1, 1, 1), "type": "date"},
-            {"name": "Schedule_Week", "position": (0, 10, 4), "size": 1.0, "align": "CENTER", "color": (0.8, 0.8, 1, 1), "type": "week"},
-            {"name": "Schedule_Day_Counter", "position": (0, 10, 3), "size": 0.8, "align": "CENTER", "color": (1, 1, 0.8, 1), "type": "day_counter"},
-            {"name": "Schedule_Progress", "position": (0, 10, 2), "size": 1.0, "align": "CENTER", "color": (0.8, 1, 0.8, 1), "type": "progress"},
-        ]
+                {"name": "Schedule_Date", "position": (0, 10, 5), "size": 1.2, "align": "CENTER", "color": (1, 1, 1, 1), "type": "date"},
+                {"name": "Schedule_Week", "position": (0, 10, 4), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "week"},
+                {"name": "Schedule_Day_Counter", "position": (0, 10, 3), "size": 0.8, "align": "CENTER", "color": (1, 1, 1, 1), "type": "day_counter"},
+                {"name": "Schedule_Progress", "position": (0, 10, 2), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "progress"},
+            ]
 
         created_texts = []
         for config in text_configs:

@@ -164,6 +164,7 @@ class TimelineHUD:
     def draw_rounded_rect(self, x, y, w, h, color, radius):
         """Draws a rectangle with rounded corners using approximation with multiple triangles."""
         try:
+            from math import cos, sin
             # Limit the radius to half the smaller dimension
             max_radius = min(w, h) / 2.0
             radius = min(radius, max_radius)
@@ -173,13 +174,66 @@ class TimelineHUD:
                 self.draw_gpu_rect(x, y, w, h, color)
                 return
             
-            # Simplified rounded rect - just draw regular rectangle for now
-            # Full implementation would require complex geometry generation
-            self.draw_gpu_rect(x, y, w, h, color)
+            vertices = []
+            indices = []
+            
+            # Number of segments for the rounded corners (more = smoother)
+            segments = max(4, int(radius / 2))  # Adjust according to radius size
+            
+            # Center of the rectangle to facilitate calculations
+            center_x = x + w / 2
+            center_y = y + h / 2
+            
+            # Create vertices for a rounded rectangle
+            # Lower left corner
+            for i in range(segments + 1):
+                angle = 3.14159 + i * (3.14159 / 2) / segments  # 180° to 270°
+                vx = x + radius + radius * cos(angle)
+                vy = y + radius + radius * sin(angle)
+                vertices.append((vx, vy))
+            
+            # Lower right corner
+            for i in range(segments + 1):
+                angle = 3.14159 * 1.5 + i * (3.14159 / 2) / segments  # 270° to 360°
+                vx = x + w - radius + radius * cos(angle)
+                vy = y + radius + radius * sin(angle)
+                vertices.append((vx, vy))
+            
+            # Upper right corner
+            for i in range(segments + 1):
+                angle = 0 + i * (3.14159 / 2) / segments  # 0° to 90°
+                vx = x + w - radius + radius * cos(angle)
+                vy = y + h - radius + radius * sin(angle)
+                vertices.append((vx, vy))
+            
+            # Upper left corner
+            for i in range(segments + 1):
+                angle = 3.14159 / 2 + i * (3.14159 / 2) / segments  # 90° to 180°
+                vx = x + radius + radius * cos(angle)
+                vy = y + h - radius + radius * sin(angle)
+                vertices.append((vx, vy))
+            
+            # Create triangles using the center as a common point
+            center_vertex_index = len(vertices)
+            vertices.append((center_x, center_y))
+            
+            # Connect all perimeter vertices with the center
+            total_perimeter_vertices = len(vertices) - 1
+            for i in range(total_perimeter_vertices):
+                next_i = (i + 1) % total_perimeter_vertices
+                indices.append((center_vertex_index, i, next_i))
+            
+            # Draw the rounded rectangle
+            shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+            batch = batch_for_shader(shader, 'TRIS', {"pos": vertices}, indices=indices)
+            gpu.state.blend_set('ALPHA')
+            shader.bind()
+            shader.uniform_float("color", color)
+            batch.draw(shader)
             
         except Exception as e:
-            print(f"Error drawing rounded rect: {e}")
-            # Fallback to regular rectangle
+            print(f"Error drawing rounded rectangle: {e}")
+            # Fallback to normal rectangle
             self.draw_gpu_rect(x, y, w, h, color)
 
     def draw_current_date_indicator(self, x, y_start, bar_h, color_indicator):
@@ -245,43 +299,76 @@ class TimelineHUD:
                 except locale.Error:
                     locale.setlocale(locale.LC_TIME, 'C')
 
-                # ====== DRAW YEARS ======
+                # ====== DRAW YEARS WITH CHANGE INDICATORS ======
                 current_year = start_date.year
                 end_year = end_date.year
                 
+                print(f"🗺️ Dibujando años desde {current_year} hasta {end_year}")
+                print(f"🗺️ Rango de fechas: {start_date.strftime('%Y-%m-%d')} → {end_date.strftime('%Y-%m-%d')}")
+                print(f"🗺️ Timeline coordinates: x_start={x_start}, bar_w={bar_w}, y_start={y_start}, bar_h={bar_h}")
+                
+                years_drawn = 0
+                # Extend the loop by one year to draw the final marker
                 for year in range(current_year, end_year + 2):
+                    # Calculate the effective start date of the year within the timeline
                     if year == current_year:
+                        # For the first year, use the timeline start date
                         year_effective_start = start_date
+                        # Normalizar también el primer año para una alineación perfecta.
+                        from datetime import time
+                        year_effective_start = datetime.combine(start_date.date(), time.min)
                     else:
+                        # For subsequent years, use January 1
                         year_effective_start = datetime(year, 1, 1)
                     
+                    # Only process if the year appears in the timeline
                     if year_effective_start <= end_date:
                         year_x = date_to_x(year_effective_start)
+                        print(f"🗺️ Año {year}: fecha_efectiva={year_effective_start.strftime('%Y-%m-%d')}, x={year_x}")
                         
+                        # Check if it is within the visible area
                         if x_start <= year_x <= x_start + bar_w:
+                            print(f"🗺️ ✅ Dibujando año {year} en x={year_x}")
+                            
                             # Vertical year line (full height)
                             year_line_color = (color_text[0], color_text[1], color_text[2], 0.8)
                             self.draw_timeline_line(year_x, y_start, bar_h, year_line_color, 2.0)
                             
-                            # Year text
+                            # YEAR TEXT with distinctive yellow color
                             year_text = str(year)
-                            blf.size(self.font_id, 12)
-                            blf.color(self.font_id, *color_text)
                             
+                            # Configure font for years (white color like lines and texts)
+                            blf.size(self.font_id, 12)
+                            year_color = color_text  # Usar el mismo color que otros textos (blanco)
+                            blf.color(self.font_id, *year_color)
+                            
+                            # Text position (just above the bar)
                             text_x = year_x + 4
                             text_y = y_start + bar_h + 4
                             
+                            # Renderizar texto de año
                             blf.position(self.font_id, text_x, text_y, 0)
                             blf.draw(self.font_id, year_text)
+                            print(f"🗺️ ✅ Año {year} dibujado en ({text_x}, {text_y})")
+                            years_drawn += 1
                             
-                            # Restore font size
+                            # Restore original configuration
                             blf.size(self.font_id, 10)
+                            blf.color(self.font_id, *color_text)
+                            
+                        else:
+                            print(f"🗺️ ❌ Año {year} fuera del área visible (x={year_x})")
+                    else:
+                        print(f"🗺️ Año {year} fuera del rango temporal")
+                
+                print(f"🗺️ Total años dibujados: {years_drawn}")
 
                 # ====== DRAW MONTHS ======
-                from dateutil.relativedelta import relativedelta
                 current_month = datetime(start_date.year, start_date.month, 1)
+                # Extend the loop by one month to ensure the final marker is drawn
                 loop_end_month = end_date + relativedelta(months=1)
                 
+                # Loop until the marker is past the end date's extended boundary
                 while current_month <= loop_end_month:
                     month_x = date_to_x(current_month)
                     
@@ -291,51 +378,163 @@ class TimelineHUD:
                         month_line_color = (color_text[0], color_text[1], color_text[2], 0.6)
                         self.draw_timeline_line(month_x, y_start, line_height, month_line_color, 1.5)
                         
-                        # Month text
+                        # Month text (positioned at the top of the bar)
                         month_text = current_month.strftime('%b')  # Jan, Feb, etc.
+                        text_dims = blf.dimensions(self.font_id, month_text)
                         text_x = month_x + 4
-                        text_y = y_start + bar_h - 18
-                        blf.color(self.font_id, *color_text)
+                        text_y = y_start + bar_h - 18  # Movido más abajo para evitar solapamiento
+                        blf.color(self.font_id, color_text[0], color_text[1], color_text[2], color_text[3])
                         blf.position(self.font_id, text_x, text_y, 0)
                         blf.draw(self.font_id, month_text)
                     
-                    # Advance to next month
-                    current_month += relativedelta(months=1)
+                    # Advance to the next month
+                    if current_month.month == 12:
+                        current_month = datetime(current_month.year + 1, 1, 1)
+                    else:
+                        current_month = datetime(current_month.year, current_month.month + 1, 1)
 
-                # ====== DRAW DAYS (if detailed zoom) ======
+                # ====== DIBUJAR DÍAS ======
+                # Solo mostrar días si el zoom es muy detallado (e.g., <= 2 semanas)
                 if zoom_level == 'DETAILED':
-                    current_day_date = start_date
+                    # Normalizar la fecha de inicio a medianoche para alinear las marcas de día.
+                    from datetime import time
+                    normalized_start_date = datetime.combine(start_date.date(), time.min)
+                    current_day_date = normalized_start_date
+                    day_counter = 0
+                    # Extend the loop by one day to ensure the final marker is drawn
                     loop_end_day = end_date + timedelta(days=1)
                     
+                    # Use the START date as a reference point for Day 0/1
                     reference_start = data.get('viz_start') or data.get('start_date') or start_date
                     full_start = data.get('full_schedule_start')
                     
+                    # If there is a full schedule, use that as a reference for the day counter
                     if full_start and full_start <= reference_start:
                         actual_day_ref = full_start
                     else:
                         actual_day_ref = reference_start
-
+                    # Loop until the marker is past the end date's extended boundary
                     while current_day_date <= loop_end_day:
                         day_x = date_to_x(current_day_date)
                         
                         if x_start <= day_x <= x_start + bar_w:
                             # Vertical day line (1/4 height)
                             line_height = bar_h * 0.25
-                            day_line_color = (color_text[0], color_text[1], color_text[2], 0.2)
-                            self.draw_timeline_line(day_x, y_start, line_height, day_line_color, 0.5)
+                            day_line_color = (color_text[0], color_text[1], color_text[2], 0.2) # Color más claro
+                            self.draw_timeline_line(day_x, y_start, line_height, day_line_color, 0.5) # Línea más fina
                             
                             # Day text (D + number)
                             delta_days_from_ref = (current_day_date.date() - actual_day_ref.date()).days
-                            day_number_display = max(1, delta_days_from_ref + 1)
+                            day_number_display = max(1, delta_days_from_ref + 1) # Días comienzan en 1
                             day_text = f"D{day_number_display}"
                             
                             text_x = day_x + 1
-                            text_y = y_start + 2
+                            text_y = y_start + 2 # Muy abajo en la barra, debajo de las semanas
                             
+                            blf.color(self.font_id, color_text[0], color_text[1], color_text[2], color_text[3])
                             blf.position(self.font_id, text_x, text_y, 0)
                             blf.draw(self.font_id, day_text)
                         
                         current_day_date += timedelta(days=1)
+                        day_counter += 1
+
+                # ====== DRAW WEEKS (always visible with adaptive logic) ======
+                # Show weeks at all zoom levels but with different frequencies
+                duration_days = (end_date - start_date).days
+                if duration_days <= 365:  # <= 1 año: mostrar todas las semanas
+                    week_interval = 1
+                    show_week_text = True
+                elif duration_days <= 730:  # <= 2 años: mostrar cada 2 semanas
+                    week_interval = 2 
+                    show_week_text = True
+                else:  # > 2 años: mostrar cada 4 semanas (solo líneas, sin texto)
+                    week_interval = 4
+                    show_week_text = False
+                
+                # Decidimos la altura del texto de la semana según si los días son visibles
+                days_are_visible = (zoom_level == 'DETAILED')
+                if days_are_visible:
+                    y_pos_weeks = y_start + 15  # Posición elevada para no solapar con los días
+                else:
+                    y_pos_weeks = y_start + 5   # Posición original, más abajo
+                
+                # Use the START date as a reference point for Week 0/1
+                reference_start = data.get('viz_start') or data.get('start_date') or start_date
+                full_start = data.get('full_schedule_start')
+                
+                # CRITICAL: Use full schedule as reference if it exists
+                if full_start:
+                    actual_start = full_start
+                    print(f"🔄 Usando cronograma completo como referencia: {actual_start.strftime('%Y-%m-%d')}")
+                else:
+                    actual_start = reference_start
+                    print(f"🔄 Usando rango seleccionado como referencia: {actual_start.strftime('%Y-%m-%d')}")
+                
+                # Empezar desde la fecha de START configurada (no desde lunes ISO)
+                # Normalizar la fecha de inicio a medianoche para que los marcadores de semana
+                # se alineen con el comienzo del día, eliminando desfases por la hora.
+                from datetime import time
+                normalized_start_date = datetime.combine(actual_start.date(), time.min)
+                week_start_date = normalized_start_date
+                week_counter = 0
+                
+                print(f"🔄 Timeline weeks aligned from START date: {week_start_date.strftime('%Y-%m-%d')}")
+                
+                # Draw vertical lines every 7 days from the START date
+                while week_start_date <= end_date:
+                    week_x = date_to_x(week_start_date)
+                    
+                    if x_start <= week_x <= x_start + bar_w and week_counter % week_interval == 0:
+                        if show_week_text:
+                            # Vertical week line ALIGNED with the indicator
+                            line_height = bar_h * 0.5
+                            week_line_color = (color_text[0], color_text[1], color_text[2], 0.4)
+                            self.draw_timeline_line(week_x, y_start, line_height, week_line_color, 1.0)
+                            
+                            # Week text PERFECTLY ALIGNED with the vertical line
+                            try:
+                                # LÓGICA IDÉNTICA al Viewport HUD para garantizar sincronización perfecta
+                                if full_start:
+                                    # Con cronograma completo: usar la MISMA lógica exacta que get_schedule_data()
+                                    week_date = week_start_date.date()
+                                    fss_d = full_start.date()
+                                    
+                                    delta_days = (week_date - fss_d).days
+                                    if week_date < fss_d:
+                                        week_number_display = 0
+                                    else:
+                                        week_number_display = max(1, (delta_days // 7) + 1)
+                                    
+                                    week_text = f"W{week_number_display}"
+                                    
+                                else:
+                                    # Sin cronograma completo: usar rango seleccionado
+                                    ref_start_d = reference_start.date()
+                                    week_date = week_start_date.date()
+                                    
+                                    delta_days = (week_date - ref_start_d).days
+                                    if week_date < ref_start_d:
+                                        week_number_display = 0
+                                    else:
+                                        week_number_display = max(1, (delta_days // 7) + 1)
+                                    
+                                    week_text = f"W{week_number_display}"
+                                    
+                            except Exception as e:
+                                print(f"❌ Error calculando semana sincronizada: {e}")
+                                week_text = f"W{week_counter}"
+                                
+                            # POSITION EXACTLY ALIGNED with the vertical line
+                            text_x = week_x + 1  # Muy cerca de la línea para alineación perfecta
+                            text_y = y_pos_weeks  # Posicionado más abajo para evitar solapamiento con meses
+                            
+                            blf.color(self.font_id, color_text[0], color_text[1], color_text[2], color_text[3])
+                            blf.position(self.font_id, text_x, text_y, 0)
+                            blf.draw(self.font_id, week_text)
+                    
+                    # Next week start date (every 7 days)
+                    week_start_date += timedelta(days=7)
+                    week_counter += 1
 
             finally:
                 # Restore original locale
@@ -365,11 +564,6 @@ class TimelineHUD:
             
         except Exception as e:
             print(f"❌ Error drawing timeline line: {e}")
-            
-        except Exception as e:
-            print(f"❌ Error in TimelineHUD.draw: {e}")
-            import traceback
-            traceback.print_exc()
     
     def calculate_timeline_bounds(self, viewport_width, viewport_height, settings):
         """Calculate the bounds of the timeline HUD"""
@@ -711,3 +905,93 @@ class TimelineHUD:
             
         except Exception as e:
             print(f"❌ Error drawing timeline label '{text}': {e}")
+    
+    def draw_gpu_rect(self, x, y, w, h, color):
+        """Draws a simple rectangle"""
+        try:
+            vertices = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
+            indices = [(0, 1, 2), (2, 3, 0)]
+            shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+            batch = batch_for_shader(shader, 'TRIS', {"pos": vertices}, indices=indices)
+            gpu.state.blend_set('ALPHA')
+            shader.bind()
+            shader.uniform_float("color", color)
+            batch.draw(shader)
+            gpu.state.blend_set('NONE')
+        except Exception as e:
+            print(f"Error drawing GPU rect: {e}")
+
+    def draw_rounded_rect(self, x, y, w, h, color, radius):
+        """Draws a rectangle with rounded corners using approximation with multiple triangles."""
+        try:
+            from math import cos, sin
+            # Limit the radius to half the smaller dimension
+            max_radius = min(w, h) / 2.0
+            radius = min(radius, max_radius)
+            
+            if radius <= 0:
+                # If the radius is 0 or negative, draw a normal rectangle
+                self.draw_gpu_rect(x, y, w, h, color)
+                return
+            
+            vertices = []
+            indices = []
+            
+            # Number of segments for the rounded corners (more = smoother)
+            segments = max(4, int(radius / 2))  # Adjust according to radius size
+            
+            # Center of the rectangle to facilitate calculations
+            center_x = x + w / 2
+            center_y = y + h / 2
+            
+            # Create vertices for a rounded rectangle
+            # Lower left corner
+            for i in range(segments + 1):
+                angle = 3.14159 + i * (3.14159 / 2) / segments  # 180° to 270°
+                vx = x + radius + radius * cos(angle)
+                vy = y + radius + radius * sin(angle)
+                vertices.append((vx, vy))
+            
+            # Lower right corner
+            for i in range(segments + 1):
+                angle = 3.14159 * 1.5 + i * (3.14159 / 2) / segments  # 270° to 360°
+                vx = x + w - radius + radius * cos(angle)
+                vy = y + radius + radius * sin(angle)
+                vertices.append((vx, vy))
+            
+            # Upper right corner
+            for i in range(segments + 1):
+                angle = 0 + i * (3.14159 / 2) / segments  # 0° to 90°
+                vx = x + w - radius + radius * cos(angle)
+                vy = y + h - radius + radius * sin(angle)
+                vertices.append((vx, vy))
+            
+            # Upper left corner
+            for i in range(segments + 1):
+                angle = 3.14159 / 2 + i * (3.14159 / 2) / segments  # 90° to 180°
+                vx = x + radius + radius * cos(angle)
+                vy = y + h - radius + radius * sin(angle)
+                vertices.append((vx, vy))
+            
+            # Create triangles using the center as a common point
+            center_vertex_index = len(vertices)
+            vertices.append((center_x, center_y))
+            
+            # Connect all perimeter vertices with the center
+            total_perimeter_vertices = len(vertices) - 1
+            for i in range(total_perimeter_vertices):
+                next_i = (i + 1) % total_perimeter_vertices
+                indices.append((center_vertex_index, i, next_i))
+            
+            # Draw the rounded rectangle
+            shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+            batch = batch_for_shader(shader, 'TRIS', {"pos": vertices}, indices=indices)
+            gpu.state.blend_set('ALPHA')
+            shader.bind()
+            shader.uniform_float("color", color)
+            batch.draw(shader)
+            
+        except Exception as e:
+            print(f"Error drawing rounded rectangle: {e}")
+            # Fallback to normal rectangle
+            self.draw_gpu_rect(x, y, w, h, color)

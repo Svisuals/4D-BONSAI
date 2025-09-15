@@ -62,9 +62,18 @@ class BIM_PT_sequence_animation(Panel):
 
         # Live Color Updates toggle (for both engines)
         layout.separator()
+        # MODE-AWARE Live Color Scheme button
+        animation_engine = getattr(props, 'animation_engine', 'KEYFRAME')
+        if animation_engine == 'GEOMETRY_NODES':
+            live_color_text = "Live Color Updates (GN Mode)"
+            live_color_icon = "GEOMETRY_NODES" if props.enable_live_color_updates else "MODIFIER_OFF"
+        else:
+            live_color_text = "Live Color Updates (Keyframes)"
+            live_color_icon = "KEYFRAME" if props.enable_live_color_updates else "MODIFIER_OFF"
+
         layout.prop(props, "enable_live_color_updates",
-                   text="Live Color Updates",
-                   icon="MODIFIER_ON" if props.enable_live_color_updates else "MODIFIER_OFF")
+                   text=live_color_text,
+                   icon=live_color_icon)
 
 
 class BIM_PT_gn_controller_settings(Panel):
@@ -93,9 +102,9 @@ class BIM_PT_gn_controller_settings(Panel):
         row = box.row()
         row.label(text=f"Active Controller: {context.active_object.name}", icon='OBJECT_DATA')
 
-        # Controller properties
-        box.prop(controller_props, "schedule_type_to_display")
-        box.prop(controller_props, "colortype_group_to_display")
+        # Controller properties managed from Animation Settings (like keyframes mode)
+        info_row = box.row()
+        info_row.label(text="Settings managed from Animation Settings", icon='INFO')
 
         # Info about controller
         info_box = layout.box()

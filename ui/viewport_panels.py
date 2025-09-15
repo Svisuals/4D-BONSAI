@@ -67,14 +67,9 @@ class BIM_PT_4D_Animation_Viewport(Panel):
                             ctrl_box = gn_box.box()
                             ctrl_box.label(text=f"Active: {active_obj.name}", icon="EMPTY_AXIS")
 
-                            # Schedule type selector
+                            # All settings managed from Animation Settings (like keyframes mode)
                             ctrl_row = ctrl_box.row(align=True)
-                            ctrl_row.prop(ctrl_props, "schedule_type_to_display", text="")
-
-                            # ColorType group selector
-                            if hasattr(ctrl_props, "colortype_group_to_display"):
-                                ctrl_row = ctrl_box.row(align=True)
-                                ctrl_row.prop(ctrl_props, "colortype_group_to_display", text="")
+                            ctrl_row.label(text="Settings from Animation Settings", icon='INFO')
                     else:
                         info_row = gn_box.row()
                         info_row.label(text="Add Controller", icon="INFO")
@@ -158,14 +153,9 @@ class BIM_PT_4D_Controllers_Viewport(Panel):
                     if context.active_object == controller:
                         ctrl_props = controller.BonsaiGNController
 
-                        # Schedule type
+                        # All settings managed from Animation Settings (like keyframes mode)
                         settings_row = ctrl_box.row()
-                        settings_row.prop(ctrl_props, "schedule_type_to_display", text="Type")
-
-                        # ColorType group
-                        if hasattr(ctrl_props, "colortype_group_to_display"):
-                            group_row = ctrl_box.row()
-                            group_row.prop(ctrl_props, "colortype_group_to_display", text="Group")
+                        settings_row.label(text="Settings from Animation Settings", icon='INFO')
             else:
                 layout.label(text="No Controllers", icon="INFO")
                 layout.operator("bim.add_gn_view_controller", text="Add First Controller", icon="ADD")

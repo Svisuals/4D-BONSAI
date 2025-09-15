@@ -7,9 +7,8 @@ import bonsai.tool as tool
 import bonsai.core.sequence as core
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 
-# Import helpers using local paths
-from ..prop.color_manager_prop import UnifiedColorTypeManager
-from ..prop.animation import safe_set_selected_colortype_in_active_group
+# Import helpers using absolute paths like v18
+from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager, safe_set_selected_colortype_in_active_group
 try:
     from .schedule_task_operators import snapshot_all_ui_state
 except ImportError:
@@ -399,7 +398,7 @@ class CleanupTaskcolortypeMappings(bpy.types.Operator):
     def execute(self, context):
         try:
             # 1. Limpiar mapeos de tareas (función original)
-            from ..prop.task import cleanup_all_tasks_colortype_mappings
+            from bonsai.bim.module.sequence.prop import cleanup_all_tasks_colortype_mappings
             cleanup_all_tasks_colortype_mappings(context)
 
             # 2. NUEVO: Limpiar perfiles del canvas actual
@@ -646,36 +645,53 @@ class ANIM_OT_group_stack_add(bpy.types.Operator):
         props = tool.Sequence.get_animation_props()
         stack = props.animation_group_stack
 
+        # DEBUG: Log current stack state
+        print(f"🐛 DEBUG [anim_group_stack_add]: Current stack has {len(stack)} items:")
+        for i, item in enumerate(stack):
+            group_name = getattr(item, "group", "")
+            enabled = getattr(item, "enabled", False)
+            print(f"   [{i}] group='{group_name}', enabled={enabled}")
+
+        # Evitar duplicados con la pila actual
+        already = {getattr(it, "group", "") for it in stack}
+        print(f"🐛 DEBUG [anim_group_stack_add]: Already in stack: {already}")
+
         # Candidatos: selector de Appearance, selector de tareas, y luego todos los grupos disponibles
         selected_colortype_group = getattr(props, "ColorType_groups", "") or ""
         selected_task_group = getattr(props, "task_colortype_group_selector", "") or ""
+        print(f"🐛 DEBUG [anim_group_stack_add]: selected_colortype_group='{selected_colortype_group}', selected_task_group='{selected_task_group}'")
 
         # Leer todos los grupos disponibles desde JSON (si falla, lista vacía)
         all_groups = []
         try:
             data = UnifiedColorTypeManager._read_sets_json(context) or {}
             all_groups = list(data.keys())
+            print(f"🐛 DEBUG [anim_group_stack_add]: All groups from JSON: {all_groups}")
             # Asegurar DEFAULT presente y primero
             if "DEFAULT" in all_groups:
                 all_groups.remove("DEFAULT")
             all_groups.insert(0, "DEFAULT")
+            print(f"🐛 DEBUG [anim_group_stack_add]: All groups (DEFAULT first): {all_groups}")
         except Exception as _e:
             print(f"[anim add] cannot read groups: {_e}")
             all_groups = ["DEFAULT"]
 
-        # Evitar duplicados con la pila actual
-        already = {getattr(it, "group", "") for it in stack}
-
         # Construir lista de candidatos finales
         candidates = []
+
+        # First, add selected groups if valid and not already in stack
         for g in [selected_colortype_group, selected_task_group]:
-            # Filtrar nombres inválidos
-            if g and g.strip() and g not in ["NONE", "None", "none", "", " "] and g not in candidates:
+            if g and g.strip() and g not in ["NONE", "None", "none", "", " "] and g not in already and g not in candidates:
                 candidates.append(g)
+                print(f"🐛 DEBUG [anim_group_stack_add]: Added selected group to candidates: '{g}'")
+
+        # Then, add other available groups that are not in stack
         for g in all_groups:
-            # Filtrar nombres inválidos
-            if g and g.strip() and g not in ["NONE", "None", "none", "", " "] and g not in candidates and g not in already:
+            if g and g.strip() and g not in ["NONE", "None", "none", "", " "] and g not in already and g not in candidates:
                 candidates.append(g)
+                print(f"🐛 DEBUG [anim_group_stack_add]: Added available group to candidates: '{g}'")
+
+        print(f"🐛 DEBUG [anim_group_stack_add]: Final candidates list: {candidates}")
 
         # Elegir el primero disponible que no esté ya en la pila
         group_to_add = None
@@ -684,7 +700,10 @@ class ANIM_OT_group_stack_add(bpy.types.Operator):
                 group_to_add = g
                 break
 
+        print(f"🐛 DEBUG [anim_group_stack_add]: Selected group to add: '{group_to_add}'")
+
         if not group_to_add:
+            print(f"🐛 DEBUG [anim_group_stack_add]: No more groups available to add")
             self.report({'INFO'}, "No hay más grupos disponibles para agregar.")
             return {'CANCELLED'}
 
@@ -699,6 +718,7 @@ class ANIM_OT_group_stack_add(bpy.types.Operator):
             elif group_to_add not in data:
                 data[group_to_add] = {"ColorTypes": []}
                 UnifiedColorTypeManager._write_sets_json(context, data)
+                print(f"🐛 DEBUG [anim_group_stack_add]: Created new group in JSON: '{group_to_add}'")
         except Exception as _e:
             print(f"[anim add] ensure group failed: {_e}")
 
@@ -709,6 +729,8 @@ class ANIM_OT_group_stack_add(bpy.types.Operator):
             it.enabled = True
         except Exception:
             pass
+
+        print(f"🐛 DEBUG [anim_group_stack_add]: Added group '{group_to_add}' to stack at index {len(stack) - 1}")
 
         # Sincronizar con el panel de edición de colortypes
         try:

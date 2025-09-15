@@ -62,9 +62,7 @@ class SetupDefaultTaskColumns(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        print("🔍 DEBUG: Llamando TaskManagementSequence.setup_default_task_columns directamente")
-        from bonsai.tool.sequence.task_management_sequence import TaskManagementSequence
-        TaskManagementSequence.setup_default_task_columns()
+        core.setup_default_task_columns(tool.Sequence)
         return {"FINISHED"}
 
 
@@ -252,11 +250,7 @@ class GuessDateRange(bpy.types.Operator, tool.Ifc.Operator):
         unified_start_date, unified_finish_date = self._calculate_unified_range(work_schedule)
         
         if unified_start_date and unified_finish_date:
-            # SOLUCIÓN: Llamar al método específico usando tool.Sequence como contexto pero con método específico
-            print("🔍 DEBUG: Llamando update_visualisation_date con contexto correcto")
-            from bonsai.tool.sequence.datetime_helpers_sequence import DatetimeHelpersSequence
-            # Usar tool.Sequence como self para acceso a get_work_schedule_props, pero método específico
-            DatetimeHelpersSequence.update_visualisation_date.__func__(tool.Sequence, unified_start_date, unified_finish_date)
+            tool.Sequence.update_visualisation_date(unified_start_date, unified_finish_date)
             self.report({'INFO'}, f"Unified timeline set: {unified_start_date.strftime('%Y-%m-%d')} to {unified_finish_date.strftime('%Y-%m-%d')}")
         else:
             self.report({'WARNING'}, "No dates found across any schedule types to create unified range.")

@@ -29,6 +29,27 @@ from . import callbacks_prop as callbacks
 from . import enums_prop as enums
 
 
+def get_colortype_groups(self, context):
+    """Obtiene dinámicamente los grupos de ColorType para la UI."""
+    try:
+        from ..prop.color_manager_prop import UnifiedColorTypeManager
+        all_groups = UnifiedColorTypeManager.get_all_groups(context)
+        if not all_groups:
+            return [('DEFAULT', "Default", "")]
+        return [(group, group, "") for group in all_groups]
+    except Exception:
+        return [('DEFAULT', "Default", ""), ('ZONES', "By Zones", "")]
+
+def get_active_colortype_group_name(context):
+    """Get the currently active ColorType group name from Animation Settings (informational only)"""
+    try:
+        from ..prop.color_manager_prop import UnifiedColorTypeManager
+        active_group = UnifiedColorTypeManager.get_active_group_name(context)
+        return active_group if active_group else "DEFAULT"
+    except Exception:
+        return "DEFAULT"
+
+
 class BIMTaskTypeColor(PropertyGroup):
     """Color by task type (legacy - maintain for compatibility)"""
     name: StringProperty(name="Name")
@@ -100,6 +121,46 @@ class AnimationColorSchemes(PropertyGroup):
     end_transparency: FloatProperty(name="End Transparency", min=0.0, max=1.0, default=0.0)
 
     hide_at_end: BoolProperty(name="Hide When Finished", description="If enabled, the object will become invisible in the End phase", default=False)
+
+    # --- NEW: GN Appearance Effects for each state ---
+    start_gn_effect: EnumProperty(
+        name="Start Effect",
+        description="Cómo aparecen los objetos en el estado Start con Geometry Nodes",
+        items=[
+            ('INSTANT', "Instant", "Aparece instantáneamente"),
+            ('GROWTH', "Growth", "Crece gradualmente")
+        ],
+        default='INSTANT'
+    )
+    active_gn_effect: EnumProperty(
+        name="Active Effect",
+        description="Cómo aparecen los objetos en el estado Active con Geometry Nodes",
+        items=[
+            ('INSTANT', "Instant", "Aparece instantáneamente"),
+            ('GROWTH', "Growth", "Crece gradualmente")
+        ],
+        default='GROWTH'
+    )
+    end_gn_effect: EnumProperty(
+        name="End Effect",
+        description="Cómo aparecen los objetos en el estado End con Geometry Nodes",
+        items=[
+            ('INSTANT', "Instant", "Aparece instantáneamente"),
+            ('GROWTH', "Growth", "Crece gradualmente")
+        ],
+        default='INSTANT'
+    )
+
+    # Legacy: Keep for compatibility
+    gn_appearance_effect: EnumProperty(
+        name="GN Effect (Legacy)",
+        description="Efecto general - usar los específicos por estado arriba",
+        items=[
+            ('INSTANT', "Instant", "El objeto aparece de golpe."),
+            ('GROWTH', "Growth", "El objeto 'crece' durante su tarea.")
+        ],
+        default='INSTANT'
+    )
     
     if TYPE_CHECKING:
         name: str
@@ -172,6 +233,16 @@ class BIMAnimationProperties(PropertyGroup):
         default=False,
         update=callbacks.toggle_live_color_updates
     )
+
+    # --- NEW: Animation Engine Selector ---
+    animation_engine: EnumProperty(
+        name="Animation Engine",
+        items=[
+            ('KEYFRAME', "Keyframe (Legacy)", "Hornea la animación a fotogramas clave."),
+            ('GEOMETRY_NODES', "Geometry Nodes (Real-time)", "Alto rendimiento para escenas grandes.")
+        ],
+        default='KEYFRAME'
+    )
     
     
     # Task bar colors
@@ -220,6 +291,23 @@ class BIMAnimationProperties(PropertyGroup):
 # We attach properties dynamically to BIMAnimationProperties so we don't depend
 # on the exact class body location. This works as long as registration happens
 # after these attributes exist.
+
+class BIM_GN_Controller_Properties(bpy.types.PropertyGroup):
+    """Properties for Geometry Nodes Controllers"""
+    schedule_type_to_display: EnumProperty(
+        name="Schedule",
+        description="Elige qué cronograma mostrar",
+        items=[
+            ('0', "Schedule", ""),
+            ('1', "Actual", "")
+        ],
+        default='0'
+    )
+    colortype_group_to_display: StringProperty(
+        name="Color Group",
+        description="Currently active ColorType group from Animation Settings (informational only)",
+        default="DEFAULT"
+    )
 
 try:
     from bpy.props import FloatProperty, BoolProperty, EnumProperty, PointerProperty
@@ -388,6 +476,5 @@ except Exception as _e:
     # Failsafe: leave file importable if Bonsai internals are not present here
     pass
 
-
-
-
+# Register GN Controller properties on Object
+# Note: This will be done in the registration function to ensure proper order
