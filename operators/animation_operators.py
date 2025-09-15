@@ -278,14 +278,6 @@ def _clear_previous_animation(context) -> None:
             tool.Sequence._unregister_frame_change_handler()
             print("  - Handler de textos 3D desregistrado.")
 
-        # Limpiar sistema Geometry Nodes si está activo
-        try:
-            from ..tool import gn_sequence
-            gn_sequence.cleanup_enhanced_gn_system()
-            print("  - Sistema Geometry Nodes limpiado.")
-        except Exception as e:
-            print(f"  - Error limpiando GN system: {e}")
-
         # --- 2. LIMPIAR OBJETOS DE LA ESCENA ---
         # Eliminar objetos generados por la animación (textos, barras, etc.)
         for coll_name in ["Schedule_Display_Texts", "Bar Visual", "Schedule_Display_3D_Legend"]:
@@ -378,23 +370,15 @@ def _compute_product_frames(context, work_schedule, settings):
                 "speed": 1.0
             })
         
-        result = None
         if _sequence_has("get_product_frames_with_colortypes"):
-            result = tool.Sequence.get_product_frames_with_colortypes(work_schedule, settings)
-        elif _sequence_has("get_animation_product_frames_enhanced"):
-            result = tool.Sequence.get_animation_product_frames_enhanced(work_schedule, settings)
-        elif _sequence_has("get_animation_product_frames"):
-            result = tool.Sequence.get_animation_product_frames(work_schedule, settings)
-        else:
-            # As last resort, call core directly
-            import bonsai.core.sequence as _core
-            result = _core.get_animation_product_frames(tool.Sequence, work_schedule, settings)
-
-        # Ensure result is always a dictionary
-        if not isinstance(result, dict):
-            print(f"⚠️ Warning: Expected dict but got {type(result)}, converting to empty dict")
-            return {}
-        return result
+            return tool.Sequence.get_product_frames_with_colortypes(work_schedule, settings)
+        if _sequence_has("get_animation_product_frames_enhanced"):
+            return tool.Sequence.get_animation_product_frames_enhanced(work_schedule, settings)
+        if _sequence_has("get_animation_product_frames"):
+            return tool.Sequence.get_animation_product_frames(work_schedule, settings)
+        # As last resort, call core directly
+        import bonsai.core.sequence as _core
+        return _core.get_animation_product_frames(tool.Sequence, work_schedule, settings)
     except Exception as e:
         print(f"Warning: Product frames computation failed, using empty result: {e}")
         return {}
@@ -611,60 +595,6 @@ class SyncAnimationByDate(bpy.types.Operator):
 
 
 # Removed SyncAnimationDateSource - sync auto functionality eliminated
-
-def create_4d_animation_legacy(context):
-    """Creates 4D animation using the legacy keyframe system"""
-    print("🎬 Creating keyframe-based 4D animation...")
-
-    try:
-        # Get the active work schedule
-        work_schedule = tool.Sequence.get_active_work_schedule()
-        if not work_schedule:
-            raise Exception("No active work schedule found")
-
-        # Get animation settings
-        settings = _get_animation_settings(context)
-        if not settings:
-            raise Exception("Could not get animation settings")
-
-        # Clear any previous animation
-        _clear_previous_animation(context)
-
-        # Compute product frames
-        frames = _compute_product_frames(context, work_schedule, settings)
-        if not frames:
-            print("⚠️ No products found to animate")
-            return
-
-        # Apply colortype animation
-        _apply_colortype_animation(context, frames, settings)
-
-        # Add timeline text if available
-        try:
-            if hasattr(tool.Sequence, 'add_text_animation_handler'):
-                tool.Sequence.add_text_animation_handler(settings)
-        except Exception as e:
-            print(f"Could not add timeline text: {e}")
-
-        # Add task bars if available
-        try:
-            from bonsai.bim.module.sequence.core.sequence import add_task_bars
-            add_task_bars(tool.Sequence)
-        except Exception as e:
-            print(f"Could not add task bars: {e}")
-
-        # Set object shading
-        try:
-            if hasattr(tool.Sequence, 'set_object_shading'):
-                tool.Sequence.set_object_shading()
-        except Exception as e:
-            print(f"Could not set object shading: {e}")
-
-        print(f"✅ Legacy animation created for {len(frames)} products")
-
-    except Exception as e:
-        print(f"❌ Error creating legacy animation: {e}")
-        raise
 
 def _restore_3d_texts_state():
     """Restore 3D texts to their previous state after snapshot"""

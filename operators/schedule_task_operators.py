@@ -33,32 +33,9 @@ except Exception:
             @staticmethod
             def safe_set_selected_colortype_in_active_group(task_obj, value, skip_validation=False):
                 try:
-                    # Get current enum items to validate the value
-                    if hasattr(task_obj, 'selected_colortype_in_active_group'):
-                        prop = getattr(task_obj.__class__, 'selected_colortype_in_active_group', None)
-                        if prop and hasattr(prop, 'keywords') and 'items' in prop.keywords:
-                            # Get the items function and call it to get current valid values
-                            items_func = prop.keywords['items']
-                            if callable(items_func):
-                                try:
-                                    valid_items = items_func(task_obj, bpy.context)
-                                    valid_values = [item[0] for item in valid_items]
-                                    # If the value is not in valid values, use the first valid one (usually empty)
-                                    if value not in valid_values and valid_values:
-                                        print(f"⚠️ Value '{value}' not in valid enum values {valid_values}, using '{valid_values[0]}'")
-                                        value = valid_values[0]
-                                except Exception:
-                                    # If we can't get valid items, default to empty string
-                                    value = ""
-
                     setattr(task_obj, "selected_colortype_in_active_group", value)
                 except Exception as e:
                     print(f"❌ Fallback safe_set failed: {e}")
-                    # Try to set to empty string as last resort
-                    try:
-                        setattr(task_obj, "selected_colortype_in_active_group", "")
-                    except:
-                        pass
         prop = PropFallback()
 
 

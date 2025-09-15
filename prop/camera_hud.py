@@ -504,7 +504,7 @@ class BIMCameraOrbitProperties(PropertyGroup):
     # =====================
     show_camera_orbit_settings: BoolProperty(
         name="Camera & Orbit",
-        default=True,
+        default=False,
         description="Toggle Camera & Orbit settings visibility",
     )
     hide_orbit_path: BoolProperty(

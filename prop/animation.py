@@ -628,35 +628,17 @@ def get_animation_color_schemes_items(self, context):
         items = [("", "<no colortypes>", "", 0)]
     return items
 
-# Simple cache for colortype items to reduce repeated JSON reads
-_colortype_items_cache = {}
-_cache_timestamp = 0
-
 def get_custom_group_colortype_items(self, context):
     """
     Gets colortype items ONLY from the selected custom group (excludes DEFAULT).
     This version reads directly from the JSON and is more lenient to allow UI selection
     even if colortype data is incomplete.
     """
-    global _colortype_items_cache, _cache_timestamp
-
-    import time
-    current_time = time.time()
-
-    # Cache for 1 second to reduce repeated calls during UI updates
-    cache_duration = 1.0
-
-    anim_props = tool.Sequence.get_animation_props()
-    selected_group = getattr(anim_props, "task_colortype_group_selector", "")
-    cache_key = f"{selected_group}_{getattr(self, 'ifc_definition_id', 'unknown')}"
-
-    # Check cache first
-    if (cache_key in _colortype_items_cache and
-        current_time - _cache_timestamp < cache_duration):
-        return _colortype_items_cache[cache_key]
-
     items = []
     try:
+        anim_props = tool.Sequence.get_animation_props()
+        selected_group = getattr(anim_props, "task_colortype_group_selector", "")
+        
         print(f"🔍 get_custom_group_colortype_items called for task {getattr(self, 'ifc_definition_id', 'unknown')}")
         print(f"🔍 selected_group: '{selected_group}'")
         
@@ -725,11 +707,6 @@ def get_custom_group_colortype_items(self, context):
         final_items = [("", "<none>", "No colortype selected", 0)] + non_empty_items
     
     print(f"🔍 FINAL SORTED items: {[(item[0], item[1]) for item in final_items]}")
-
-    # Cache the result
-    _colortype_items_cache[cache_key] = final_items
-    _cache_timestamp = current_time
-
     return final_items
 
 def update_color_full(self, context):

@@ -317,16 +317,7 @@ class BIM_PT_animation_tools(Panel):
         row.label(text="Display Settings")
         row = self.layout.row(align=True)
         row.prop(self.animation_props, "should_show_task_bar_options", text="Task Bars", toggle=True, icon="NLA_PUSHDOWN")
-        # MODE-AWARE Live Color Scheme button
-        animation_engine = getattr(self.animation_props, 'animation_engine', 'KEYFRAME')
-        if animation_engine == 'GEOMETRY_NODES':
-            live_color_text = "Live Color (GN Mode)"
-            live_color_icon = "GEOMETRY_NODES" if self.animation_props.enable_live_color_updates else "MODIFIER_OFF"
-        else:
-            live_color_text = "Live Color (Keyframes)"
-            live_color_icon = "KEYFRAME" if self.animation_props.enable_live_color_updates else "MODIFIER_OFF"
-
-        row.prop(self.animation_props, "enable_live_color_updates", text=live_color_text, toggle=True, icon=live_color_icon)
+        row.prop(self.animation_props, "enable_live_color_updates", text="Live Color Scheme Update", toggle=True)
         row.label(text="", icon='INFO')
 
         if self.animation_props.should_show_task_bar_options:

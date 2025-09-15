@@ -107,19 +107,15 @@ class ScheduleHUD:
 
             # Get settings and data - this is shared across all components
             text_settings, timeline_settings, legend_settings = self.get_hud_settings()
-
-            # Check if any HUD components are enabled - exit early if all disabled
-            if not any([text_settings.get('enabled', False),
+            
+            # DEBUG: Show HUD states
+            print(f"🎯 HUD DRAW DEBUG: text_enabled={text_settings.get('enabled', False)}, timeline_enabled={timeline_settings.get('enabled', False)}, legend_enabled={legend_settings.get('enabled', False)}")
+            
+            if not any([text_settings.get('enabled', False), 
                        timeline_settings.get('enabled', False),
                        legend_settings.get('enabled', False)]):
-                # Don't spam the console - only log once per state change
-                if not hasattr(self, '_last_disabled_logged') or not self._last_disabled_logged:
-                    print("💤 All HUD components disabled - handler will remain quiet until enabled")
-                    self._last_disabled_logged = True
+                print("❌ All HUD components disabled, exiting")
                 return
-
-            # Reset the logging flag when HUD is enabled
-            self._last_disabled_logged = False
 
             data = self._get_schedule_data()
             if not data:
@@ -203,12 +199,8 @@ class ScheduleHUD:
                 snapshot_date and snapshot_date.strip() not in ('', '-')
             ) or scene_snapshot_mode
             
-            # Only log snapshot detection on state changes
-            current_snapshot_state = (is_snapshot_ui_active, scene_snapshot_mode, is_snapshot_mode_active)
-            if not hasattr(self, '_last_snapshot_state') or self._last_snapshot_state != current_snapshot_state:
-                print(f"🔍 SNAPSHOT DETECTION: is_snapshot_ui_active={is_snapshot_ui_active}, scene_snapshot_mode={scene_snapshot_mode}")
-                print(f"🔍 SNAPSHOT DETECTION: snapshot_date='{snapshot_date}', is_snapshot_mode_active={is_snapshot_mode_active}")
-                self._last_snapshot_state = current_snapshot_state
+            print(f"🔍 SNAPSHOT DETECTION: is_snapshot_ui_active={is_snapshot_ui_active}, scene_snapshot_mode={scene_snapshot_mode}")
+            print(f"🔍 SNAPSHOT DETECTION: snapshot_date='{snapshot_date}', is_snapshot_mode_active={is_snapshot_mode_active}")
             
             # --- TIMELINE HUD SETTINGS (NEW) ---
             # Enable Timeline HUD automatically for snapshots (following v90 behavior)
@@ -236,11 +228,7 @@ class ScheduleHUD:
             
             # --- LEGEND HUD SETTINGS (NEW) ---
             legend_enabled = getattr(camera_props, 'enable_legend_hud', False)
-
-            # Only log legend debug info on state changes
-            if not hasattr(self, '_last_legend_enabled') or self._last_legend_enabled != legend_enabled:
-                print(f"🔍 LEGEND DEBUG: enable_legend_hud property = {legend_enabled}")
-                self._last_legend_enabled = legend_enabled
+            print(f"🔍 LEGEND DEBUG: enable_legend_hud property = {legend_enabled}")
             
             legend_hud_settings = {
                 'enabled': legend_enabled,
@@ -297,28 +285,80 @@ class ScheduleHUD:
             viz_finish = tool.Sequence.get_finish_date()
             print(f"📅 HUD: Using visualization range: {viz_start} to {viz_finish}")
             
-              # full_schedule_start y full_schedule_end SIEMPRE representarán el rango unificado completo para el fondo del HUD.
+            # Check if we should use unified timeline
+            # This happens when user has used Guess to set a unified date range
             full_schedule_start, full_schedule_end = None, None
             try:
                 active_schedule = tool.Sequence.get_active_work_schedule()
+                print(f"🔍 Active schedule: {active_schedule.Name if active_schedule else 'NONE'}")
+                
                 if active_schedule:
-                    # Siempre obtenemos el rango unificado para el fondo de la línea de tiempo.
-                    unified_start, unified_end = self._get_unified_schedule_range(active_schedule)
-                    if unified_start and unified_end:
-                        full_schedule_start, full_schedule_end = unified_start, unified_end
-                        print(f"📊 HUD: Usando rango unificado para la barra de tiempo: {full_schedule_start.strftime('%Y-%m-%d')} -> {full_schedule_end.strftime('%Y-%m-%d')}")
-
-                # Fallback si no se pudo obtener el rango unificado.
-                if not (full_schedule_start and full_schedule_end):
-                    full_schedule_start, full_schedule_end = viz_start, viz_finish
-                    if full_schedule_start:
-                         print(f"⚠️ HUD: Usando rango de visualización como fallback para la barra de tiempo.")
-
+                    # Check if current viz range spans multiple schedule types (indicates unified range)
+                    if viz_start and viz_finish and self._is_unified_range(active_schedule, viz_start, viz_finish):
+                        print("🔗 HUD: Detected unified range - using for timeline display")
+                        full_schedule_start, full_schedule_end = viz_start, viz_finish
+                    else:
+                        print("📅 HUD: Using specific schedule type range")
+                        full_schedule_start, full_schedule_end = tool.Sequence.get_schedule_date_range()
+                    
+                    if full_schedule_start and full_schedule_end:
+                        print(f"📊 Cronograma completo: {full_schedule_start.strftime('%Y-%m-%d')} → {full_schedule_end.strftime('%Y-%m-%d')}")
+                    else:
+                        print(f"⚠️ Cronograma activo encontrado pero sin fechas válidas")
+                        print(f"🔍 Intentando método alternativo...")
+                        
+                        # ALTERNATIVE METHOD: Get dates directly from tasks
+                        try:
+                            import ifcopenshell.util.sequence
+                            tasks = ifcopenshell.util.sequence.get_root_tasks(active_schedule)
+                            print(f"🔍 Tareas encontradas: {len(tasks) if tasks else 0}")
+                            
+                            if tasks:
+                                all_dates = []
+                                for task in tasks:
+                                    task_time = getattr(task, 'TaskTime', None)
+                                    if task_time:
+                                        start = getattr(task_time, 'ScheduleStart', None)
+                                        finish = getattr(task_time, 'ScheduleFinish', None)
+                                        print(f"🔍 Tarea '{task.Name}': {start} → {finish}")
+                                        if start:
+                                            all_dates.append(start)
+                                        if finish:
+                                            all_dates.append(finish)
+                                
+                                if all_dates:
+                                    # Convert strings to datetime if necessary
+                                    from datetime import datetime
+                                    datetime_dates = []
+                                    for date in all_dates:
+                                        if isinstance(date, str):
+                                            try:
+                                                # Parsear ISO format
+                                                dt = datetime.fromisoformat(date.replace('Z', '+00:00'))
+                                                datetime_dates.append(dt)
+                                            except:
+                                                print(f"❌ Error parseando fecha: {date}")
+                                        else:
+                                            datetime_dates.append(date)
+                                    
+                                    if datetime_dates:
+                                        full_schedule_start = min(datetime_dates)
+                                        full_schedule_end = max(datetime_dates)
+                                        print(f"📊 Fechas obtenidas de tareas: {full_schedule_start.strftime('%Y-%m-%d')} → {full_schedule_end.strftime('%Y-%m-%d')}")
+                                else:
+                                    print(f"❌ No se encontraron fechas en las tareas")
+                        except Exception as e:
+                            print(f"❌ Error en método alternativo: {e}")
+                            import traceback
+                            traceback.print_exc()
+                else:
+                    print(f"⚠️ No hay cronograma activo seleccionado")
+                    
             except Exception as e:
-                print(f"⚠️ Error obteniendo el rango unificado del cronograma: {e}")
-                # Fallback final si todo falla
-                full_schedule_start, full_schedule_end = viz_start, viz_finish
-          
+                print(f"⚠️ Error obteniendo fechas del cronograma: {e}")
+                import traceback
+                traceback.print_exc()
+
             # --- IMPROVED MODE DETECTION LOGIC ---
             # Usar múltiples fuentes para determinar el modo snapshot de forma fiable
             snapshot_date = getattr(work_props, 'visualisation_start', None)
@@ -428,79 +468,76 @@ class ScheduleHUD:
             start_frame = scene.frame_start
             end_frame = scene.frame_end
 
-            # 1. CALCULAR LA FECHA ACTUAL DE LA ANIMACIÓN (CURRENT_DATE)
-            # Se basa en el rango de visualización que elegiste manualmente (Start Date y Finish Date en la UI).
+            # Calculate current date based on frame (using selected range)
             if end_frame > start_frame and viz_start and viz_finish:
                 progress = (current_frame - start_frame) / (end_frame - start_frame)
                 progress = max(0.0, min(1.0, progress))
+
                 duration = viz_finish - viz_start
                 current_date = viz_start + (duration * progress)
             elif viz_start:
                 current_date = viz_start
             else:
+                # Fallback: usar fecha actual si no hay fechas de visualización
                 from datetime import datetime
                 current_date = datetime.now()
                 print("⚠️ Sin fechas de visualización configuradas, usando fecha actual")
 
-            # --- LÓGICA CORREGIDA PARA CONTADORES CON REFERENCIA ABSOLUTA ---
-            day_from_schedule = 0
-            week_number = 0
-            progress_pct = 0
-            total_days_in_schedule = (full_schedule_end - full_schedule_start).days + 1 if full_schedule_start and full_schedule_end else 1
-
-            if active_schedule:
-                # 2. OBTENER EL RANGO DE FECHAS REAL DEL TIPO DE CRONOGRAMA ACTIVO (Schedule, Actual, etc.)
-                #    Esta será nuestra referencia absoluta para los contadores.
-                reference_start, reference_finish = tool.Sequence.guess_date_range(active_schedule)
-
-                if reference_start and reference_finish:
-                    print(f"🎯 HUD Counters: Using absolute reference range {reference_start.strftime('%Y-%m-%d')} to {reference_finish.strftime('%Y-%m-%d')}")
+            # IMPROVED: Calculate metrics using full schedule with EXACT v7 logic
+            if full_schedule_start and full_schedule_end:
+                print(f"🎯 Calculando métricas con cronograma completo usando lógica v7")
+                
+                # Convert to dates only for precise calculations (exact v7 logic)
+                cd_d = current_date.date()
+                fss_d = full_schedule_start.date()
+                fse_d = full_schedule_end.date()
+                
+                # NEW LOGIC: Handle dates before the schedule with 0 values
+                delta_days = (cd_d - fss_d).days
+                
+                if cd_d < fss_d:
+                    # Si current_date es anterior al inicio del cronograma: day=0, week=0, progress=0%
+                    # If current_date is before the start of the schedule: day=0, week=0, progress=0%
+                    day_from_schedule = 0
+                    week_number = 0
+                    progress_pct = 0  # 0% real, se mostrará internamente como 0.1
+                else:
+                    # 1. DAY: from the start of the FULL SCHEDULE (starting at 1)
+                    day_from_schedule = max(1, delta_days + 1)
                     
-                    cd_d = current_date.date()
-                    ref_start_d = reference_start.date()
-                    ref_finish_d = reference_finish.date()
-
-                    # 3. CALCULAR EL PROGRESO, DÍA Y SEMANA RELATIVO A LA REFERENCIA ABSOLUTA
-                    delta_days = (cd_d - ref_start_d).days
-
-                    if cd_d < ref_start_d:
-                        # La animación está en una fecha anterior al inicio del cronograma de referencia.
-                        day_from_schedule = 0
-                        week_number = 0
-                        progress_pct = 0
+                    # 2. WEEK: desde inicio del CRONOGRAMA COMPLETO (comenzando en W1) 
+                    week_number = max(1, (delta_days // 7) + 1)
+                    
+                    # 3. PROGRESS: relativo al CRONOGRAMA COMPLETO [0..100] comenzando en 0%
+                    total_schedule_days = (fse_d - fss_d).days
+                    
+                    if delta_days <= 0:
+                        progress_pct = 0  # 0% real
+                    elif cd_d >= fse_d or total_schedule_days <= 0:
+                        progress_pct = 100
                     else:
-                        # La animación ha alcanzado o pasado la fecha de inicio de referencia.
-                        day_from_schedule = max(1, delta_days + 1)
-                        week_number = max(1, (delta_days // 7) + 1)
-
-                        total_reference_days = (ref_finish_d - ref_start_d).days
-                        
-                        if delta_days < 0:
-                            progress_pct = 0
-                        elif cd_d >= ref_finish_d or total_reference_days <= 0:
-                            progress_pct = 100
-                        else:
-                            # EL PROGRESO SE CALCULA SOBRE LA DURACIÓN TOTAL DEL CRONOGRAMA DE REFERENCIA
-                            progress_pct = (delta_days / total_reference_days) * 100
-                            progress_pct = round(progress_pct)
-                    
-                    total_days_in_schedule = (ref_finish_d - ref_start_d).days + 1
-
-                    return {
-                        'full_schedule_start': full_schedule_start,
-                        'full_schedule_end': full_schedule_end,
-                        'current_date': current_date,
-                        'start_date': viz_start,
-                        'finish_date': viz_finish,
-                        'current_frame': current_frame,
-                        'total_days': total_days_in_schedule,
-                        'elapsed_days': day_from_schedule,
-                        'week_number': int(max(0, week_number)),
-                        'progress_pct': progress_pct,
-                        'day_of_week': current_date.strftime('%A'),
-                        'schedule_name': active_schedule.Name if active_schedule else 'No Schedule',
-                        'is_snapshot': False,
-                    }
+                        progress_pct = (delta_days / total_schedule_days) * 100
+                        progress_pct = round(progress_pct)
+                
+                # CORRECTION: Use the values calculated from the full schedule for the display.
+                # 'total_days' and 'elapsed_days' now reflect the full schedule.
+                total_days_full_schedule = (fse_d - fss_d).days + 1
+                
+                return {
+                    'full_schedule_start': full_schedule_start,
+                    'full_schedule_end': full_schedule_end,
+                    'current_date': current_date,
+                    'start_date': viz_start,
+                    'finish_date': viz_finish,
+                    'current_frame': current_frame,
+                    'total_days': total_days_full_schedule,
+                    'elapsed_days': day_from_schedule,
+                    'week_number': int(max(0, week_number)),
+                    'progress_pct': progress_pct,
+                    'day_of_week': current_date.strftime('%A'),
+                    'schedule_name': active_schedule.Name if active_schedule else 'No Schedule',
+                    'is_snapshot': False, # No es snapshot si llegamos aquí
+                }
             else:
                 print(f"⚠️ Sin fechas de cronograma completo, usando fallback")
 
@@ -892,82 +929,11 @@ class ScheduleHUD:
         except Exception as e:
             print(f"Error drawing rounded rect: {e}")
 
-    def _get_unified_schedule_range(self, work_schedule):
-        """
-        Calcula el rango de fechas unificado analizando TODOS los 4 tipos de cronograma.
-        Devuelve el inicio más temprano y el fin más tardío de todos ellos.
-        """
-        from datetime import datetime
-        import ifcopenshell.util.sequence
-
-        if not work_schedule:
-            return None, None
-
-        all_starts = []
-        all_finishes = []
-
-        # Analizar todos los tipos de cronograma: SCHEDULE, ACTUAL, EARLY, LATE
-        for schedule_type in ["SCHEDULE", "ACTUAL", "EARLY", "LATE"]:
-            start_attr = f"{schedule_type.capitalize()}Start"
-            finish_attr = f"{schedule_type.capitalize()}Finish"
-
-            root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
-
-            def get_all_tasks_recursive(tasks):
-                result = []
-                for task in tasks:
-                    result.append(task)
-                    nested = ifcopenshell.util.sequence.get_nested_tasks(task)
-                    if nested:
-                        result.extend(get_all_tasks_recursive(nested))
-                return result
-
-            all_tasks = get_all_tasks_recursive(root_tasks)
-
-            for task in all_tasks:
-                start_date = ifcopenshell.util.sequence.derive_date(task, start_attr, is_earliest=True)
-                if start_date:
-                    all_starts.append(start_date)
-
-                finish_date = ifcopenshell.util.sequence.derive_date(task, finish_attr, is_latest=True)
-                if finish_date:
-                    all_finishes.append(finish_date)
-
-        if not all_starts or not all_finishes:
-            return None, None
-
-        unified_start = min(all_starts)
-        unified_finish = max(all_finishes)
-
-        print(f"✅ UNIFIED HUD: Timeline range spans {unified_start.strftime('%Y-%m-%d')} to {unified_finish.strftime('%Y-%m-%d')}")
-        return unified_start, unified_finish
-        
-
 
 def draw_hud_callback():
     """Callback that runs every frame to draw the HUD"""
     try:
-        # Quick performance check - if no HUD components were enabled for several frames,
-        # temporarily reduce the frequency of checks to save performance
-        if hasattr(schedule_hud, '_consecutive_disabled_calls'):
-            schedule_hud._consecutive_disabled_calls += 1
-
-            # Skip every 10 calls if HUD has been disabled for a while
-            if schedule_hud._consecutive_disabled_calls > 30 and schedule_hud._consecutive_disabled_calls % 10 != 0:
-                return
-        else:
-            schedule_hud._consecutive_disabled_calls = 0
-
         schedule_hud.draw()
-
-        # Reset counter if HUD is active
-        if hasattr(schedule_hud, '_last_disabled_logged') and not schedule_hud._last_disabled_logged:
-            schedule_hud._consecutive_disabled_calls = 0
-
-        # Periodically check if handler should be cleaned up
-        if hasattr(schedule_hud, '_consecutive_disabled_calls') and schedule_hud._consecutive_disabled_calls % 100 == 0:
-            cleanup_idle_hud_handler()
-
     except Exception as e:
         print(f"🔴 HUD callback error: {e}")
         import traceback
@@ -1028,40 +994,6 @@ def ensure_hud_handlers():
     global _hud_enabled
     if not _hud_enabled:
         register_hud_handler()
-
-def cleanup_idle_hud_handler():
-    """Clean up HUD handler if it's been idle for too long to save performance"""
-    global schedule_hud, _hud_enabled
-
-    if hasattr(schedule_hud, '_consecutive_disabled_calls'):
-        # If HUD has been disabled for more than 300 calls (~10 seconds at 30fps), unregister it
-        if schedule_hud._consecutive_disabled_calls > 300:
-            print("💤 HUD handler has been idle for too long, unregistering to save performance")
-            unregister_hud_handler()
-            schedule_hud._consecutive_disabled_calls = 0
-
-def auto_manage_hud_handler():
-    """Automatically manage HUD handler based on whether any components are enabled"""
-    try:
-        import bonsai.tool as tool
-        anim_props = tool.Sequence.get_animation_props()
-        camera_props = anim_props.camera_orbit
-
-        any_hud_enabled = (
-            getattr(camera_props, 'enable_text_hud', False) or
-            getattr(camera_props, 'enable_timeline_hud', False) or
-            getattr(camera_props, 'enable_legend_hud', False)
-        )
-
-        if any_hud_enabled and not _hud_enabled:
-            print("🔄 HUD components enabled, registering handler")
-            register_hud_handler()
-        elif not any_hud_enabled and _hud_enabled:
-            # Don't immediately unregister - let cleanup_idle_hud_handler handle it
-            pass
-
-    except Exception as e:
-        print(f"⚠️ Error in auto HUD management: {e}")
 
 
 def invalidate_legend_hud_cache():
