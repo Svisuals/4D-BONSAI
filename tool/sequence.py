@@ -507,89 +507,34 @@ class Sequence(bonsai.core.tool.Sequence):
         
         bpy.context.scene.camera = cam_obj
         print(f"✅ Snapshot Camera created successfully: {cam_obj.name}")
-        
-        # --- CREAR TEXTOS 3D SI NO EXISTEN ---
-        # Verificar si ya existe la colección de textos 3D
-        texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
-        if not texts_collection or len(texts_collection.objects) == 0:
-            print("📝 Creating 3D texts for snapshot display...")
-            try:
-                # Obtener configuraciones básicas para los textos
-                ws_props = cls.get_work_schedule_props()
-                active_schedule_id = getattr(ws_props, "active_work_schedule_id", None)
-                
-                if active_schedule_id:
-                    import bonsai.tool as tool
-                    work_schedule = tool.Ifc.get().by_id(active_schedule_id)
-                    schedule_name = work_schedule.Name if work_schedule and hasattr(work_schedule, 'Name') else 'No Schedule'
-                    
-                    # --- USAR EL MISMO ENFOQUE QUE LA ANIMACIÓN PRINCIPAL ---
-                    # Obtener configuraciones completas de animación
-                    try:
-                        settings = cls.get_animation_settings()
-                        if settings and work_schedule:
-                            settings['schedule_name'] = schedule_name
-                            
-                            # Crear los textos 3D usando la función existente
-                            cls.add_text_animation_handler(settings)
-                            print("✅ 3D texts created using animation settings")
-                        else:
-                            # Fallback: crear manualmente si no hay settings
-                            raise Exception("No animation settings available, using manual creation")
-                            
-                    except Exception as settings_error:
-                        print(f"⚠️ Using fallback manual text creation: {settings_error}")
-                        # FALLBACK: Crear manualmente los textos básicos
-                        cls._create_basic_snapshot_texts(schedule_name)
-                    
-                    # --- APLICAR VISIBILIDAD SEGÚN CHECKBOX ---
-                    anim_props = cls.get_animation_props()
-                    camera_props = anim_props.camera_orbit
-                    should_hide = not getattr(camera_props, "show_3d_schedule_texts", False)
-                    
-                    # Actualizar la colección después de crearla
-                    texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
-                    if texts_collection:
-                        texts_collection.hide_viewport = should_hide
-                        texts_collection.hide_render = should_hide
-                        print(f"✅ 3D texts created and visibility set (hidden: {should_hide})")
-                    
-                    # Auto-arrange texts para posicionamiento por defecto
-                    try:
-                        bpy.ops.bim.arrange_schedule_texts()
-                        print("✅ 3D texts auto-arranged")
-                    except Exception as e:
-                        print(f"⚠️ Could not auto-arrange texts: {e}")
-                        
-                else:
-                    print("⚠️ No active work schedule found, skipping 3D text creation")
-                    
-            except Exception as e:
-                print(f"⚠️ Could not create 3D texts for snapshot camera: {e}")
-                import traceback
-                traceback.print_exc()
-        else:
-            print("✅ 3D texts already exist, skipping creation")
-        
-        # --- CREAR 3D LEGEND HUD SI NO EXISTE ---
-        # Verificar si ya existe el 3D Legend HUD
-        legend_hud_exists = any(obj.get("is_3d_legend_hud", False) for obj in bpy.data.objects)
-        if not legend_hud_exists:
-            print("📊 Creating 3D Legend HUD for snapshot display...")
-            try:
-                anim_props = cls.get_animation_props()
-                camera_props = anim_props.camera_orbit
-                
-                # Verificar si el 3D Legend HUD está habilitado
-                legend_hud_enabled = getattr(camera_props, "enable_3d_legend_hud", False)
-                show_3d_texts = getattr(camera_props, "show_3d_schedule_texts", False)
-                
-                if legend_hud_enabled and show_3d_texts:
-                    # Crear el 3D Legend HUD
+
+        # --- CREAR EMPTY PARENT SIEMPRE (necesario para 3D texts) ---
+        print("📊 Ensuring Schedule_Display_Parent exists for 3D texts...")
+        try:
+            # Crear el Empty parent si no existe
+            parent_name = "Schedule_Display_Parent"
+            parent_empty = bpy.data.objects.get(parent_name)
+            if not parent_empty:
+                parent_empty = bpy.data.objects.new(parent_name, None)
+                bpy.context.scene.collection.objects.link(parent_empty)
+                parent_empty.empty_display_type = 'PLAIN_AXES'
+                parent_empty.empty_display_size = 2
+                print(f"✅ Created Schedule_Display_Parent empty for 3D texts")
+            else:
+                print(f"✅ Schedule_Display_Parent already exists")
+
+            # Ahora crear el 3D Legend HUD si está habilitado
+            anim_props = cls.get_animation_props()
+            camera_props = anim_props.camera_orbit
+            legend_hud_enabled = getattr(camera_props, "enable_3d_legend_hud", False)
+            show_3d_texts = getattr(camera_props, "show_3d_schedule_texts", False)
+
+            legend_hud_exists = any(obj.get("is_3d_legend_hud", False) for obj in bpy.data.objects)
+            if not legend_hud_exists and legend_hud_enabled:
+                if show_3d_texts:
                     bpy.ops.bim.setup_3d_legend_hud()
                     print("✅ 3D Legend HUD created and configured")
-                elif legend_hud_enabled and not show_3d_texts:
-                    # Crear pero mantener oculto porque 3D HUD Render está desactivado
+                else:
                     bpy.ops.bim.setup_3d_legend_hud()
                     # Ocultar inmediatamente
                     for obj in bpy.data.objects:
@@ -597,15 +542,84 @@ class Sequence(bonsai.core.tool.Sequence):
                             obj.hide_viewport = True
                             obj.hide_render = True
                     print("✅ 3D Legend HUD created but hidden (3D HUD Render disabled)")
-                else:
-                    print("📊 3D Legend HUD not enabled, skipping creation")
-                    
-            except Exception as e:
-                print(f"⚠️ Could not create 3D Legend HUD for snapshot camera: {e}")
-                import traceback
-                traceback.print_exc()
-        else:
-            print("✅ 3D Legend HUD already exists, skipping creation")
+            elif legend_hud_exists:
+                print("✅ 3D Legend HUD already exists")
+            else:
+                print("📊 3D Legend HUD not enabled, only Empty parent created")
+
+        except Exception as e:
+            print(f"⚠️ Could not setup 3D HUD components: {e}")
+            import traceback
+            traceback.print_exc()
+
+        # --- CREAR TEXTOS 3D DESPUÉS (para que puedan ser hijos del Empty) ---
+        # Los textos 3D se crean al agregar la cámara, no al crear el snapshot
+        print("📝 Creating 3D texts for snapshot display...")
+        try:
+            # Obtener configuraciones básicas para los textos
+            ws_props = cls.get_work_schedule_props()
+            active_schedule_id = getattr(ws_props, "active_work_schedule_id", None)
+
+            if active_schedule_id:
+                import bonsai.tool as tool
+                work_schedule = tool.Ifc.get().by_id(active_schedule_id)
+                schedule_name = work_schedule.Name if work_schedule and hasattr(work_schedule, 'Name') else 'No Schedule'
+
+                # --- CREAR TEXTOS ESTÁTICOS PARA SNAPSHOT ---
+                try:
+                    from datetime import datetime
+                    snapshot_date = datetime.now()  # Fecha por defecto
+
+                    # Intentar obtener la fecha real del snapshot
+                    snapshot_date_str = getattr(ws_props, "visualisation_start", None)
+                    if snapshot_date_str and snapshot_date_str != "-":
+                        try:
+                            snapshot_date = cls.parse_isodate_datetime(snapshot_date_str)
+                        except Exception:
+                            pass
+
+                    snapshot_settings = {
+                        "start": snapshot_date,
+                        "finish": snapshot_date,
+                        "start_frame": bpy.context.scene.frame_current,
+                        "total_frames": 1,
+                    }
+
+                    # Crear textos estáticos específicos para snapshot
+                    cls.create_text_objects_static(snapshot_settings)
+                    print("✅ Static 3D texts created for snapshot camera")
+
+                except Exception as static_error:
+                    print(f"⚠️ Static text creation failed, using fallback: {static_error}")
+                    # FALLBACK: Crear manualmente los textos básicos
+                    cls._create_basic_snapshot_texts(schedule_name)
+
+                # --- APLICAR VISIBILIDAD SEGÚN CHECKBOX ---
+                anim_props = cls.get_animation_props()
+                camera_props = anim_props.camera_orbit
+                should_hide = not getattr(camera_props, "show_3d_schedule_texts", False)
+
+                # Actualizar la colección después de crearla
+                texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
+                if texts_collection:
+                    texts_collection.hide_viewport = should_hide
+                    texts_collection.hide_render = should_hide
+                    print(f"✅ 3D texts created and visibility set (hidden: {should_hide})")
+
+                # Auto-arrange texts para posicionamiento por defecto
+                try:
+                    bpy.ops.bim.arrange_schedule_texts()
+                    print("✅ 3D texts auto-arranged")
+                except Exception as e:
+                    print(f"⚠️ Could not auto-arrange texts: {e}")
+
+            else:
+                print("⚠️ No active work schedule found, skipping 3D text creation")
+
+        except Exception as e:
+            print(f"⚠️ Could not create 3D texts for snapshot camera: {e}")
+            import traceback
+            traceback.print_exc()
         
         return cam_obj
 
@@ -3019,6 +3033,75 @@ class Sequence(bonsai.core.tool.Sequence):
 
     @classmethod
     def load_default_animation_color_scheme(cls):
+        """CORRECTED: Restaura los ColorTypes originales de cada tarea en lugar de sobrescribir con hardcoded"""
+        print("🔄 RESET: Restaurando ColorTypes originales de las tareas...")
+
+        try:
+            import bpy
+            context = bpy.context
+            tprops = getattr(context.scene, 'BIMTaskTreeProperties', None)
+            if not tprops:
+                print("❌ RESET: No se encontraron propiedades de tareas")
+                return
+
+            reset_count = 0
+            for task in tprops.tasks:
+                task_id = str(task.ifc_definition_id)
+                if task_id == "0":
+                    continue
+
+                try:
+                    # 1. Obtener el grupo personalizado original de la tarea
+                    original_group = None
+                    if hasattr(task, 'animation_group_stack') and task.animation_group_stack:
+                        for group_item in task.animation_group_stack:
+                            if group_item.enabled:
+                                original_group = group_item.group
+                                break
+
+                    # 2. Si la tarea tiene grupo personalizado, restaurar sus ColorTypes
+                    if original_group and original_group != "DEFAULT":
+                        print(f"🔄 RESET: Restaurando tarea {task_id} del grupo '{original_group}'")
+
+                        # Restaurar ColorType del grupo original
+                        predefined_type = getattr(task, 'PredefinedType', 'NOTDEFINED') or 'NOTDEFINED'
+                        original_colortype = cls.load_ColorType_from_group(original_group, predefined_type)
+
+                        if original_colortype:
+                            # Aplicar ColorType original a la tarea
+                            if hasattr(task, 'animation_color_schemes'):
+                                task.animation_color_schemes = predefined_type
+
+                            # Restaurar configuración del grupo en la tarea
+                            if hasattr(task, 'selected_colortype_in_active_group'):
+                                try:
+                                    task.selected_colortype_in_active_group = predefined_type
+                                except:
+                                    task.selected_colortype_in_active_group = ""
+
+                            reset_count += 1
+                            print(f"✅ RESET: Tarea {task_id} restaurada con ColorType '{predefined_type}' del grupo '{original_group}'")
+                        else:
+                            print(f"⚠️ RESET: No se encontró ColorType '{predefined_type}' en grupo '{original_group}' para tarea {task_id}")
+
+                    # 3. Si la tarea usa DEFAULT, mantener configuración actual
+                    elif not original_group or original_group == "DEFAULT":
+                        print(f"📋 RESET: Tarea {task_id} usa grupo DEFAULT - manteniendo configuración actual")
+                        # No hacer cambios para tareas que usan DEFAULT
+
+                except Exception as e:
+                    print(f"❌ RESET: Error procesando tarea {task_id}: {e}")
+
+            print(f"✅ RESET COMPLETADO: {reset_count} tareas restauradas a sus grupos personalizados originales")
+
+        except Exception as e:
+            print(f"❌ RESET FALLÓ: {e}")
+            # Fallback al comportamiento anterior solo si hay error crítico
+            cls._legacy_load_default_colors()
+
+    @classmethod
+    def _legacy_load_default_colors(cls):
+        """Método legacy como respaldo en caso de error"""
         def _to_rgba(col):
             try:
                 if isinstance(col, (list, tuple)):
@@ -3880,6 +3963,10 @@ class Sequence(bonsai.core.tool.Sequence):
             except Exception:
                 active_group_name = "DEFAULT"
 
+        # Debug info when DEFAULT is active
+        if active_group_name == "DEFAULT":
+            print(f"🎯 DEBUG: DEFAULT group is active for task {task.id()} (PredefinedType: {getattr(task, 'PredefinedType', 'NOTDEFINED')})")
+
         # NEW: Get task configuration from the persistent cache instead of the UI list.
         # This makes the function independent of the current UI filters.
         import bpy, json
@@ -3915,15 +4002,26 @@ class Sequence(bonsai.core.tool.Sequence):
         if ColorType:
             return ColorType
 
-        # If the active group wasn't DEFAULT and we didn't find a profile,
-        # explicitly fall back to the DEFAULT group. This is more predictable.
+        # 3) If no profile found and active group is not DEFAULT, try DEFAULT group
         if active_group_name != "DEFAULT":
             default_profile = cls.load_ColorType_from_group("DEFAULT", task_predefined_type)
             if default_profile:
                 return default_profile
 
-        # As an absolute last resort (which should not be reached), return the "NOTDEFINED" profile.
-        return cls.load_ColorType_from_group("DEFAULT", "NOTDEFINED")
+            # Try NOTDEFINED in DEFAULT as fallback
+            notdefined_profile = cls.load_ColorType_from_group("DEFAULT", "NOTDEFINED")
+            if notdefined_profile:
+                return notdefined_profile
+
+        # 4) If active group IS DEFAULT, ensure we try NOTDEFINED profile in DEFAULT
+        elif active_group_name == "DEFAULT":
+            notdefined_profile = cls.load_ColorType_from_group("DEFAULT", "NOTDEFINED")
+            if notdefined_profile:
+                return notdefined_profile
+
+        # 5) Final fallback: create a basic ColorType only if DEFAULT group has no profiles
+        print(f"⚠️ WARNING: No ColorType found for task {task.id()} (PredefinedType: {task_predefined_type}) in group '{active_group_name}' - using fallback")
+        return cls.create_fallback_ColorType(task_predefined_type)
 
     @classmethod
     def load_ColorType_from_group(cls, group_name, ColorType_name):
@@ -3934,9 +4032,46 @@ class Sequence(bonsai.core.tool.Sequence):
             data = json.loads(raw) if isinstance(raw, str) else (raw or {})
         except Exception:
             data = {}
+
+        # Debug: Show full DEFAULT group data
+        if group_name == "DEFAULT":
+            print(f"🔍 DEBUG: Raw scene data for BIM_AnimationColorSchemesSets:")
+            print(f"    Raw type: {type(raw)}")
+            print(f"    Raw content: {raw[:200] if isinstance(raw, str) else str(raw)[:200]}...")
+            print(f"    Parsed data keys: {list(data.keys())}")
+            if "DEFAULT" in data:
+                print(f"    DEFAULT group structure: {data['DEFAULT']}")
+
         group_data = data.get(group_name, {})
+        available_types = [prof.get("name") for prof in group_data.get("ColorTypes", [])]
+
+        # Debug info for DEFAULT group specifically
+        if group_name == "DEFAULT":
+            print(f"🔍 DEBUG: Loading ColorType '{ColorType_name}' from DEFAULT group")
+            print(f"    Available ColorTypes in DEFAULT: {available_types}")
+            print(f"    Group data has {len(group_data.get('ColorTypes', []))} ColorTypes")
+
+            # Show color details for each ColorType in DEFAULT
+            for prof in group_data.get("ColorTypes", []):
+                if prof.get("name") == ColorType_name:
+                    print(f"    🎨 ColorType '{ColorType_name}' colors:")
+                    print(f"        start_color: {prof.get('start_color', 'N/A')}")
+                    print(f"        in_progress_color: {prof.get('in_progress_color', 'N/A')}")
+                    print(f"        end_color: {prof.get('end_color', 'N/A')}")
+
+                    # AUTO-FIX: Detect problematic green/gray colors and force recreation
+                    in_progress = prof.get('in_progress_color', [])
+                    end_color = prof.get('end_color', [])
+
+                    if (in_progress == [0, 1, 0, 1] and end_color == [0.7, 0.7, 0.7, 1]):
+                        print(f"🚨 DETECTED OLD GREEN/GRAY COLORS in '{ColorType_name}' - FORCING RECREATION!")
+                        cls.force_recreate_default_group()
+                        return cls.load_ColorType_from_group(group_name, ColorType_name)  # Retry with new data
+
         for prof_data in group_data.get("ColorTypes", []):
             if prof_data.get("name") == ColorType_name:
+                if group_name == "DEFAULT":
+                    print(f"✅ DEBUG: Found ColorType '{ColorType_name}' in DEFAULT group")
                 return type('AnimationColorSchemes', (object,), {
                     'name': prof_data.get("name", ""),
                     'consider_start': prof_data.get("consider_start", True),
@@ -3955,7 +4090,130 @@ class Sequence(bonsai.core.tool.Sequence):
                     'end_transparency': prof_data.get("end_transparency", 0.0),
                     'hide_at_end': bool(prof_data.get("hide_at_end", prof_data.get("name") in {"DEMOLITION","REMOVAL","DISPOSAL","DISMANTLE"})),
                 })()
+
+        # Debug when ColorType not found in DEFAULT group
+        if group_name == "DEFAULT":
+            print(f"❌ DEBUG: ColorType '{ColorType_name}' NOT found in DEFAULT group")
+
         return None
+
+    @classmethod
+    def force_recreate_default_group(cls):
+        """Forzar la recreación del grupo DEFAULT con colores correctos"""
+        import bpy, json
+        scene = bpy.context.scene
+        key = "BIM_AnimationColorSchemesSets"
+
+        # Cargar datos existentes
+        raw = scene.get(key, "{}")
+        try:
+            data = json.loads(raw) if isinstance(raw, str) else {}
+        except Exception:
+            data = {}
+
+        print("🔧 FORCE RECREATING DEFAULT group with distinctive colors...")
+
+        # LISTA COMPLETA de ColorTypes para el grupo DEFAULT (14 tipos)
+        default_ColorTypes = {
+            # Green Group (Construction)
+            "CONSTRUCTION": {"start": [1, 1, 1, 0], "active": [0, 1, 0, 1], "end": [0.3, 1, 0.3, 1]},
+            "INSTALLATION": {"start": [1, 1, 1, 0], "active": [0, 1, 0, 1], "end": [0.3, 0.8, 0.5, 1]},
+
+            # Red Group (Demolition)
+            "DEMOLITION": {"start": [1, 1, 1, 1], "active": [1, 0, 0, 1], "end": [0, 0, 0, 0]},
+            "REMOVAL": {"start": [1, 1, 1, 1], "active": [1, 0, 0, 1], "end": [0, 0, 0, 0]},
+            "DISPOSAL": {"start": [1, 1, 1, 1], "active": [1, 0, 0, 1], "end": [0, 0, 0, 0]},
+            "DISMANTLE": {"start": [1, 1, 1, 1], "active": [1, 0, 0, 1], "end": [0, 0, 0, 0]},
+
+            # Blue Group (Operation / Maintenance)
+            "OPERATION": {"start": [1, 1, 1, 0], "active": [0, 0, 1, 1], "end": [1, 1, 1, 1]},
+            "MAINTENANCE": {"start": [1, 1, 1, 0], "active": [0, 0, 1, 1], "end": [1, 1, 1, 1]},
+            "ATTENDANCE": {"start": [1, 1, 1, 0], "active": [0, 0, 1, 1], "end": [1, 1, 1, 1]},
+            "RENOVATION": {"start": [1, 1, 1, 0], "active": [0, 0, 1, 1], "end": [0.9, 0.9, 0.9, 1]},
+
+            # Yellow Group (Logistics)
+            "LOGISTIC": {"start": [1, 1, 1, 0], "active": [1, 1, 0, 1], "end": [1, 0.8, 0.3, 1]},
+            "MOVE": {"start": [1, 1, 1, 0], "active": [1, 1, 0, 1], "end": [0.8, 0.6, 0, 1]},
+
+            # Gray Group (Undefined / Others)
+            "NOTDEFINED": {"start": [1, 1, 1, 0], "active": [0.5, 0.5, 0.5, 1], "end": [0.7, 0.7, 0.7, 1]},
+            "USERDEFINED": {"start": [1, 1, 1, 0], "active": [0.5, 0.5, 0.5, 1], "end": [0.7, 0.7, 0.7, 1]},
+        }
+
+        ColorTypes = []
+        for name, colors in default_ColorTypes.items():
+            disappears = name in ["DEMOLITION", "REMOVAL", "DISPOSAL", "DISMANTLE"]
+            ColorTypes.append({
+                "name": name,
+                "consider_start": False,  # DEFAULT: Los objetos NO deben aparecer al inicio
+                "consider_active": True,
+                "consider_end": True,
+                "start_color": colors["start"],
+                "in_progress_color": colors["active"],
+                "end_color": colors["end"],
+                "use_start_original_color": False,
+                "use_active_original_color": False,
+                "use_end_original_color": not disappears,
+                "start_transparency": 0.0,
+                "active_start_transparency": 0.0,
+                "active_finish_transparency": 0.0,
+                "active_transparency_interpol": 1.0,
+                "end_transparency": 0.0,
+                "hide_at_end": disappears
+            })
+
+        # Sobrescribir el grupo DEFAULT
+        data["DEFAULT"] = {"ColorTypes": ColorTypes}
+        scene[key] = json.dumps(data)
+
+        print(f"✅ FORCE RECREATED DEFAULT group with {len(ColorTypes)} distinctive ColorTypes")
+
+        # Debug: Mostrar los nuevos colores
+        for ct in ColorTypes[:3]:  # Solo mostrar los primeros 3
+            print(f"   {ct['name']}: start={ct['start_color']}, active={ct['in_progress_color']}, end={ct['end_color']}")
+
+    @classmethod
+    def create_fallback_ColorType(cls, predefined_type):
+        """Creates a fallback ColorType when none is found in any group"""
+        # Use the original default color scheme based on PredefinedType
+        color_map = {
+            "CONSTRUCTION": (0.0, 1.0, 0.0, 1.0),     # Green for construction
+            "INSTALLATION": (0.0, 1.0, 0.0, 1.0),     # Green for installation
+            "DEMOLITION": (1.0, 0.0, 0.0, 1.0),       # Red for demolition
+            "REMOVAL": (1.0, 0.0, 0.0, 1.0),          # Red for removal
+            "DISPOSAL": (1.0, 0.0, 0.0, 1.0),         # Red for disposal
+            "DISMANTLE": (1.0, 0.0, 0.0, 1.0),        # Red for dismantle
+            "LOGISTIC": (1.0, 1.0, 0.0, 1.0),         # Yellow for logistic
+            "MOVE": (1.0, 1.0, 0.0, 1.0),             # Yellow for move
+            "MAINTENANCE": (0.0, 0.0, 1.0, 1.0),      # Blue for maintenance
+            "OPERATION": (0.0, 0.0, 1.0, 1.0),        # Blue for operation
+            "RENOVATION": (0.0, 0.0, 1.0, 1.0),       # Blue for renovation
+            "ATTENDANCE": (0.0, 0.0, 1.0, 1.0),       # Blue for attendance
+        }
+
+        # Default colors for unknown types
+        start_color = color_map.get(predefined_type, (0.8, 0.8, 0.8, 1.0))  # Light gray default
+        in_progress_color = color_map.get(predefined_type, (1.0, 1.0, 0.0, 1.0))  # Yellow default
+        end_color = color_map.get(predefined_type, (0.0, 1.0, 0.0, 1.0))     # Green default
+
+        return type('FallbackColorType', (object,), {
+            'name': predefined_type,
+            'consider_start': True,
+            'consider_active': True,
+            'consider_end': True,
+            'start_color': start_color,
+            'in_progress_color': in_progress_color,
+            'end_color': end_color,
+            'use_start_original_color': False,
+            'use_active_original_color': False,
+            'use_end_original_color': False,
+            'start_transparency': 0.0,
+            'active_start_transparency': 0.0,
+            'active_finish_transparency': 0.0,
+            'active_transparency_interpol': 1.0,
+            'end_transparency': 0.0,
+            'hide_at_end': predefined_type in {"DEMOLITION", "REMOVAL", "DISPOSAL", "DISMANTLE"},
+        })()
 
     @classmethod
     def sync_active_group_to_json(cls):
@@ -3969,9 +4227,9 @@ class Sequence(bonsai.core.tool.Sequence):
 
         # --- INICIO DE LA CORRECCIÓN ---
         if active_group == "DEFAULT":
-            # El grupo DEFAULT es de solo lectura y se gestiona automáticamente.
-            # Esto previene que perfiles personalizados se guarden en él por error.
-            print("Bonsai INFO: The 'DEFAULT' group is read-only and cannot be modified from the UI.")
+            # TEMPORAL: Permitir recrear el grupo DEFAULT para corregir colores
+            print("🔧 RECREATING DEFAULT group with correct colors...")
+            cls.force_recreate_default_group()
             return
         # --- FIN DE LA CORRECCIÓN ---
         raw = scene.get("BIM_AnimationColorSchemesSets", "{}")
@@ -4541,7 +4799,14 @@ class Sequence(bonsai.core.tool.Sequence):
             if not ColorType:
                 predefined_type = getattr(task, "PredefinedType", "NOTDEFINED") or "NOTDEFINED"
                 print(f"[DEBUG] No ColorType from assignment, trying predefined_type: {predefined_type}")
-                ColorType = cls.load_ColorType_from_group(active_group_name, predefined_type) or cls.create_generic_ColorType(predefined_type)
+                ColorType = cls.load_ColorType_from_group(active_group_name, predefined_type) or cls.create_fallback_ColorType(predefined_type)
+
+            # Debug ColorType details for DEFAULT group
+            if active_group_name == "DEFAULT" and ColorType:
+                print(f"🎨 LIVE UPDATE DEBUG: Using ColorType '{getattr(ColorType, 'name', 'Unknown')}' from DEFAULT group")
+                print(f"    start_color: {getattr(ColorType, 'start_color', 'N/A')}")
+                print(f"    in_progress_color: {getattr(ColorType, 'in_progress_color', 'N/A')}")
+                print(f"    end_color: {getattr(ColorType, 'end_color', 'N/A')}")
 
             # Apply the color for the current state (without creating keyframes)
             state_map = {"before_start": "start", "active": "in_progress", "after_end": "end"}
@@ -4581,21 +4846,30 @@ class Sequence(bonsai.core.tool.Sequence):
                 transparency = getattr(ColorType, 'end_transparency', 0.0)
 
             alpha = 1.0 - transparency
-            obj.color = (color[0], color[1], color[2], alpha)
+            final_color = (color[0], color[1], color[2], alpha)
+            obj.color = final_color
             objects_colored += 1
-            print(f"[DEBUG] Colored {obj.name} (state: {state}) with color: {color} alpha: {alpha}")
+
+            # Enhanced debug for DEFAULT group
+            if active_group_name == "DEFAULT":
+                print(f"🎨 DEFAULT GROUP LIVE COLOR: {obj.name} (state: {state}) -> {final_color}")
+                print(f"    ColorType name: {getattr(ColorType, 'name', 'Unknown')}")
+                print(f"    Original color from ColorType.{state}_color: {color}")
+            else:
+                print(f"[DEBUG] Colored {obj.name} (state: {state}) with color: {color} alpha: {alpha}")
         
         print(f"[DEBUG] Processed {objects_processed} objects, colored {objects_colored} objects")
 
     @classmethod
     def register_live_color_update_handler(cls):
+        """Register keyframes live color update handler"""
         # Check if handler is already registered
         if cls.live_color_update_handler not in bpy.app.handlers.frame_change_post:
             bpy.app.handlers.frame_change_post.append(cls.live_color_update_handler)
             cls._live_color_update_handler = cls.live_color_update_handler
-            print(f"[DEBUG] Live color update handler registered. Total handlers: {len(bpy.app.handlers.frame_change_post)}")
+            print(f"[DEBUG] Keyframes live color update handler registered. Total handlers: {len(bpy.app.handlers.frame_change_post)}")
         else:
-            print("[DEBUG] Live color update handler already registered")
+            print("[DEBUG] Keyframes live color update handler already registered")
         
         # Try different handler events as backup
         if cls.live_color_update_handler not in bpy.app.handlers.frame_change_pre:
@@ -4690,10 +4964,10 @@ class Sequence(bonsai.core.tool.Sequence):
                     pass
 
             text_configs = [
-                {"name": "Schedule_Date","position": (0, 10, 5),"size": 1.2,"align": "CENTER","color": (1, 1, 1, 1),"type": "date"},
-                {"name": "Schedule_Week","position": (0, 10, 4),"size": 1.0,"align": "CENTER","color": (0.8, 0.8, 1, 1),"type": "week"},
-                {"name": "Schedule_Day_Counter","position": (0, 10, 3),"size": 0.8,"align": "CENTER","color": (1, 1, 0.8, 1),"type": "day_counter"},
-                {"name": "Schedule_Progress","position": (0, 10, 2),"size": 1.0,"align": "CENTER","color": (0.8, 1, 0.8, 1),"type": "progress"},
+                {"name": "Schedule_Date", "position": (0, 10, 5), "size": 1.2, "align": "CENTER", "color": (1, 1, 1, 1), "type": "date"},
+                {"name": "Schedule_Week", "position": (0, 10, 4), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "week"},
+                {"name": "Schedule_Day_Counter", "position": (0, 10, 3), "size": 0.8, "align": "CENTER", "color": (1, 1, 1, 1), "type": "day_counter"},
+                {"name": "Schedule_Progress", "position": (0, 10, 2), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "progress"},
             ]
 
             created_texts = []
@@ -4759,13 +5033,27 @@ class Sequence(bonsai.core.tool.Sequence):
             except Exception:
                 pass
 
-        text_configs = [
-            {"name": "Schedule_Date", "position": (0, 10, 5), "size": 1.2, "align": "CENTER", "color": (1, 1, 1, 1), "type": "date"},
-            {"name": "Schedule_Week", "position": (0, 10, 4), "size": 1.0, "align": "CENTER", "color": (0.8, 0.8, 1, 1), "type": "week"},
-            {"name": "Schedule_Day_Counter", "position": (0, 10, 3), "size": 0.8, "align": "CENTER", "color": (1, 1, 0.8, 1), "type": "day_counter"},
-            {"name": "Schedule_Progress", "position": (0, 10, 2), "size": 1.0, "align": "CENTER", "color": (0.8, 1, 0.8, 1), "type": "progress"},
-        ]
+        # Get schedule name for the Schedule_Name text
+        schedule_name = "Unknown Schedule"
+        try:
+            import bonsai.tool as tool
+            ws_props = cls.get_work_schedule_props()
+            if ws_props and hasattr(ws_props, 'active_work_schedule_id'):
+                ws_id = ws_props.active_work_schedule_id
+                if ws_id:
+                    work_schedule = tool.Ifc.get().by_id(ws_id)
+                    if work_schedule and hasattr(work_schedule, 'Name'):
+                        schedule_name = work_schedule.Name or "Unnamed Schedule"
+        except Exception as e:
+            print(f"⚠️ Could not get schedule name: {e}")
 
+        text_configs = [
+                {"name": "Schedule_Name", "position": (0, 10, 6), "size": 1.4, "align": "CENTER", "color": (1, 1, 1, 1), "type": "schedule_name", "content": f"Schedule: {schedule_name}"},
+                {"name": "Schedule_Date", "position": (0, 10, 5), "size": 1.2, "align": "CENTER", "color": (1, 1, 1, 1), "type": "date"},
+                {"name": "Schedule_Week", "position": (0, 10, 4), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "week"},
+                {"name": "Schedule_Day_Counter", "position": (0, 10, 3), "size": 0.8, "align": "CENTER", "color": (1, 1, 1, 1), "type": "day_counter"},
+                {"name": "Schedule_Progress", "position": (0, 10, 2), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "progress"},
+            ]
         created_texts = []
         for config in text_configs:
             text_obj = cls._create_static_text(config, settings, collection)
@@ -4788,7 +5076,11 @@ class Sequence(bonsai.core.tool.Sequence):
 
         # Set the text content based on the type and snapshot date
         text_type = config["type"].lower()
-        if text_type == "date":
+
+        # Check if content is pre-defined in config (for schedule_name)
+        if "content" in config:
+            text_curve.body = config["content"]
+        elif text_type == "date":
             if snapshot_date:
                 try:
                     text_curve.body = snapshot_date.strftime("%d/%m/%Y")
@@ -4796,13 +5088,14 @@ class Sequence(bonsai.core.tool.Sequence):
                     text_curve.body = str(snapshot_date).split("T")[0]
             else:
                 text_curve.body = "Date: --"
-
         elif text_type == "week":
             text_curve.body = cls._calculate_static_week_text(snapshot_date)
         elif text_type == "day_counter":
             text_curve.body = cls._calculate_static_day_text(snapshot_date)
         elif text_type == "progress":
             text_curve.body = cls._calculate_static_progress_text(snapshot_date)
+        elif text_type == "schedule_name":
+            text_curve.body = "Schedule: Unknown"
         else:
             text_curve.body = f"Static {config['type']}"
 
@@ -4817,6 +5110,17 @@ class Sequence(bonsai.core.tool.Sequence):
                 text_obj.color = color
 
         collection.objects.link(text_obj)
+
+        # *** HACER EL TEXTO HIJO DEL EMPTY 3D HUD RENDER (como en animación) ***
+        try:
+            parent_empty = bpy.data.objects.get("Schedule_Display_Parent")
+            if parent_empty:
+                text_obj.parent = parent_empty
+                print(f"📝 Text '{config['name']}' parented to Schedule_Display_Parent")
+            else:
+                print(f"⚠️ Schedule_Display_Parent not found for text '{config['name']}'")
+        except Exception as e:
+            print(f"⚠️ Could not parent text '{config['name']}': {e}")
 
         print(f"📝 Created static text: {config['name']} = '{text_curve.body}'")
         return text_obj

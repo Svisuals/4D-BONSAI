@@ -938,11 +938,51 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
 
             _clear_previous_animation(context)
 
-            product_frames = tool.Sequence.get_animation_product_frames_enhanced(work_schedule, settings)
-            if not product_frames:
-                self.report({'WARNING'}, "No products found to animate.")
+            # Check animation engine selection
+            anim_props = tool.Sequence.get_animation_props()
+            animation_engine = getattr(anim_props, 'animation_engine', 'KEYFRAME')
 
-            tool.Sequence.animate_objects_with_ColorTypes(settings, product_frames)
+            if animation_engine == 'GEOMETRY_NODES':
+                # Use Geometry Nodes animation system
+                print("🔧 Creating animation with Geometry Nodes engine...")
+                try:
+                    # Try to import and initialize GN system
+                    try:
+                        from ..tool import gn_system
+                        gn_system.initialize_complete_gn_system()
+                    except ImportError as import_error:
+                        print(f"⚠️ GN system import failed: {import_error}")
+                        raise Exception(f"Geometry Nodes system not available: {import_error}")
+
+                    from ..tool import gn_sequence
+                    success = gn_sequence.create_complete_gn_animation_system_enhanced(context, work_schedule, settings)
+                    if success:
+                        self.report({'INFO'}, "Geometry Nodes animation created successfully!")
+                    else:
+                        self.report({'ERROR'}, "Failed to create Geometry Nodes animation. Falling back to keyframes.")
+                        # Fallback to keyframes
+                        product_frames = tool.Sequence.get_animation_product_frames_enhanced(work_schedule, settings)
+                        if product_frames:
+                            tool.Sequence.animate_objects_with_ColorTypes(settings, product_frames)
+                except Exception as e:
+                    print(f"❌ Geometry Nodes animation failed: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    self.report({'ERROR'}, f"Geometry Nodes animation failed: {str(e)}. Falling back to keyframes.")
+                    # Fallback to keyframes
+                    product_frames = tool.Sequence.get_animation_product_frames_enhanced(work_schedule, settings)
+                    if product_frames:
+                        tool.Sequence.animate_objects_with_ColorTypes(settings, product_frames)
+            else:
+                # Use traditional keyframe animation system
+                print("🎞️ Creating animation with Keyframe engine...")
+                product_frames = tool.Sequence.get_animation_product_frames_enhanced(work_schedule, settings)
+                if not product_frames:
+                    self.report({'WARNING'}, "No products found to animate.")
+                else:
+                    tool.Sequence.animate_objects_with_ColorTypes(settings, product_frames)
+
+            # Add text animation handler (common for both engines)
             tool.Sequence.add_text_animation_handler(settings)
             
             # --- ADD SCHEDULE NAME TEXT ---

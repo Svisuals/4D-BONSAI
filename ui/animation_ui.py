@@ -25,9 +25,9 @@ from bonsai.bim.module.sequence.data import AnimationColorSchemeData
 
 
 
-class BIM_PT_animation_tools(Panel):
+class BIM_PT_animation_tools_legacy(Panel):
     bl_label = "Animation Tools"
-    bl_idname = "BIM_PT_animation_tools"
+    bl_idname = "BIM_PT_animation_tools_legacy"
     bl_options = {"DEFAULT_CLOSED"}
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
@@ -1006,9 +1006,9 @@ class BIM_PT_animation_tools(Panel):
 
 
 
-class BIM_PT_animation_color_schemes(Panel):
+class BIM_PT_animation_color_schemes_legacy(Panel):
     bl_label = "Animation Color Scheme"
-    bl_idname = "BIM_PT_animation_color_scheme"
+    bl_idname = "BIM_PT_animation_color_schemes_legacy"
     bl_options = {"DEFAULT_CLOSED"}
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"

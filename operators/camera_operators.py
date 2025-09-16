@@ -700,7 +700,88 @@ class AlignSnapshotCameraToView(bpy.types.Operator):
     def execute(self, context):
         try:
             tool.Sequence.align_snapshot_camera_to_view()
-            self.report({'INFO'}, f"Snapshot camera aligned to current view")
+
+            # *** CREAR EMPTY 3D HUD RENDER Y 3D TEXTS PARA SNAPSHOT ***
+            print("📊 Creating/updating 3D HUD components for snapshot camera...")
+            try:
+                # Crear Empty parent si no existe
+                parent_name = "Schedule_Display_Parent"
+                parent_empty = bpy.data.objects.get(parent_name)
+                if not parent_empty:
+                    parent_empty = bpy.data.objects.new(parent_name, None)
+                    bpy.context.scene.collection.objects.link(parent_empty)
+                    parent_empty.empty_display_type = 'PLAIN_AXES'
+                    parent_empty.empty_display_size = 2
+                    print(f"✅ Created Schedule_Display_Parent empty")
+                else:
+                    print(f"✅ Schedule_Display_Parent already exists")
+
+                # Crear 3D Legend HUD si está habilitado
+                anim_props = tool.Sequence.get_animation_props()
+                camera_props = anim_props.camera_orbit
+                legend_hud_enabled = getattr(camera_props, "enable_3d_legend_hud", False)
+                show_3d_texts = getattr(camera_props, "show_3d_schedule_texts", False)
+
+                legend_hud_exists = any(obj.get("is_3d_legend_hud", False) for obj in bpy.data.objects)
+                if not legend_hud_exists and legend_hud_enabled:
+                    bpy.ops.bim.setup_3d_legend_hud()
+                    print("✅ 3D Legend HUD created")
+
+                # Crear 3D texts si no existen
+                texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
+                if not texts_collection or len(texts_collection.objects) == 0:
+                    print("📝 Creating 3D texts for snapshot...")
+
+                    # Obtener datos del schedule
+                    ws_props = tool.Sequence.get_work_schedule_props()
+                    active_schedule_id = getattr(ws_props, "active_work_schedule_id", None)
+
+                    if active_schedule_id:
+                        work_schedule = tool.Ifc.get().by_id(active_schedule_id)
+
+                        from datetime import datetime
+                        snapshot_date = datetime.now()
+                        snapshot_date_str = getattr(ws_props, "visualisation_start", None)
+                        if snapshot_date_str and snapshot_date_str != "-":
+                            try:
+                                snapshot_date = tool.Sequence.parse_isodate_datetime(snapshot_date_str)
+                            except Exception:
+                                pass
+
+                        snapshot_settings = {
+                            "start": snapshot_date,
+                            "finish": snapshot_date,
+                            "start_frame": bpy.context.scene.frame_current,
+                            "total_frames": 1,
+                        }
+
+                        tool.Sequence.create_text_objects_static(snapshot_settings)
+                        print("✅ 3D texts created")
+
+                        # *** APLICAR VISIBILIDAD SEGÚN CHECKBOX ***
+                        should_hide = not getattr(camera_props, "show_3d_schedule_texts", False)
+                        texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
+                        if texts_collection:
+                            texts_collection.hide_viewport = should_hide
+                            texts_collection.hide_render = should_hide
+                            print(f"✅ 3D texts visibility set (hidden: {should_hide})")
+
+                        # *** ORGANIZAR Y ALINEAR LOS TEXTOS 3D ***
+                        try:
+                            bpy.ops.bim.arrange_schedule_texts()
+                            print("✅ 3D texts arranged and aligned")
+                        except Exception as arrange_e:
+                            print(f"⚠️ Could not arrange 3D texts: {arrange_e}")
+
+                    else:
+                        print("⚠️ No active work schedule for 3D texts")
+                else:
+                    print("✅ 3D texts already exist")
+
+            except Exception as hud_e:
+                print(f"⚠️ Could not create 3D HUD components: {hud_e}")
+
+            self.report({'INFO'}, f"Snapshot camera aligned and 3D HUD components updated")
             return {'FINISHED'}
         except Exception as e:
             self.report({'ERROR'}, f"Failed to align snapshot camera: {str(e)}")

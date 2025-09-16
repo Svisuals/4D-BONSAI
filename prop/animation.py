@@ -174,11 +174,22 @@ class UnifiedColorTypeManager:
         if colortype_name not in existing_colortypes:
             # DEFAULT: Start disabled by default
             consider_start = False if (group_name == "DEFAULT") else True
+            # Use distinctive colors based on colortype name instead of generic green/gray
+            color_map = {
+                "LOGISTIC": {"active": [1,1,0,1], "end": [1,0.8,0.3,1]},        # Amarillo->Naranja
+                "DEMOLITION": {"active": [1,0,0,1], "end": [0.5,0,0,1]},       # Rojo->Rojo oscuro
+                "REMOVAL": {"active": [1,0,0,1], "end": [0.5,0,0,1]},          # Rojo->Rojo oscuro
+                "RENOVATION": {"active": [0,0,1,1], "end": [0.5,0.5,1,1]},     # Azul->Azul claro
+                "CONSTRUCTION": {"active": [0,1,0,1], "end": [0.3,1,0.3,1]},   # Verde->Verde claro
+                "INSTALLATION": {"active": [0,1,0,1], "end": [0.3,0.8,0.5,1]}, # Verde->Verde agua
+            }
+            colors = color_map.get(colortype_name, {"active": [1,0,1,1], "end": [1,0.5,1,1]})  # Magenta fallback
+
             colortype_payload = {
-                "name": colortype_name, 
-                "start_color": [1,1,1,0], 
-                "in_progress_color": [0,1,0,1], 
-                "end_color": [0.7,0.7,0.7,1], 
+                "name": colortype_name,
+                "start_color": [1,1,1,0],
+                "in_progress_color": colors["active"],
+                "end_color": colors["end"],
                 "use_end_original_color": True,
                 # Campos completos para consistencia
                 "consider_start": consider_start, 
@@ -819,17 +830,16 @@ def update_task_colortype_group_selector(self, context):
         print(f"❌ Error in update_task_colortype_group_selector: {e}")
 
 def update_ColorType_group(self, context):
-    """Updates active colortype group - Improved with the new system"""
-    
+    """Updates active colortype group - FIXED: No auto-sync to prevent data corruption"""
+
     # Mark that user manually changed ColorType_groups for editing
     self._ColorType_groups_manually_set = True
     print(f"🎯 User manually selected '{self.ColorType_groups}' for editing")
-    
-    # Sync to JSON first
-    try:
-        tool.Sequence.sync_active_group_to_json()
-    except Exception as e:
-        print(f"Error syncing colortypes on group change: {e}")
+
+    # REMOVED: sync_active_group_to_json() - This was causing data corruption
+    # When switching groups, the editor content would overwrite the wrong group
+    # Users must manually save groups with "Save Group" button
+    print(f"⚠️  Group switched to '{self.ColorType_groups}' - use 'Save Group' to persist changes")
 
     # Clean up invalid mappings
     UnifiedColorTypeManager.cleanup_invalid_mappings(context)
@@ -838,38 +848,10 @@ def update_ColorType_group(self, context):
     if self.ColorType_groups:
         UnifiedColorTypeManager.load_colortypes_into_collection(self, context, self.ColorType_groups)
 
-    # Synchronize active task if it exists
-    try:
-        tprops = tool.Sequence.get_task_tree_props()
-        wprops = tool.Sequence.get_work_schedule_props()
-        if tprops.tasks and wprops.active_task_index < len(tprops.tasks):
-            task = tprops.tasks[wprops.active_task_index]
-
-            # Sync the active custom group colortype
-            entry = UnifiedColorTypeManager.sync_task_colortypes(context, task, self.ColorType_groups)
-            if entry and hasattr(task, 'selected_colortype_in_active_group'):
-                # Get valid colortype names for the selected group to avoid enum errors
-                valid_colortypes_dict = UnifiedColorTypeManager.get_group_colortypes(context, self.ColorType_groups)
-                # Ensure that the list of valid profiles always includes a null option.
-                valid_colortype_names = [""] + (list(valid_colortypes_dict.keys()) if valid_colortypes_dict else [])
-                selected_colortype = entry.selected_colortype or ""
-                
-                # Only assign if it's a valid enum value or if no valid colortypes exist
-                # Also allow empty string since we now include it as a valid option
-                # But never assign numeric strings
-                if selected_colortype and selected_colortype.isdigit():
-                    print(f"⚠️ Prevented assignment of numeric enum value '{selected_colortype}', using empty string instead")
-                    safe_set_selected_colortype_in_active_group(task, "")
-                elif selected_colortype in valid_colortype_names:
-                    safe_set_selected_colortype_in_active_group(task, selected_colortype)
-                elif valid_colortype_names and len(valid_colortype_names) > 1:
-                    # If there's an invalid selection but colortypes exist, select the first one
-                    # (which is not the null option, if possible)
-                    safe_set_selected_colortype_in_active_group(task, valid_colortype_names[1])
-                else:
-                    safe_set_selected_colortype_in_active_group(task, "")
-    except Exception as e:
-        print(f"[ERROR] Error in update_colortype_group: {e}")
+    # REMOVED: Task synchronization that was corrupting data
+    # When switching groups in editor, we should NOT modify task colortype assignments
+    # This was causing the last custom group to get overwritten with wrong values
+    print(f"ℹ️  Editor group changed to '{self.ColorType_groups}' - task assignments unchanged")
 
 def safe_set_animation_color_schemes(task_obj, value):
     """Safely sets the animation_color_schemes property with validation"""
@@ -1191,98 +1173,8 @@ class AnimationColorTypeGroupItem(PropertyGroup):
     group: EnumProperty(name="Group", items=get_internal_ColorType_sets_enum)
     enabled: BoolProperty(name="Use", default=True, update=update_legend_hud_on_group_change)
 
-class BIMAnimationProperties(PropertyGroup):
-    """Animation properties with improved colortype system"""
-    
-    # Unified colortype system
-    active_ColorType_system: EnumProperty(
-        name="ColorType System",
-        items=[
-            ("ColorTypeS", "Animation Color Schemes", "Use advanced ColorType system"),
-        ],
-        default="ColorTypeS"
-    )
-    
-    # Animation group stack
-    animation_group_stack: CollectionProperty(name="Animation Group Stack", type=AnimationColorTypeGroupItem)
-    animation_group_stack_index: IntProperty(name="Animation Group Stack Index", default=-1)
-    
-    # State and configuration
-    is_editing: BoolProperty(name="Is Loaded", default=False)
-    saved_colortype_name: StringProperty(name="colortype Set Name", default="Default")
-    
-    # Animation Color Scheme
-    ColorTypes: CollectionProperty(name="Animation Color Scheme", type=AnimationColorSchemes)
-    active_ColorType_index: IntProperty(name="Active ColorType Index")
-    ColorType_groups: EnumProperty(name="ColorType Group", items=get_internal_ColorType_sets_enum, update=update_ColorType_group)
-
-    # Bandera para controlar si la animación ha sido creada al menos una vez.
-    is_animation_created: BoolProperty(
-        name="Is Animation Created",
-        description="Internal flag to check if the main animation has been created at least once",
-        default=False
-    )
-
-    # New property, only for the Tasks panel UI, which excludes 'DEFAULT'
-    task_colortype_group_selector: EnumProperty(
-        name="Custom colortype Group",
-        items=get_user_created_groups_enum,
-        update=update_task_colortype_group_selector
-    )
-   
-    # UI toggles
-    show_saved_task_colortypes_panel: BoolProperty(name="Show Saved colortypes", default=False)
-    should_show_task_bar_options: BoolProperty(name="Show Task Bar Options", default=False)
-
-    # --- NEW: Live Color Updates ---
-    enable_live_color_updates: BoolProperty(
-        name="Live Color Updates",
-        description="Enable to update object colors dynamically during animation playback when changing ColorType groups. Disable for faster playback and rendering (bakes colors).",
-        default=False,
-        update=toggle_live_color_updates
-    )
-    
-    # Task bar colors
-    color_full: FloatVectorProperty(
-        name="Full Bar",
-        subtype="COLOR", size=4,
-        default=(1.0, 0.0, 0.0, 1.0),
-        min=0.0, max=1.0,
-        description="Color for full task bar",
-        update=update_color_full,
-    )
-    color_progress: FloatVectorProperty(
-        name="Progress Bar",
-        subtype="COLOR", size=4,
-        default=(0.0, 1.0, 0.0, 1.0),
-        min=0.0, max=1.0,
-        description="Color for progress task bar",
-        update=update_color_progress,
-    )
-    
-    # Legacy properties (maintain for compatibility)
-    saved_color_schemes: EnumProperty(items=get_saved_color_schemes, name="Saved Colour Schemes")
-    active_color_component_outputs_index: IntProperty(name="Active Color Component Index")
-    active_color_component_inputs_index: IntProperty(name="Active Color Component Index")
-    
-    if TYPE_CHECKING:
-        active_ColorType_system: str
-        animation_group_stack: bpy.types.bpy_prop_collection_idprop[AnimationColorTypeGroupItem]
-        animation_group_stack_index: int
-        is_editing: bool
-        saved_colortype_name: str
-        ColorTypes: bpy.types.bpy_prop_collection_idprop[AnimationColorSchemes]
-        active_ColorType_index: int
-        ColorType_groups: str
-        task_colortype_group_selector: str
-        show_saved_task_colortypes_panel: bool
-        should_show_task_bar_options: bool
-        enable_live_color_updates: bool
-        color_full: Color
-        color_progress: Color
-        saved_color_schemes: str
-        active_color_component_outputs_index: int
-        active_color_component_inputs_index: int
+# BIMAnimationProperties class is defined in animation_prop.py and imported here for compatibility
+from .animation_prop import BIMAnimationProperties
 
 # ============================================================================
 # HELPER FUNCTIONS

@@ -44,7 +44,7 @@ classes = (
     
     # De animation_prop.py
     BIMTaskTypeColor, AnimationColorSchemes, AnimationColorTypeGroupItem,
-    BIMAnimationProperties,
+    BIMAnimationProperties, BIM_GN_Controller_Properties,
     
     # De camera_prop.py
     BIMCameraOrbitProperties,
@@ -61,6 +61,7 @@ def register():
 
     BIMWorkScheduleProperties.filters = PointerProperty(type=BIMTaskFilterProperties)
     BIMAnimationProperties.camera_orbit = PointerProperty(type=BIMCameraOrbitProperties)
+    bpy.types.Object.BonsaiGNController = PointerProperty(type=BIM_GN_Controller_Properties)
 
 def unregister():
     """Desregistra todas las clases en orden inverso."""
@@ -68,6 +69,8 @@ def unregister():
         del BIMWorkScheduleProperties.filters
     if hasattr(BIMAnimationProperties, 'camera_orbit'):
         del BIMAnimationProperties.camera_orbit
+    if hasattr(bpy.types.Object, 'BonsaiGNController'):
+        del bpy.types.Object.BonsaiGNController
 
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

@@ -76,6 +76,11 @@ from typing import Optional, Dict, Any
 
 try:
     import bonsai.tool as tool
+except ImportError:
+    # For development context where bonsai.tool might not be available
+    tool = None
+
+try:
     from .gn_sequence import (
         create_complete_gn_animation_system_enhanced,
         cleanup_enhanced_gn_system,

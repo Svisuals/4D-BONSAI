@@ -2,8 +2,10 @@
 import bpy
 try:
     import bonsai.tool as tool
+    from .gn_sequence import GN_MODIFIER_NAME
 except ImportError:
     tool = None
+    GN_MODIFIER_NAME = "Bonsai 4D"
 
 def integrate_gn_with_hud_systems():
     """
@@ -125,7 +127,7 @@ def update_gn_modifier_with_integration_data(context):
     for obj in context.scene.objects:
         if obj.type == 'MESH':
             for mod in obj.modifiers:
-                if mod.name == "Bonsai 4D Animation" and mod.type == 'NODES':
+                if mod.name == GN_MODIFIER_NAME and mod.type == 'NODES':
                     # Update speed multiplier - try different socket names
                     speed_updated = False
                     for speed_socket in ['Socket_4', 'Input_5', 'Speed Multiplier']:

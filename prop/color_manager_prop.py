@@ -143,11 +143,22 @@ class UnifiedColorTypeManager:
         if colortype_name not in existing_colortypes:
             # DEFAULT: Start disabled by default
             consider_start = False if (group_name == "DEFAULT") else True
+            # Use distinctive colors based on colortype name instead of generic green/gray
+            color_map = {
+                "LOGISTIC": {"active": [1,1,0,1], "end": [1,0.8,0.3,1]},        # Amarillo->Naranja
+                "DEMOLITION": {"active": [1,0,0,1], "end": [0.5,0,0,1]},       # Rojo->Rojo oscuro
+                "REMOVAL": {"active": [1,0,0,1], "end": [0.5,0,0,1]},          # Rojo->Rojo oscuro
+                "RENOVATION": {"active": [0,0,1,1], "end": [0.5,0.5,1,1]},     # Azul->Azul claro
+                "CONSTRUCTION": {"active": [0,1,0,1], "end": [0.3,1,0.3,1]},   # Verde->Verde claro
+                "INSTALLATION": {"active": [0,1,0,1], "end": [0.3,0.8,0.5,1]}, # Verde->Verde agua
+            }
+            colors = color_map.get(colortype_name, {"active": [1,0,1,1], "end": [1,0.5,1,1]})  # Magenta fallback
+
             colortype_payload = {
-                "name": colortype_name, 
-                "start_color": [1,1,1,0], 
-                "in_progress_color": [0,1,0,1], 
-                "end_color": [0.7,0.7,0.7,1], 
+                "name": colortype_name,
+                "start_color": [1,1,1,0],
+                "in_progress_color": colors["active"],
+                "end_color": colors["end"],
                 "use_end_original_color": True,
                 # Campos completos para consistencia
                 "consider_start": consider_start, 

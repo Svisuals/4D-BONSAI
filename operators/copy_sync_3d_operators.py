@@ -307,34 +307,22 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
             # Force viewport update to ensure everything is ready
             bpy.context.view_layer.update()
             
-            # *** ENHANCED FIX: Use appropriate text creation method ***
-            # If no 3D texts exist, create static ones; if they exist, refresh them properly
+            # *** 3D TEXTS ARE CREATED WHEN SNAPSHOT CAMERA IS CREATED ***
+            # Only refresh existing texts with snapshot date, don't create new ones
             try:
                 texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
-                has_existing_texts = texts_collection and len(texts_collection.objects) > 0
-
-                if has_existing_texts:
-                    # There are existing texts, use the enhanced refresh method
-                    print("📸 DEBUG: Existing 3D texts found, using refresh method")
+                if texts_collection and len(texts_collection.objects) > 0:
+                    print("📸 DEBUG: Refreshing existing 3D texts for snapshot date")
                     bpy.ops.bim.refresh_snapshot_texts()
                     print("✅ DEBUG: 3D texts refreshed for snapshot date")
                 else:
-                    # No existing texts, create static ones for snapshot-only mode
-                    print("📸 DEBUG: No existing 3D texts, creating static ones for snapshot")
-                    bpy.ops.bim.create_static_snapshot_texts()
-                    print("✅ DEBUG: Static 3D texts created for snapshot")
+                    print("📸 DEBUG: No 3D texts found - they should have been created with snapshot camera")
 
             except Exception as e:
-                print(f"⚠️ DEBUG: Failed to handle snapshot texts: {e}")
-                # Fallback: try the old refresh method
-                try:
-                    bpy.ops.bim.refresh_snapshot_texts()
-                    print("✅ DEBUG: Fallback 3D texts refresh succeeded")
-                except Exception as fallback_e:
-                    print(f"❌ DEBUG: Fallback also failed: {fallback_e}")
-                
+                print(f"⚠️ DEBUG: Failed to refresh snapshot texts: {e}")
+
         except Exception as e:
-            print(f"⚠️ DEBUG: Could not update 3D texts visibility: {e}")
+            print(f"⚠️ DEBUG: Could not handle 3D texts: {e}")
         
         # Check 3D texts after snapshot
         print("🔍 DEBUG: Checking 3D texts after snapshot...")

@@ -20,6 +20,13 @@ from . import work_plan_operators
 from . import color_scheme_operators
 from .animation_operators import CreateAnimation, ClearAnimation, AddAnimationTaskType, RemoveAnimationTaskType, AddAnimationCamera, ClearPreviousAnimation, ClearPreviousSnapshot, SyncAnimationByDate
 
+# Import debug operators conditionally
+try:
+    from . import debug_gn_operators
+    DEBUG_GN_AVAILABLE = True
+except ImportError:
+    DEBUG_GN_AVAILABLE = False
+
 # A single tuple containing all operator classes to be registered
 
 classes = (
@@ -230,6 +237,7 @@ classes = (
     animation_operators.ClearPreviousAnimation,
     animation_operators.ClearPreviousSnapshot,
     animation_operators.SyncAnimationByDate,
+    animation_operators.AddGNViewController,
     
     # from navigation_operators.py
     navigation_operators.NavigateColumnsLeft,
@@ -249,6 +257,14 @@ classes = (
     config_operators.BIM_OT_show_performance_stats,
     config_operators.BIM_OT_clear_performance_cache,
 )
+
+# Add debug operators if available
+if DEBUG_GN_AVAILABLE:
+    debug_classes = (
+        debug_gn_operators.BIM_OT_DebugGNSystem,
+        debug_gn_operators.BIM_OT_TestGNSystem,
+    )
+    classes = classes + debug_classes
 
 def register():
     """Registers all operator classes."""

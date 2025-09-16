@@ -17,8 +17,8 @@ except ImportError:
     print("⚠️ Could not import enhanced GN system")
     tool = None
 
-# Animation mode constants
-ANIMATION_MODE_KEYFRAMES = "KEYFRAMES"
+# Animation mode constants - V113 compatible
+ANIMATION_MODE_KEYFRAMES = "KEYFRAME"
 ANIMATION_MODE_GEOMETRY_NODES = "GEOMETRY_NODES"
 
 def get_current_animation_mode():
@@ -31,10 +31,10 @@ def get_current_animation_mode():
         # Check if there's a mode selector property
         if hasattr(scene, 'BIMAnimationProperties'):
             anim_props = scene.BIMAnimationProperties
-            if hasattr(anim_props, 'animation_mode'):
-                return anim_props.animation_mode
+            if hasattr(anim_props, 'animation_engine'):
+                return anim_props.animation_engine
 
-        # For now, return KEYFRAMES as default
+        # For now, return KEYFRAME as default
         return ANIMATION_MODE_KEYFRAMES
 
     except Exception as e:
@@ -390,8 +390,8 @@ class GNAnimationModeProperty(bpy.types.PropertyGroup):
         name="Animation Mode",
         description="Choose between Keyframes and Geometry Nodes animation systems",
         items=[
-            (ANIMATION_MODE_KEYFRAMES, "Keyframes", "Traditional keyframe-based animation", 0),
-            (ANIMATION_MODE_GEOMETRY_NODES, "Geometry Nodes", "High-performance Geometry Nodes animation", 1)
+            (ANIMATION_MODE_KEYFRAMES, "Keyframe (Legacy)", "Hornea la animación a fotogramas clave.", 0),
+            (ANIMATION_MODE_GEOMETRY_NODES, "Geometry Nodes (Real-time)", "Alto rendimiento para escenas grandes.", 1)
         ],
         default=ANIMATION_MODE_KEYFRAMES,
         update=lambda self, context: on_animation_mode_change(self, context)

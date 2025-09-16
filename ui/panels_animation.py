@@ -391,6 +391,47 @@ class BIM_PT_animation_tools(Panel):
                 icon=tool.Blender.SEQUENCE_COLOR_SCHEME_ICON,
             )
 
+        # === ANIMATION ENGINE SELECTOR ===
+        engine_box = self.layout.box()
+        engine_box.label(text="Animation Engine:", icon="SETTINGS")
+        engine_row = engine_box.row(align=True)
+        engine_row.prop(self.animation_props, "animation_engine", expand=True)
+
+        # === GEOMETRY NODES ENGINE SPECIFIC CONTROLS ===
+        if self.animation_props.animation_engine == 'GEOMETRY_NODES':
+            gn_box = self.layout.box()
+            gn_box.label(text="Geometry Nodes Controls:", icon="GEOMETRY_NODES")
+
+            # Controller management
+            controller_row = gn_box.row(align=True)
+            controller_row.operator("bim.add_gn_view_controller", text="Add Controller", icon="ADD")
+
+            # Show active controllers info and controls
+            try:
+                import bpy
+                controllers = [obj for obj in bpy.context.scene.objects if hasattr(obj, "BonsaiGNController")]
+                if controllers:
+                    info_row = gn_box.row()
+                    info_row.label(text=f"Active Controllers: {len(controllers)}", icon="EMPTY_AXIS")
+
+                    # Show controller-specific settings for the active object
+                    active_obj = bpy.context.active_object
+                    if active_obj and hasattr(active_obj, "BonsaiGNController"):
+                        ctrl_props = active_obj.BonsaiGNController
+                        ctrl_box = gn_box.box()
+                        ctrl_box.label(text=f"Controller: {active_obj.name}", icon="EMPTY_AXIS")
+
+                        # Schedule Type and ColorType Group are managed from Animation Settings (like keyframes mode)
+                        # No UI needed here - all settings flow automatically from Animation Settings
+                        ctrl_row = ctrl_box.row(align=True)
+                        ctrl_row.label(text="Settings managed from Animation Settings", icon='INFO')
+                else:
+                    info_row = gn_box.row()
+                    info_row.label(text="No controllers found - Add one to get started", icon="INFO")
+            except Exception as e:
+                error_row = gn_box.row()
+                error_row.label(text=f"Error: {e}", icon="ERROR")
+
         # === MAIN BUTTONS - Animation Settings ===
         main_actions_box = self.layout.box()
         main_actions_box.label(text="Animation Actions:", icon="OUTLINER_OB_CAMERA")
@@ -1047,7 +1088,8 @@ class BIM_PT_animation_tools(Panel):
     def draw(self, context):
         self.props = tool.Sequence.get_work_schedule_props()
         self.animation_props = tool.Sequence.get_animation_props()
-        
+
+
         row = self.layout.row(align=True)
         row.alignment = "RIGHT"
         row.prop(self.props, "should_show_visualisation_ui", text="Animation Settings", icon="SETTINGS")

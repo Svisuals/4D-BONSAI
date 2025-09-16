@@ -23,9 +23,8 @@ import bpy
 from . import ui, prop, hud
 from . import operators
 
-
+# Main classes - debug operators excluded to avoid import issues
 classes = (
-    
     # UI Panels & Lists from ui.py
     ui.BIM_PT_work_plans,
     ui.BIM_PT_work_schedules,
@@ -124,6 +123,18 @@ def register():
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
 
+    # Initialize GN system integration
+    try:
+        from .tool.gn_system import initialize_complete_gn_system
+        initialize_complete_gn_system()
+        print("✅ GN system initialization completed during addon registration")
+    except ImportError as e:
+        print(f"⚠️ GN system initialization skipped (import error): {e}")
+        # Continue with addon registration even if GN system fails
+    except Exception as e:
+        print(f"⚠️ GN system initialization failed during addon registration: {e}")
+        # Continue with addon registration even if GN system fails
+
 # --- Seed DEFAULT Animation Color Schemes group if none exists, and select it ---
 try:
     import json
@@ -179,6 +190,16 @@ except Exception:
 
 
 def unregister():
+    # Clean up GN system integration first
+    try:
+        from .tool.gn_system import cleanup_complete_gn_system
+        cleanup_complete_gn_system()
+        print("✅ GN system cleanup completed during addon unregistration")
+    except ImportError as e:
+        print(f"⚠️ GN system cleanup skipped (import error): {e}")
+    except Exception as e:
+        print(f"⚠️ GN system cleanup failed during addon unregistration: {e}")
+
     # Unregister operators from operators module first
     operators.unregister()
     

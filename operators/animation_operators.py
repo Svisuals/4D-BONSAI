@@ -22,10 +22,51 @@ class CreateAnimation(bpy.types.Operator, tool.Ifc.Operator):
         frames = {}
         props = tool.Sequence.get_work_schedule_props()
         anim_props = tool.Sequence.get_animation_props()
-        
-        # ... (código existente de la función) ...
 
+        # Check animation mode and delegate to appropriate system
+        animation_engine = getattr(anim_props, 'animation_engine', 'KEYFRAME')
+
+        if animation_engine == 'GEOMETRY_NODES':
+            print("🚀 Using Geometry Nodes animation system")
+            return self._execute_gn_animation(context, stored_frame)
+        else:
+            print("🎬 Using traditional Keyframes animation system")
+            return self._execute_keyframes_animation(context, stored_frame)
+
+    def _execute_gn_animation(self, context, stored_frame):
+        """Execute animation creation using Geometry Nodes system"""
         try:
+            from ..tool.gn_system import create_gn_animation_auto
+
+            # Use the GN system
+            result = create_gn_animation_auto(preserve_current_frame=self.preserve_current_frame)
+
+            if result == {'FINISHED'}:
+                anim_props = tool.Sequence.get_animation_props()
+                anim_props.is_animation_created = True
+                self.report({'INFO'}, "Geometry Nodes animation created successfully")
+                return {'FINISHED'}
+            else:
+                self.report({'ERROR'}, "Failed to create Geometry Nodes animation")
+                return {'CANCELLED'}
+
+        except Exception as e:
+            self.report({'ERROR'}, f"GN Animation failed: {e}")
+            return {'CANCELLED'}
+
+    def _execute_keyframes_animation(self, context, stored_frame):
+        """Execute animation creation using traditional keyframes system"""
+        try:
+            work_schedule = tool.Sequence.get_active_work_schedule()
+            if not work_schedule:
+                self.report({'ERROR'}, "No active work schedule found")
+                return {'CANCELLED'}
+
+            settings = tool.Sequence.get_animation_settings()
+            if not settings:
+                self.report({'ERROR'}, "Could not calculate animation settings")
+                return {'CANCELLED'}
+
             frames = _compute_product_frames(context, work_schedule, settings)
             _apply_colortype_animation(context, frames, settings)
         except Exception as e:
@@ -126,7 +167,43 @@ class ClearAnimation(bpy.types.Operator, tool.Ifc.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def _execute(self, context):
+        anim_props = tool.Sequence.get_animation_props()
+        animation_engine = getattr(anim_props, 'animation_engine', 'KEYFRAME')
+
+        if animation_engine == 'GEOMETRY_NODES':
+            print("🧹 Clearing Geometry Nodes animation system")
+            return self._clear_gn_animation(context)
+        else:
+            print("🧹 Clearing traditional Keyframes animation system")
+            return self._clear_keyframes_animation(context)
+
+    def _clear_gn_animation(self, context):
+        """Clear animation using Geometry Nodes system"""
+        try:
+            from ..tool.gn_system import clear_gn_animation_auto
+
+            result = clear_gn_animation_auto()
+
+            if result == {'FINISHED'}:
+                anim_props = tool.Sequence.get_animation_props()
+                anim_props.is_animation_created = False
+                self.report({'INFO'}, "Geometry Nodes animation cleared")
+                return {'FINISHED'}
+            else:
+                self.report({'ERROR'}, "Failed to clear Geometry Nodes animation")
+                return {'CANCELLED'}
+
+        except Exception as e:
+            self.report({'ERROR'}, f"GN Clear failed: {e}")
+            return {'CANCELLED'}
+
+    def _clear_keyframes_animation(self, context):
+        """Clear animation using traditional keyframes system"""
         _clear_previous_animation(context)
+
+        anim_props = tool.Sequence.get_animation_props()
+        anim_props.is_animation_created = False
+
         self.report({'INFO'}, "Previous animation cleared")
         return {'FINISHED'}
 
@@ -666,3 +743,48 @@ def _clear_previous_animation(context) -> None:
         print(f"Bonsai WARNING: Ocurrió un error durante la limpieza de la animación: {e}")
         import traceback
         traceback.print_exc()
+
+
+class AddGNViewController(bpy.types.Operator):
+    bl_idname = "bim.add_gn_view_controller"
+    bl_label = "Add GN View Controller"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        try:
+            # Import GN sequence constants
+            from ..tool import gn_sequence
+
+            # Create or get the controller collection
+            coll_name = gn_sequence.GN_CONTROLLER_COLLECTION
+            if coll_name not in bpy.data.collections:
+                coll = bpy.data.collections.new(coll_name)
+                context.scene.collection.children.link(coll)
+            else:
+                coll = bpy.data.collections[coll_name]
+
+            # Create the controller object (Empty)
+            bpy.ops.object.empty_add(type='PLAIN_AXES')
+            controller = context.active_object
+            controller.name = "GN_4D_Controller"
+
+            # Move to the correct collection and unlink from others
+            for c in controller.users_collection:
+                c.objects.unlink(controller)
+            coll.objects.link(controller)
+
+            # Set default properties
+            if hasattr(controller, "BonsaiGNController"):
+                ctrl_props = controller.BonsaiGNController
+                ctrl_props.schedule_type_to_display = '0'  # Schedule by default
+                # The colortype_group_to_display will use the dynamic enum
+
+            self.report({'INFO'}, f"Controller '{controller.name}' created in collection '{coll_name}'.")
+            return {'FINISHED'}
+
+        except ImportError:
+            self.report({'ERROR'}, "GN sequence module not available")
+            return {'CANCELLED'}
+        except Exception as e:
+            self.report({'ERROR'}, f"Failed to create controller: {e}")
+            return {'CANCELLED'}

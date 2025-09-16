@@ -141,18 +141,21 @@ class BIMAnimationProperties(PropertyGroup):
     # State and configuration
     is_editing: BoolProperty(name="Is Loaded", default=False)
     saved_colortype_name: StringProperty(name="colortype Set Name", default="Default")
+
+    # Animation engine selection - compatible with V113
+    animation_engine: EnumProperty(
+        name="Animation Engine",
+        items=[
+            ('KEYFRAME', "Keyframe (Legacy)", "Hornea la animación a fotogramas clave."),
+            ('GEOMETRY_NODES', "Geometry Nodes (Real-time)", "Alto rendimiento para escenas grandes.")
+        ],
+        default='KEYFRAME'
+    )
     
     # Animation Color Scheme
     ColorTypes: CollectionProperty(name="Animation Color Scheme", type=AnimationColorSchemes)
     active_ColorType_index: IntProperty(name="Active ColorType Index")
     ColorType_groups: EnumProperty(name="ColorType Group", items=enums.get_internal_ColorType_sets_enum, update=callbacks.update_ColorType_group)
-
-    # Bandera para controlar si la animación ha sido creada al menos una vez.
-    is_animation_created: BoolProperty(
-        name="Is Animation Created",
-        description="Internal flag to check if the main animation has been created at least once",
-        default=False
-    )
 
     # New property, only for the Tasks panel UI, which excludes 'DEFAULT'
     task_colortype_group_selector: EnumProperty(
@@ -160,7 +163,7 @@ class BIMAnimationProperties(PropertyGroup):
         items=enums.get_user_created_groups_enum,
         update=callbacks.update_task_colortype_group_selector
     )
-   
+
     # UI toggles
     show_saved_task_colortypes_panel: BoolProperty(name="Show Saved colortypes", default=False)
     should_show_task_bar_options: BoolProperty(name="Show Task Bar Options", default=False)
@@ -172,8 +175,33 @@ class BIMAnimationProperties(PropertyGroup):
         default=False,
         update=callbacks.toggle_live_color_updates
     )
-    
-    
+
+
+class BIM_GN_Controller_Properties(bpy.types.PropertyGroup):
+    """Properties for Geometry Nodes Controllers"""
+    schedule_type_to_display: EnumProperty(
+        name="Schedule",
+        description="Elige qué cronograma mostrar",
+        items=[
+            ('0', "Schedule", ""),
+            ('1', "Actual", "")
+        ],
+        default='0'
+    )
+    colortype_group_to_display: StringProperty(
+        name="Color Group",
+        description="Currently active ColorType group from Animation Settings (informational only)",
+        default="DEFAULT"
+    )
+    ColorType_groups: EnumProperty(name="ColorType Group", items=enums.get_internal_ColorType_sets_enum, update=callbacks.update_ColorType_group)
+
+    # Bandera para controlar si la animación ha sido creada al menos una vez.
+    is_animation_created: BoolProperty(
+        name="Is Animation Created",
+        description="Internal flag to check if the main animation has been created at least once",
+        default=False
+    )
+
     # Task bar colors
     color_full: FloatVectorProperty(
         name="Full Bar",

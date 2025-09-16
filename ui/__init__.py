@@ -17,10 +17,7 @@ their centralized registration and unregistration in Blender.
 import bpy
 
 # 1. Importar todas las clases desde los nuevos módulos de UI
-from .animation_ui import (
-    BIM_PT_animation_tools,
-    BIM_PT_animation_color_schemes,
-)
+# Removed import from animation_ui - using panels_animation instead
 from .lists_ui import (
     BIM_UL_animation_group_stack,
     BIM_UL_task_columns,
@@ -47,6 +44,10 @@ from .schedule_ui import (
 )
 from .panels_schedule import (
     BIM_PT_status,
+)
+from .panels_animation import (
+    BIM_PT_animation_tools,
+    BIM_PT_animation_color_schemes,
 )
 
 # 2. Agrupar todas las clases en una sola tupla para facilitar el registro

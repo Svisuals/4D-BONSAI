@@ -1250,17 +1250,16 @@ def monitor_predefined_type_change(context):
 
 
 def update_ColorType_group(self, context):
-    """Updates active colortype group - Improved with the new system"""
-    
+    """Updates active colortype group - FIXED: No auto-sync to prevent data corruption"""
+
     # Mark that user manually changed ColorType_groups for editing
     self._ColorType_groups_manually_set = True
     print(f"🎯 User manually selected '{self.ColorType_groups}' for editing")
-    
-    # Sync to JSON first
-    try:
-        tool.Sequence.sync_active_group_to_json()
-    except Exception as e:
-        print(f"Error syncing colortypes on group change: {e}")
+
+    # REMOVED: sync_active_group_to_json() - This was causing data corruption
+    # When switching groups, the editor content would overwrite the wrong group
+    # Users must manually save groups with "Save Group" button
+    print(f"⚠️  Group switched to '{self.ColorType_groups}' - use 'Save Group' to persist changes")
 
     # Clean up invalid mappings
     UnifiedColorTypeManager.cleanup_invalid_mappings(context)
@@ -1269,40 +1268,10 @@ def update_ColorType_group(self, context):
     if self.ColorType_groups:
         UnifiedColorTypeManager.load_colortypes_into_collection(self, context, self.ColorType_groups)
 
-    # Synchronize active task if it exists
-    try:
-        tprops = tool.Sequence.get_task_tree_props()
-        wprops = tool.Sequence.get_work_schedule_props()
-        if tprops.tasks and wprops.active_task_index < len(tprops.tasks):
-            task = tprops.tasks[wprops.active_task_index]
-
-            # Sync the active custom group colortype
-            entry = UnifiedColorTypeManager.sync_task_colortypes(context, task, self.ColorType_groups)
-            if entry and hasattr(task, 'selected_colortype_in_active_group'):
-                # Get valid colortype names for the selected group to avoid enum errors
-                valid_colortypes_dict = UnifiedColorTypeManager.get_group_colortypes(context, self.ColorType_groups)
-                # --- START OF CORRECTION ---
-                # Ensure that the list of valid profiles always includes a null option.
-                valid_colortype_names = [""] + (list(valid_colortypes_dict.keys()) if valid_colortypes_dict else [])
-                selected_colortype = entry.selected_colortype or ""
-                
-                # Only assign if it's a valid enum value or if no valid colortypes exist
-                # Also allow empty string since we now include it as a valid option
-                # But never assign numeric strings
-                if selected_colortype and selected_colortype.isdigit():
-                    print(f"⚠️ Prevented assignment of numeric enum value '{selected_colortype}', using empty string instead")
-                    safe_set_selected_colortype_in_active_group(task, "")
-                elif selected_colortype in valid_colortype_names:
-                    safe_set_selected_colortype_in_active_group(task, selected_colortype)
-                elif valid_colortype_names and len(valid_colortype_names) > 1:
-                    # If there's an invalid selection but colortypes exist, select the first one
-                    # (which is not the null option, if possible)
-                    safe_set_selected_colortype_in_active_group(task, valid_colortype_names[1])
-                else:
-                    safe_set_selected_colortype_in_active_group(task, "")
-                # --- FIN DE LA CORRECCIÓN ---
-    except Exception as e:
-        print(f"[ERROR] Error in update_colortype_group: {e}")
+    # REMOVED: Task synchronization that was corrupting data
+    # When switching groups in editor, we should NOT modify task colortype assignments
+    # This was causing the last custom group to get overwritten with wrong values
+    print(f"ℹ️  Editor group changed to '{self.ColorType_groups}' - task assignments unchanged")
 
 
 def updateAssignedResourceName(self, context):
