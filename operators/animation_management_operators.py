@@ -29,6 +29,19 @@ class ClearPreviousAnimation(bpy.types.Operator, tool.Ifc.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def _execute(self, context):
+        print("🔄 Starting Reset Animation...")
+
+        # Detect current animation mode
+        animation_mode = "Unknown"
+        is_gn_mode = False
+        try:
+            from ..tool.gn_ui import is_geometry_nodes_mode, get_current_animation_mode
+            is_gn_mode = is_geometry_nodes_mode()
+            animation_mode = get_current_animation_mode()
+            print(f"🎯 Detected animation mode: {animation_mode} (GN Mode: {is_gn_mode})")
+        except ImportError:
+            print("⚠️ Could not detect animation mode - proceeding with general cleanup")
+
         # CORRECCIÓN: Detener la animación si se está reproduciendo
         try:
             if bpy.context.screen.is_animation_playing:
@@ -38,6 +51,7 @@ class ClearPreviousAnimation(bpy.types.Operator, tool.Ifc.Operator):
 
         # CORRECCIÓN: Limpieza completa de la animación previa
         try:
+            print(f"🧹 Clearing animation for mode: {animation_mode}")
             _clear_previous_animation(context)
             
             # Limpiar el grupo de perfil activo en HUD Legend
@@ -73,11 +87,13 @@ class ClearPreviousAnimation(bpy.types.Operator, tool.Ifc.Operator):
             except Exception as legend_e:
                 print(f"⚠️ Could not clear colortype group: {legend_e}")
             
-            self.report({'INFO'}, "Previous animation cleared.")
+            self.report({'INFO'}, f"Animation reset completed (Mode: {animation_mode})")
             context.scene.frame_set(context.scene.frame_start)
+            print(f"✅ Reset completed for {animation_mode} mode")
             return {'FINISHED'}
         except Exception as e:
-            self.report({'ERROR'}, f"Failed to clear previous animation: {e}")
+            self.report({'ERROR'}, f"Failed to reset animation: {e}")
+            print(f"❌ Reset failed: {e}")
             return {"CANCELLED"}
 
     # CORRECCIÓN: Este método 'execute' AHORA ESTÁ DENTRO de la clase.

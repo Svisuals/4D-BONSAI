@@ -17,11 +17,11 @@ except ImportError:
     print("⚠️ Could not import enhanced GN system")
     tool = None
 
-# Animation mode constants - V113 compatible
-ANIMATION_MODE_KEYFRAMES = "KEYFRAME"
-ANIMATION_MODE_GEOMETRY_NODES = "GEOMETRY_NODES"
+# Animation mode constants
+animation_engine_KEYFRAMES = "KEYFRAMES"
+animation_engine_GEOMETRY_NODES = "GEOMETRY_NODES"
 
-def get_current_animation_mode():
+def get_current_animation_engine():
     """Get the current animation mode setting"""
     try:
         # This would read from a property that determines the animation mode
@@ -34,23 +34,23 @@ def get_current_animation_mode():
             if hasattr(anim_props, 'animation_engine'):
                 return anim_props.animation_engine
 
-        # For now, return KEYFRAME as default
-        return ANIMATION_MODE_KEYFRAMES
+        # For now, return KEYFRAMES as default
+        return animation_engine_KEYFRAMES
 
     except Exception as e:
         print(f"⚠️ Error getting animation mode: {e}")
-        return ANIMATION_MODE_KEYFRAMES
+        return animation_engine_KEYFRAMES
 
 def is_geometry_nodes_mode():
     """Check if Geometry Nodes animation mode is active"""
-    return get_current_animation_mode() == ANIMATION_MODE_GEOMETRY_NODES
+    return get_current_animation_engine() == animation_engine_GEOMETRY_NODES
 
 def enhanced_toggle_live_color_updates(animation_props, context):
     """
     ETAPA 4: Enhanced version of toggle_live_color_updates that handles both
     Keyframes and Geometry Nodes modes
     """
-    print(f"🔄 Enhanced live color toggle: mode={get_current_animation_mode()}, enabled={animation_props.enable_live_color_updates}")
+    print(f"🔄 Enhanced live color toggle: mode={get_current_animation_engine()}, enabled={animation_props.enable_live_color_updates}")
 
     try:
         if animation_props.enable_live_color_updates:
@@ -104,10 +104,10 @@ def enhanced_create_animation_execute(original_execute_func):
     """
     def wrapper(self, context):
         try:
-            animation_mode = get_current_animation_mode()
-            print(f"🎬 Creating animation in {animation_mode} mode")
+            animation_engine = get_current_animation_engine()
+            print(f"🎬 Creating animation in {animation_engine} mode")
 
-            if animation_mode == ANIMATION_MODE_GEOMETRY_NODES:
+            if animation_engine == animation_engine_GEOMETRY_NODES:
                 return execute_gn_animation_creation(self, context)
             else:
                 return original_execute_func(self, context)
@@ -126,6 +126,17 @@ def execute_gn_animation_creation(operator, context):
     Execute Geometry Nodes animation creation
     """
     try:
+        # ---> INICIO DE LA MODIFICACIÓN <---
+        print("📸 Capturing UI state snapshot for GN system...")
+        try:
+            from ..operator import snapshot_all_ui_state
+            snapshot_all_ui_state(context)
+        except (ImportError, ValueError):
+            # Fallback import path
+            from bonsai.bim.operator import snapshot_all_ui_state
+            snapshot_all_ui_state(context)
+        # ---> FIN DE LA MODIFICACIÓN <---
+
         print("🚀 Executing GN animation creation...")
 
         # Get work schedule
@@ -175,10 +186,10 @@ def enhanced_clear_animation_execute(original_execute_func):
     """
     def wrapper(self, context):
         try:
-            animation_mode = get_current_animation_mode()
-            print(f"🧹 Clearing animation in {animation_mode} mode")
+            animation_engine = get_current_animation_engine()
+            print(f"🧹 Clearing animation in {animation_engine} mode")
 
-            if animation_mode == ANIMATION_MODE_GEOMETRY_NODES:
+            if animation_engine == animation_engine_GEOMETRY_NODES:
                 return execute_gn_animation_clearing(self, context)
             else:
                 # Also clean GN system in case it was used before
@@ -271,7 +282,7 @@ def patch_live_color_callback():
     except Exception as e:
         print(f"⚠️ Could not patch live color callback: {e}")
 
-def add_animation_mode_selector():
+def add_animation_engine_selector():
     """
     ETAPA 4: Add animation mode selector to animation properties
     """
@@ -282,10 +293,10 @@ def add_animation_mode_selector():
             return
 
         # Add mode selector property (this would typically be done in the property definition)
-        def get_animation_mode_items(self, context):
+        def get_animation_engine_items(self, context):
             return [
-                (ANIMATION_MODE_KEYFRAMES, "Keyframes", "Traditional keyframe-based animation", 0),
-                (ANIMATION_MODE_GEOMETRY_NODES, "Geometry Nodes", "High-performance Geometry Nodes animation", 1)
+                (animation_engine_KEYFRAMES, "Keyframes", "Traditional keyframe-based animation", 0),
+                (animation_engine_GEOMETRY_NODES, "Geometry Nodes", "High-performance Geometry Nodes animation", 1)
             ]
 
         # This is a conceptual approach - the actual implementation would modify
@@ -341,7 +352,7 @@ def initialize_gn_ui_integration():
         patch_live_color_callback()
 
         # Add animation mode selector
-        add_animation_mode_selector()
+        add_animation_engine_selector()
 
         # Integrate with ColorType changes
         integrate_with_colortype_changes()
@@ -386,25 +397,25 @@ class GNAnimationModeProperty(bpy.types.PropertyGroup):
     """
     Property group for Geometry Nodes animation mode selection
     """
-    animation_mode: bpy.props.EnumProperty(
+    animation_engine: bpy.props.EnumProperty(
         name="Animation Mode",
         description="Choose between Keyframes and Geometry Nodes animation systems",
         items=[
-            (ANIMATION_MODE_KEYFRAMES, "Keyframe (Legacy)", "Hornea la animación a fotogramas clave.", 0),
-            (ANIMATION_MODE_GEOMETRY_NODES, "Geometry Nodes (Real-time)", "Alto rendimiento para escenas grandes.", 1)
+            (animation_engine_KEYFRAMES, "Keyframes", "Traditional keyframe-based animation", 0),
+            (animation_engine_GEOMETRY_NODES, "Geometry Nodes", "High-performance Geometry Nodes animation", 1)
         ],
-        default=ANIMATION_MODE_KEYFRAMES,
-        update=lambda self, context: on_animation_mode_change(self, context)
+        default=animation_engine_KEYFRAMES,
+        update=lambda self, context: on_animation_engine_change(self, context)
     )
 
-def on_animation_mode_change(mode_props, context):
+def on_animation_engine_change(mode_props, context):
     """
     Called when animation mode changes
     """
-    print(f"🔄 Animation mode changed to: {mode_props.animation_mode}")
+    print(f"🔄 Animation mode changed to: {mode_props.animation_engine}")
 
     # If switching to GN mode, ensure handlers are properly set up
-    if mode_props.animation_mode == ANIMATION_MODE_GEOMETRY_NODES:
+    if mode_props.animation_engine == animation_engine_GEOMETRY_NODES:
         print("🎮 Switched to Geometry Nodes mode")
 
         # Update live color handler if enabled
@@ -424,7 +435,7 @@ def register_gn_ui_integration():
     """Register GN UI integration components"""
     try:
         bpy.utils.register_class(GNAnimationModeProperty)
-        bpy.types.Scene.gn_animation_mode = bpy.props.PointerProperty(type=GNAnimationModeProperty)
+        bpy.types.Scene.gn_animation_engine = bpy.props.PointerProperty(type=GNAnimationModeProperty)
         initialize_gn_ui_integration()
         print("✅ GN UI integration registered")
     except Exception as e:
@@ -435,8 +446,8 @@ def unregister_gn_ui_integration():
     try:
         cleanup_gn_ui_integration()
 
-        if hasattr(bpy.types.Scene, 'gn_animation_mode'):
-            del bpy.types.Scene.gn_animation_mode
+        if hasattr(bpy.types.Scene, 'gn_animation_engine'):
+            del bpy.types.Scene.gn_animation_engine
 
         bpy.utils.unregister_class(GNAnimationModeProperty)
         print("✅ GN UI integration unregistered")
@@ -450,5 +461,5 @@ __all__ = [
     'register_gn_ui_integration',
     'unregister_gn_ui_integration',
     'is_geometry_nodes_mode',
-    'get_current_animation_mode'
+    'get_current_animation_engine'
 ]

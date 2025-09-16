@@ -776,29 +776,98 @@ def _clear_previous_animation(context) -> None:
                 if obj.animation_data:
                     obj.animation_data_clear()
                     cleaned_count += 1
-                
+
+                # CRITICAL: Remove Geometry Nodes modifiers (Bonsai 4D)
+                gn_modifiers_removed = 0
+                for modifier in list(obj.modifiers):  # Use list() to avoid modification during iteration
+                    if modifier.type == 'NODES' and 'Bonsai' in modifier.name:
+                        print(f"  🗑️ Removing GN modifier '{modifier.name}' from '{obj.name}'")
+                        obj.modifiers.remove(modifier)
+                        gn_modifiers_removed += 1
+
+                if gn_modifiers_removed > 0:
+                    cleaned_count += gn_modifiers_removed
+
                 # FORCE reset visibility and colors - this is critical
                 obj.hide_viewport = False
                 obj.hide_render = False
                 obj.color = (0.8, 0.8, 0.8, 1.0)  # Default gray color
-                
+
                 # CRITICAL FIX: Also reset any material overrides that might exist
                 if obj.material_slots:
                     for slot in obj.material_slots:
                         if slot.material and hasattr(slot.material, 'node_tree'):
                             # Reset any viewport display overrides
                             slot.material.diffuse_color = (0.8, 0.8, 0.8, 1.0)
-                
+
                 # Force update the object to ensure changes are applied
                 obj.update_tag()
                 reset_count += 1
         
+        # CRITICAL: Clean up GN system specific components
+        print("🧹 CLEARING: Cleaning up Geometry Nodes system components...")
+
+        # 1. Remove Super Material
+        super_material_name = "Bonsai_4D_Super_Material"
+        if super_material_name in bpy.data.materials:
+            super_material = bpy.data.materials[super_material_name]
+            print(f"  🗑️ Removing Super Material '{super_material_name}'")
+            bpy.data.materials.remove(super_material, do_unlink=True)
+
+        # 2. Remove GN node groups
+        gn_groups_removed = 0
+        for node_group in list(bpy.data.node_groups):
+            if 'Bonsai' in node_group.name and '4D' in node_group.name:
+                print(f"  🗑️ Removing GN node group '{node_group.name}'")
+                bpy.data.node_groups.remove(node_group, do_unlink=True)
+                gn_groups_removed += 1
+
+        # 3. Cleanup GN system handlers if available
+        try:
+            # Import GN system cleanup if available
+            from ..tool.gn_system import deactivate_gn_system, cleanup_complete_gn_system
+
+            # Deactivate and cleanup GN system
+            print("🧹 CLEARING: Deactivating GN animation system...")
+            deactivate_gn_system()
+
+            # Note: Don't call cleanup_complete_gn_system() as it would cleanup initialization
+            print("✅ GN system deactivated successfully")
+
+        except ImportError:
+            print("ℹ️  GN system not available for cleanup")
+        except Exception as gn_error:
+            print(f"⚠️ Error during GN system cleanup: {gn_error}")
+
         # Force a viewport update to ensure all changes are visible
         for area in bpy.context.screen.areas:
             if area.type == 'VIEW_3D':
                 area.tag_redraw()
-        
-        print(f"🧹 CLEARED: {cleaned_count} animations, {reset_count} objects reset to default state")
+
+        print(f"🧹 CLEARED: {cleaned_count} animations, {reset_count} objects reset, {gn_groups_removed} GN groups removed")
+
+        # 4. Reset animation system state
+        try:
+            anim_props = tool.Sequence.get_animation_props()
+            if anim_props:
+                # Reset animation creation flag
+                if hasattr(anim_props, 'is_animation_created'):
+                    anim_props.is_animation_created = False
+                    print("  ✅ Animation creation flag reset")
+
+                # Clear any active animation group stack
+                if hasattr(anim_props, 'animation_group_stack'):
+                    anim_props.animation_group_stack.clear()
+                    print("  ✅ Animation group stack cleared")
+
+                # Reset live color updates flag if needed
+                if hasattr(anim_props, 'enable_live_color_updates'):
+                    # Don't force disable this - let user control it
+                    print(f"  ℹ️  Live color updates: {anim_props.enable_live_color_updates}")
+
+        except Exception as props_error:
+            print(f"⚠️ Error resetting animation properties: {props_error}")
+
         if "is_snapshot_mode" in context.scene:
             del context.scene["is_snapshot_mode"]
         restore_all_ui_state(context)
