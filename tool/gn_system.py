@@ -493,6 +493,104 @@ def update_all_gn_objects(context=None):
         traceback.print_exc()
         return False
 
+def rebake_attributes_for_tasks(context, tasks):
+    """
+    Real-time re-baking function for selective ColorType updates.
+    Re-bakes only the attributes for objects affected by changed tasks.
+
+    Args:
+        context: Blender context
+        tasks: List of tasks that need re-baking
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        print(f"🔄 Re-baking attributes for {len(tasks)} tasks...")
+
+        # Get current animation settings
+        settings = tool.Sequence.get_animation_settings()
+        if not settings:
+            print("❌ Cannot get animation settings for re-baking")
+            return False
+
+        # Import the baking function
+        from .gn_sequence import bake_specific_tasks_attributes
+
+        # Re-bake only the affected tasks
+        attributes_data = bake_specific_tasks_attributes(tasks, settings)
+
+        # Apply the updated attributes to objects
+        apply_attributes_to_objects(context, attributes_data)
+
+        print(f"✅ Re-baked attributes for {len(tasks)} tasks successfully")
+        return True
+
+    except Exception as e:
+        print(f"❌ Error re-baking attributes: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def apply_attributes_to_objects(context, attributes_data):
+    """
+    Apply attribute data to the corresponding objects in the scene.
+
+    Args:
+        context: Blender context
+        attributes_data: Dictionary mapping object names to attribute data
+    """
+    try:
+        for obj_name, attrs in attributes_data.items():
+            obj = context.scene.objects.get(obj_name)
+            if obj and obj.type == 'MESH' and obj.data:
+                # Apply each attribute to the object
+                for attr_name, attr_info in attrs.items():
+                    set_attribute_value(obj, attr_name, attr_info["value"],
+                                      attr_info["type"], attr_info["domain"])
+
+                # Force object update
+                obj.update_tag()
+
+        # Force scene update
+        context.view_layer.update()
+
+    except Exception as e:
+        print(f"❌ Error applying attributes to objects: {e}")
+
+def set_attribute_value(obj, attr_name, value, attr_type, domain):
+    """
+    Set an attribute value on an object's mesh data.
+
+    Args:
+        obj: Blender object
+        attr_name: Name of the attribute
+        value: Value to set
+        attr_type: Type of attribute ('FLOAT', 'INT', etc.)
+        domain: Domain of attribute ('POINT', 'FACE', etc.)
+    """
+    try:
+        # Get or create the attribute
+        if attr_name not in obj.data.attributes:
+            obj.data.attributes.new(name=attr_name, type=attr_type, domain=domain)
+
+        attr = obj.data.attributes[attr_name]
+
+        # Set the value for all elements
+        if hasattr(attr.data, 'foreach_set'):
+            # For vector attributes, handle accordingly
+            if isinstance(value, (list, tuple)):
+                attr.data.foreach_set('value', value * len(attr.data))
+            else:
+                attr.data.foreach_set('value', [value] * len(attr.data))
+        else:
+            # Fallback for single values
+            for i in range(len(attr.data)):
+                attr.data[i].value = value
+
+    except Exception as e:
+        print(f"⚠️ Error setting attribute {attr_name}: {e}")
+
 # Export main functions
 __all__ = [
     'initialize_complete_gn_system',
@@ -505,5 +603,8 @@ __all__ = [
     'toggle_gn_live_color_auto',
     'debug_gn_system',
     'test_gn_system',
-    'update_all_gn_objects'
+    'update_all_gn_objects',
+    'rebake_attributes_for_tasks',
+    'apply_attributes_to_objects',
+    'set_attribute_value'
 ]

@@ -43,6 +43,7 @@ ATTR_COLORTYPE_ID = "colortype_id"
 ATTR_VISIBILITY_BEFORE_START = "visibility_before_start"
 ATTR_VISIBILITY_AFTER_END = "visibility_after_end"
 ATTR_ANIMATION_STATE = "animation_state"
+ATTR_RELATIONSHIP_TYPE = "relationship_type"  # 0=OUTPUT, 1=INPUT
 
 def bake_all_attributes_worker_enhanced(work_schedule, settings):
     """
@@ -141,46 +142,42 @@ def bake_all_attributes_worker_enhanced(work_schedule, settings):
 
             product_id = product.id()
 
-            # Determine visibility logic based on ColorType
+            # CORRECTED VISIBILITY LOGIC: Replicate keyframes system exactly
             colortype_name = getattr(ColorType, 'name', 'UNKNOWN')
-
-            # Use the EXACT same logic as keyframes mode
-            # Check ColorType properties like keyframes does
             consider_start = getattr(ColorType, 'consider_start', True)
-            consider_end = getattr(ColorType, 'consider_end', True)
             hide_at_end = getattr(ColorType, 'hide_at_end', False)
 
-            # For CONSTRUCTION (relationship == "output" in keyframes):
-            # - before_start: hidden if NOT consider_start
-            # - after_end: hidden if hide_at_end
-            visibility_before_start = 1 if consider_start else 0
-            visibility_after_end = 0 if hide_at_end else 1
+            # ENHANCED VISIBILITY LOGIC: Consider both relationship AND ColorType
+            if colortype_name in ['DEMOLITION', 'DISMANTLE', 'REMOVAL', 'DISPOSAL']:
+                # DEMOLITION-type objects: exist before, disappear after task (regardless of relationship)
+                visibility_before_start = 1
+                visibility_after_end = 0
+                print(f"   🧨 DEMOLITION-TYPE ({colortype_name}): before={visibility_before_start}, after={visibility_after_end}")
+            elif relationship == "output":  # CONSTRUCTION objects
+                # Construction objects: hidden before start unless consider_start=True
+                # Remain visible after end unless hide_at_end=True
+                visibility_before_start = 1 if consider_start else 0
+                visibility_after_end = 0 if hide_at_end else 1
+                print(f"   🏗️  CONSTRUCTION (output): before={visibility_before_start}, after={visibility_after_end}")
+            elif relationship == "input":  # INPUT objects (non-demolition)
+                # Input objects: visible before (they exist), behavior depends on ColorType
+                visibility_before_start = 1
+                visibility_after_end = 0 if hide_at_end else 1
+                print(f"   📦 INPUT (input): before={visibility_before_start}, after={visibility_after_end}")
+            else:  # Default behavior for unknown relationships
+                visibility_before_start = 1 if consider_start else 0
+                visibility_after_end = 0 if hide_at_end else 1
+                print(f"   ❓ UNKNOWN relationship ({relationship}): before={visibility_before_start}, after={visibility_after_end}")
 
-            print(f"🔧 DEBUG: ColorType {colortype_name} properties:")
-            print(f"   consider_start: {consider_start}, consider_end: {consider_end}, hide_at_end: {hide_at_end}")
-            print(f"   📍 VISIBILITY LOGIC EXPLANATION:")
-            print(f"      - Object should be visible BEFORE start: {visibility_before_start} (1=yes, 0=no)")
-            print(f"      - Object should be visible AFTER end: {visibility_after_end} (1=yes, 0=no)")
-            print(f"      - Logic: before=1 if consider_start=True, after=0 if hide_at_end=True")
+            print(f"🔧 VISIBILITY LOGIC ({relationship}): ColorType={colortype_name}")
+            print(f"   Properties: consider_start={consider_start}, hide_at_end={hide_at_end}")
             print(f"   Final visibility: before={visibility_before_start}, after={visibility_after_end}")
-
-            # ---> INICIO DE LA MODIFICACIÓN <---
-            # ESTE BLOQUE DEBE SER ELIMINADO O COMENTADO POR COMPLETO.
-            """
-            # FORCE construction behavior for all objects as default
-            # This matches keyframes behavior for relationship == "output"
-            if not hasattr(ColorType, 'consider_start') or colortype_name in ['DEFAULT', 'NOTDEFINED']:
-                visibility_before_start = 0  # Hidden before construction (like keyframes)
-                visibility_after_end = 1     # Remain visible after construction (like keyframes)
-                print(f"   🔧 FORCED CONSTRUCTION behavior: before=0 (hidden), after=1 (visible)")
-                print(f"   🔧 This matches keyframes 'relationship=output' logic")
-            """
-            # ---> FIN DE LA MODIFICACIÓN <---
-
-            print(f"🔧 DEBUG: Final visibility settings before={visibility_before_start}, after={visibility_after_end}")
 
             # Get ColorType ID for material assignment
             colortype_id = get_colortype_id_for_product_enhanced(product, task, ColorType)
+
+            # Convert relationship to numeric value for attribute (0=OUTPUT, 1=INPUT)
+            relationship_type = 0 if relationship == "output" else 1
 
             # Debug ColorType properties
             colortype_name = getattr(ColorType, 'name', 'UNKNOWN')
@@ -245,6 +242,12 @@ def bake_all_attributes_worker_enhanced(work_schedule, settings):
                     "value": colortype_id,
                     "type": 'INT',
                     "domain": 'POINT'
+                },
+                # Relationship type (NEW): 0=OUTPUT, 1=INPUT
+                ATTR_RELATIONSHIP_TYPE: {
+                    "value": relationship_type,
+                    "type": 'INT',
+                    "domain": 'POINT'
                 }
             }
 
@@ -253,6 +256,7 @@ def bake_all_attributes_worker_enhanced(work_schedule, settings):
             print(f"   📅 Task dates: {task_start} to {task_finish}")
             print(f"   🎬 Frame range: {start_frame} to {finish_frame} (USING THESE IN ATTRIBUTES)")
             print(f"   👁️  Visibility: before={visibility_before_start}, after={visibility_after_end}, effect={effect_type}")
+            print(f"   🔗 Relationship: {relationship} (type={relationship_type})")
             print(f"   🔧 GN will compare Current Frame with start_frame={start_frame} and end_frame={finish_frame}")
 
     # Process all root tasks
@@ -269,214 +273,121 @@ def bake_all_attributes_worker_enhanced(work_schedule, settings):
 
 def get_assigned_ColorType_for_task_enhanced(task):
     """
-    Enhanced version that replicates the exact logic from
-    get_assigned_ColorType_for_task in sequence.py
+    REFACTORED VERSION: Determines the ColorType for a task replicating the exact
+    precedence logic of the keyframes system and UI.
     """
     try:
-        # Get animation properties
-        if tool is None:
-            print("❌ ERROR: Bonsai tool not available - cannot access animation properties")
-            return None
-        animation_props = tool.Sequence.get_animation_props()
+        import bpy, json
+        from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
 
-        # ---> CORRECCIÓN CRÍTICA: Leer el grupo activo correcto de Animation Settings <---
-        active_group_name = None
-        try:
-            # PRIORIDAD 1: Leer de task_colortype_group_selector (configuración real en UI)
-            active_group_name = getattr(animation_props, 'task_colortype_group_selector', None)
-            print(f"   🎯 PRIMARY: task_colortype_group_selector = '{active_group_name}'")
-
-            # PRIORIDAD 2: Si no existe o está vacío, usar ColorType_groups
-            if not active_group_name or active_group_name in ['DEFAULT', '']:
-                active_group_name = getattr(animation_props, 'ColorType_groups', None)
-                print(f"   🎯 SECONDARY: ColorType_groups = '{active_group_name}'")
-
-            # PRIORIDAD 3: Si no existe, usar animation_group_stack
-            if not active_group_name or active_group_name in ['DEFAULT', '']:
-                for item in getattr(animation_props, 'animation_group_stack', []):
-                    if getattr(item, 'enabled', False) and getattr(item, 'group', None):
-                        active_group_name = item.group
-                        print(f"   🎯 TERTIARY: Using group from stack: {active_group_name}")
-                        break
-
-            # PRIORIDAD 4: Fallback a DEFAULT solo si realmente no hay nada
-            if not active_group_name:
-                active_group_name = "DEFAULT"
-                print(f"   🎯 FALLBACK: Using DEFAULT group")
-
-        except Exception as e:
-            print(f"   ⚠️ Error reading active group: {e}")
-            active_group_name = "DEFAULT"
-
-        # Get task configuration from cache (like in sequence.py)
-        import json
         context = bpy.context
+        animation_props = tool.Sequence.get_animation_props()
         task_id_str = str(task.id())
+
+        # 1. DETERMINE ACTIVE GROUP (CORRECT PRECEDENCE LOGIC)
+        active_group_name = "DEFAULT"
+        # Priority 1: First ENABLED group in animation stack.
+        for item in getattr(animation_props, 'animation_group_stack', []):
+            if getattr(item, 'enabled', False) and getattr(item, 'group', None):
+                active_group_name = item.group
+                break
+
+        print(f"   🎨 Determining ColorType for Task {task_id_str} in Active Group '{active_group_name}'")
+
+        # 2. GET TASK-SPECIFIC CONFIGURATION (from UI snapshot)
         task_config = None
-
-        print(f"🔧 DEBUG ColorType: Processing task {task.id()}, final_active_group: {active_group_name}")
-        print(f"   🔧 Animation props task_colortype_group_selector: {getattr(animation_props, 'task_colortype_group_selector', 'NONE')}")
-        print(f"   🔧 Animation props ColorType_groups: {getattr(animation_props, 'ColorType_groups', 'NONE')}")
-
-        # ---> CORRECCIÓN: No sobrescribir active_group_name si ya es correcto <---
-        # Si ya tenemos un grupo válido de ColorType_groups, no lo sobrescribamos con el cache
-        original_active_group = active_group_name
-
-        # Check animation_group_stack pero NO sobrescribir si ya tenemos Group 2
-        stack = getattr(animation_props, 'animation_group_stack', [])
-        print(f"   🔧 Animation group stack ({len(stack)} items):")
-        for i, item in enumerate(stack):
-            enabled = getattr(item, 'enabled', False)
-            group = getattr(item, 'group', None)
-            print(f"     [{i}] enabled: {enabled}, group: {group}")
-
-        # SOLO cambiar active_group_name si el original no era válido
-        if original_active_group in ['DEFAULT', '', None]:
-            for item in stack:
-                enabled = getattr(item, 'enabled', False)
-                group = getattr(item, 'group', None)
-                if enabled and group:
-                    active_group_name = group
-                    print(f"   ✅ OVERRIDING with stack group: {active_group_name}")
-                    break
-        else:
-            print(f"   ✅ KEEPING original active group: {active_group_name}")
-
         try:
-            cache_key = "_task_colortype_snapshot_cache_json"
-            cache_raw = context.scene.get(cache_key)
+            cache_raw = context.scene.get("_task_colortype_snapshot_cache_json")
             if cache_raw:
-                cached_data = json.loads(cache_raw)
-                task_config = cached_data.get(task_id_str)
-                print(f"   🔧 Task config from cache: {task_config}")
-            else:
-                print(f"   ⚠️ No cache found for key: {cache_key}")
-        except Exception as e:
-            print(f"⚠️ Could not read task config cache: {e}")
+                task_config = json.loads(cache_raw).get(task_id_str)
+        except Exception:
+            pass
 
-        # Get ColorType from cache using the same logic as sequence.py
-        colortype_name = "NOTDEFINED"
-        if task_config:
-            # 1) First try specific assignment by group in the task
-            found_colortype = False
-            for choice in task_config.get("groups", []):
-                is_enabled = choice.get("enabled", False)
-                group_name = choice.get("group_name")
-                selected_value = choice.get("selected_value") or choice.get("selected_colortype")
-                print(f"   🔧 Checking group: {group_name}, enabled: {is_enabled}, selected: {selected_value}")
-                if group_name == active_group_name and is_enabled and selected_value:
-                    colortype_name = selected_value
-                    found_colortype = True
-                    print(f"   ✅ ColorType from specific group assignment: {colortype_name}")
+        # 3. RESOLVE COLORTYPE NAME
+        colortype_name = None
+        # Priority A: Task-specific assignment for active group.
+        if task_config and 'groups' in task_config:
+            for choice in task_config['groups']:
+                if choice.get('group_name') == active_group_name and choice.get('enabled') and choice.get('selected_value'):
+                    colortype_name = choice['selected_value']
+                    print(f"      -> Found via Task-Specific assignment: '{colortype_name}'")
                     break
 
-            # 2) If no specific assignment, check if there's a general active colortype
-            if not found_colortype and 'selected_active_colortype' in task_config and task_config['selected_active_colortype']:
-                colortype_name = task_config['selected_active_colortype']
-                print(f"   ✅ ColorType from selected_active_colortype: {colortype_name}")
+        # Priority B: If no specific assignment, use task PredefinedType.
+        if not colortype_name:
+            colortype_name = getattr(task, "PredefinedType", "NOTDEFINED") or "NOTDEFINED"
+            print(f"      -> Using PredefinedType fallback: '{colortype_name}'")
 
-            # 3) Finally fallback to PredefinedType
-            elif not found_colortype:
-                predefined_type = getattr(task, "PredefinedType", "NOTDEFINED") or "NOTDEFINED"
-                colortype_name = predefined_type
-                print(f"   🔧 Using PredefinedType fallback: {colortype_name}")
+        # 4. LOAD COLORTYPE DATA FROM CORRECT GROUP
+        ColorType_data = UnifiedColorTypeManager.get_group_colortypes(context, active_group_name).get(colortype_name)
+
+        # Fallback: If not found in active group, search in DEFAULT.
+        if not ColorType_data and active_group_name != "DEFAULT":
+            print(f"      -> Not found in '{active_group_name}', trying DEFAULT group...")
+            ColorType_data = UnifiedColorTypeManager.get_group_colortypes(context, "DEFAULT").get(colortype_name)
+
+        # Final fallback: If still not found, use NOTDEFINED from DEFAULT.
+        if not ColorType_data:
+            print(f"      -> Still not found, using NOTDEFINED from DEFAULT.")
+            colortype_name = "NOTDEFINED"
+            ColorType_data = UnifiedColorTypeManager.get_group_colortypes(context, "DEFAULT").get(colortype_name)
+
+        if ColorType_data:
+            return create_colortype_from_data(colortype_name, ColorType_data)
         else:
-            # Use task PredefinedType as fallback when no cache
-            predefined_type = getattr(task, "PredefinedType", "NOTDEFINED") or "NOTDEFINED"
-            colortype_name = predefined_type
-            print(f"   🔧 No cache, using PredefinedType fallback: {colortype_name}")
-
-        # Also check task Name and Description for hints
-        task_name = getattr(task, "Name", "NO_NAME") or "NO_NAME"
-        task_description = getattr(task, "Description", "NO_DESC") or "NO_DESC"
-        print(f"   📋 Task Name: {task_name}, Description: {task_description}")
-
-        # ---> CORRECCIÓN: Mejorado acceso a ColorTypes reales <---
-        try:
-            print(f"   🔍 Attempting to get ColorType: group='{active_group_name}', colortype='{colortype_name}'")
-
-            # MÉTODO 1: Usar get_group_colortypes que sabemos que funciona
-            try:
-                from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
-
-                # Obtener todos los ColorTypes del grupo activo
-                group_colortypes = UnifiedColorTypeManager.get_group_colortypes(context, active_group_name)
-                print(f"   🔧 Group '{active_group_name}' has {len(group_colortypes)} ColorTypes: {list(group_colortypes.keys())}")
-
-                # Si hay datos en el cache, usar el ColorType asignado
-                if task_config and task_config.get('groups'):
-                    for choice in task_config.get("groups", []):
-                        is_enabled = choice.get("enabled", False)
-                        group_name = choice.get("group_name")
-                        selected_value = choice.get("selected_value") or choice.get("selected_colortype")
-                        if group_name == active_group_name and is_enabled and selected_value:
-                            if selected_value in group_colortypes:
-                                colortype_data = group_colortypes[selected_value]
-                                print(f"   ✅ Found assigned ColorType from cache: '{selected_value}'")
-                                return create_colortype_from_data(selected_value, colortype_data)
-
-                # Si no hay asignación específica, buscar en animation_color_schemes
-                animation_color_schemes = task_config.get('animation_color_schemes', '') if task_config else ''
-                if animation_color_schemes and animation_color_schemes in group_colortypes:
-                    colortype_data = group_colortypes[animation_color_schemes]
-                    print(f"   ✅ Using animation_color_schemes: '{animation_color_schemes}'")
-                    return create_colortype_from_data(animation_color_schemes, colortype_data)
-
-                # Si no hay nada específico, usar el primer ColorType disponible del grupo
-                if group_colortypes:
-                    first_colortype_name = list(group_colortypes.keys())[0]
-                    colortype_data = group_colortypes[first_colortype_name]
-                    print(f"   🔧 Using first available ColorType: '{first_colortype_name}'")
-                    return create_colortype_from_data(first_colortype_name, colortype_data)
-
-                raise AttributeError("No ColorTypes available in group")
-
-            except ImportError:
-                print(f"   ⚠️ Cannot import UnifiedColorTypeManager")
-                raise
-
-        except Exception as ex:
-            print(f"   ❌ All ColorType access methods failed: {ex}")
-
-            # MÉTODO 2: Buscar en animation_props directamente
-            try:
-                # Buscar en la configuración de grupos de animation_props
-                groups_data = getattr(animation_props, 'animation_groups_data', {})
-                if active_group_name in groups_data:
-                    group_data = groups_data[active_group_name]
-                    if colortype_name in group_data.get('colortypes', {}):
-                        colortype_data = group_data['colortypes'][colortype_name]
-                        print(f"   🔧 Found ColorType data in animation_props: {colortype_data}")
-                        # Crear ColorType object desde datos
-                        return create_colortype_from_data(colortype_name, colortype_data)
-            except Exception as props_error:
-                print(f"   ⚠️ Cannot access ColorType from animation_props: {props_error}")
-
-            # MÉTODO 3: Return default ColorType but with better defaults
-            colortype_obj = create_default_colortype(colortype_name)
-            print(f"   🔧 Using enhanced default ColorType: {colortype_obj.name}")
-            return colortype_obj
+            return create_default_colortype(colortype_name)
 
     except Exception as e:
-        print(f"⚠️ Error getting ColorType for task {task.id()}: {e}")
+        print(f"⚠️ CRITICAL ERROR in get_assigned_ColorType_for_task_enhanced: {e}")
         return create_default_colortype("NOTDEFINED")
 
 def create_default_colortype(name):
-    """Create a default ColorType object with basic properties"""
+    """
+    FIXED: Create a default ColorType using real data from DEFAULT group
+    instead of hardcoded values
+    """
+    try:
+        import bpy
+        from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+
+        context = bpy.context
+
+        # Try to get the ColorType from DEFAULT group first
+        default_group_colortypes = UnifiedColorTypeManager.get_group_colortypes(context, "DEFAULT")
+
+        if name in default_group_colortypes:
+            # Use real data from DEFAULT group
+            colortype_data = default_group_colortypes[name]
+            print(f"   🎯 Using real DEFAULT group data for '{name}'")
+            return create_colortype_from_data(name, colortype_data)
+
+        # If not found in DEFAULT, look for NOTDEFINED
+        if "NOTDEFINED" in default_group_colortypes:
+            colortype_data = default_group_colortypes["NOTDEFINED"]
+            print(f"   🎯 Using NOTDEFINED from DEFAULT group for '{name}'")
+            return create_colortype_from_data(name, colortype_data)
+
+    except Exception as e:
+        print(f"   ⚠️ Cannot access DEFAULT group, using hardcoded fallback: {e}")
+
+    # Final fallback: hardcoded values only if DEFAULT group is not accessible
     class DefaultColorType:
         def __init__(self, name):
             self.name = name
             self.consider_start = True
             self.consider_active = True
             self.consider_end = True
-            # ---> INICIO DE LA MODIFICACIÓN <---
-            self.hide_at_end = False # Cambiar de True a False
-            # ---> FIN DE LA MODIFICACIÓN <---
+            self.hide_at_end = False
             self.gn_appearance_effect = 'INSTANT'
             self.start_color = (0.5, 0.5, 0.5, 1.0)
             self.active_color = (0.0, 0.8, 0.0, 1.0)
             self.end_color = (0.8, 0.8, 0.8, 1.0)
+            # CRITICAL: Set flags to use real colors
+            self.use_start_original_color = False
+            self.use_active_original_color = False
+            self.use_end_original_color = False
 
+    print(f"   🔧 Using hardcoded fallback ColorType for '{name}'")
     return DefaultColorType(name)
 
 def create_colortype_from_data(colortype_name, colortype_data):
@@ -490,32 +401,20 @@ def create_colortype_from_data(colortype_name, colortype_data):
             self.hide_at_end = data.get('hide_at_end', False)
             self.gn_appearance_effect = data.get('gn_appearance_effect', 'INSTANT')
 
-            # CRITICAL FIX: Extract real colors from ColorType data
-            # Los ColorTypes reales usan 'diffuse_color' para los colores
-            real_color_found = False
-            if 'diffuse_color' in data:
-                # Use the same color for all states if only one color is defined
-                real_color = tuple(data['diffuse_color'][:4])  # Ensure RGBA
-                print(f"   🎨 Using real ColorType color from diffuse_color: {real_color}")
-                self.start_color = real_color
-                self.active_color = real_color
-                self.end_color = real_color
-                real_color_found = True
-            elif 'color' in data:
-                # Alternative color field
-                real_color = tuple(data['color'][:4])
-                print(f"   🎨 Using ColorType color from color field: {real_color}")
-                self.start_color = real_color
-                self.active_color = real_color
-                self.end_color = real_color
-                real_color_found = True
+            # FIXED: Read real color data from ColorType using correct field names
+            self.start_color = data.get('start_color', [1, 1, 1, 1])
+            self.active_color = data.get('in_progress_color', [0.0, 0.8, 0.0, 1.0])  # Note: in_progress_color not active_color
+            self.end_color = data.get('end_color', [0.8, 0.8, 0.8, 1.0])
 
-            if not real_color_found:
-                # Fallback to default colors only if no color data exists
-                print(f"   ⚠️ No color data found in ColorType '{name}', using defaults")
-                self.start_color = data.get('start_color', (0.5, 0.5, 0.5, 1.0))
-                self.active_color = data.get('active_color', (0.0, 0.8, 0.0, 1.0))
-                self.end_color = data.get('end_color', (0.8, 0.8, 0.8, 1.0))
+            # CRITICAL FIX: Read use_original_color flags from real ColorType data
+            self.use_start_original_color = data.get('use_start_original_color', False)
+            self.use_active_original_color = data.get('use_active_original_color', False)
+            self.use_end_original_color = data.get('use_end_original_color', False)
+
+            # Read transparency data
+            self.start_transparency = data.get('start_transparency', 0.0)
+            self.active_start_transparency = data.get('active_start_transparency', 0.0)
+            self.end_transparency = data.get('end_transparency', 0.0)
 
             # DEBUG: Print all ColorType properties for verification
             print(f"   🔧 ColorType '{name}' properties loaded:")
@@ -523,6 +422,7 @@ def create_colortype_from_data(colortype_name, colortype_data):
             print(f"      consider_end: {self.consider_end}")
             print(f"      hide_at_end: {self.hide_at_end}")
             print(f"      colors: start={self.start_color}, active={self.active_color}, end={self.end_color}")
+            print(f"      use_original_colors: start={self.use_start_original_color}, active={self.use_active_original_color}, end={self.use_end_original_color}")
 
     return DataColorType(colortype_name, colortype_data)
 
@@ -733,8 +633,9 @@ def create_enhanced_visibility_system(node_tree, input_node, attr_start, attr_en
     compare_after.data_type = 'FLOAT'
     compare_after.location = (location[0], location[1] - 200)
 
-    # Visibility logic switches
-    # visible_final = (es_antes AND VISIBILITY_BEFORE_START) OR (es_activo) OR (es_despues AND VISIBILITY_AFTER_END)
+    # FIXED VISIBILITY LOGIC:
+    # visible_final = (before_state AND visibility_before) OR (active_state) OR (after_state AND visibility_after)
+    # DEBUG: Adding debug info for visibility logic
 
     before_visibility = node_tree.nodes.new('FunctionNodeBooleanMath')
     before_visibility.operation = 'AND'
@@ -802,7 +703,8 @@ def create_enhanced_visibility_system(node_tree, input_node, attr_start, attr_en
     node_tree.links.new(or_before_active.outputs['Boolean'], final_or.inputs[0])
     node_tree.links.new(after_visibility.outputs['Boolean'], final_or.inputs[1])
 
-    print("✅ Enhanced visibility system with three-state logic created")
+    print("✅ FIXED Enhanced visibility system with corrected three-state logic created")
+    print(f"   🔧 Logic: (before AND vis_before) OR (active) OR (after AND vis_after)")
     return final_or
 
 def create_effect_system(node_tree, input_node, attr_start, attr_end, attr_effect, visibility_system, location):
@@ -969,59 +871,69 @@ def create_super_material():
     return super_material
 
 def create_material_color_system(node_tree, attr_colortype, attr_animation_state, location):
-    """Create DYNAMIC color system for the Super Material with individual ColorType ramps"""
+    """Create DYNAMIC color system for the Super Material using REAL ColorType colors from DEFAULT group"""
 
-    print("🎨 Creating DYNAMIC Super Material system with individual ColorType ramps")
+    print("🎨 Creating DYNAMIC Super Material system using REAL ColorType colors from ACTIVE group")
 
-    # ETAPA 2: Sistema de material dinámico completo según instrucciones
-    # Crear rampas de color individuales para cada tipo de ColorType principal
+    # REAL ColorType colors from ACTIVE group - DYNAMIC system
+    real_colortype_ramps = {}
 
-    # 1. ColorRamp para CONSTRUCTION (ID = 1) - Secuencia Verde
-    ramp_construction = node_tree.nodes.new('ShaderNodeValToRGB')
-    ramp_construction.name = "ColorRamp_Construction"
-    ramp_construction.location = (location[0], location[1] + 300)
+    # Get the active group name
+    import bpy
+    try:
+        animation_props = tool.Sequence.get_animation_props()
+        active_group_name = "DEFAULT"
+        for item in getattr(animation_props, 'animation_group_stack', []):
+            if getattr(item, 'enabled', False) and getattr(item, 'group', None):
+                active_group_name = item.group
+                break
+        print(f"   🎯 Using ACTIVE group: {active_group_name}")
+    except:
+        active_group_name = "DEFAULT"
+        print(f"   🎯 Fallback to DEFAULT group")
 
-    # Configurar secuencia de construcción (gris -> verde -> verde claro)
-    ramp_construction.color_ramp.elements[0].position = 0.0
-    ramp_construction.color_ramp.elements[0].color = (0.5, 0.5, 0.5, 1.0)  # Before: gris
-    ramp_construction.color_ramp.elements[1].position = 0.5
-    ramp_construction.color_ramp.elements[1].color = (0.0, 0.8, 0.0, 1.0)  # Active: verde
-    # Agregar elemento para after_end
-    ramp_construction.color_ramp.elements.new(1.0)
-    ramp_construction.color_ramp.elements[2].color = (0.4, 0.9, 0.4, 1.0)  # After: verde claro
+    # Get the main ColorTypes from ACTIVE group
+    colortype_names = ['CONSTRUCTION', 'DEMOLITION', 'MOVE', 'INSTALLATION', 'DEFAULT']
 
-    # 2. ColorRamp para DEMOLITION (ID = 3) - Secuencia Roja
-    ramp_demolition = node_tree.nodes.new('ShaderNodeValToRGB')
-    ramp_demolition.name = "ColorRamp_Demolition"
-    ramp_demolition.location = (location[0], location[1] + 200)
+    for i, colortype_name in enumerate(colortype_names):
+        try:
+            # Get the real ColorType from ACTIVE group
+            real_colortype = get_colortype_by_name_from_group(colortype_name, active_group_name)
 
-    # Configurar secuencia de demolición (gris -> rojo -> rojo oscuro)
-    ramp_demolition.color_ramp.elements[0].position = 0.0
-    ramp_demolition.color_ramp.elements[0].color = (0.5, 0.5, 0.5, 1.0)  # Before: gris
-    ramp_demolition.color_ramp.elements[1].position = 0.5
-    ramp_demolition.color_ramp.elements[1].color = (0.8, 0.0, 0.0, 1.0)  # Active: rojo
-    # Agregar elemento para after_end
-    ramp_demolition.color_ramp.elements.new(1.0)
-    ramp_demolition.color_ramp.elements[2].color = (0.3, 0.0, 0.0, 1.0)  # After: rojo oscuro
+            # Create ColorRamp with REAL colors
+            ramp = node_tree.nodes.new('ShaderNodeValToRGB')
+            ramp.name = f"ColorRamp_{colortype_name}"
+            ramp.location = (location[0], location[1] + (i * 100))
 
-    # 3. ColorRamp para DEFAULT/OTHERS (ID = 0 o cualquier otro) - Secuencia Azul
-    ramp_default = node_tree.nodes.new('ShaderNodeValToRGB')
-    ramp_default.name = "ColorRamp_Default"
-    ramp_default.location = (location[0], location[1] + 100)
+            # Set REAL colors from ColorType
+            start_color = getattr(real_colortype, 'start_color', [0.8, 0.8, 0.8, 1.0])
+            active_color = getattr(real_colortype, 'active_color', [0.0, 0.8, 0.0, 1.0])
+            end_color = getattr(real_colortype, 'end_color', [0.8, 0.8, 0.8, 1.0])
 
-    # Configurar secuencia por defecto (gris -> azul -> azul claro)
-    ramp_default.color_ramp.elements[0].position = 0.0
-    ramp_default.color_ramp.elements[0].color = (0.5, 0.5, 0.5, 1.0)  # Before: gris
-    ramp_default.color_ramp.elements[1].position = 0.5
-    ramp_default.color_ramp.elements[1].color = (0.2, 0.5, 0.8, 1.0)  # Active: azul
-    # Agregar elemento para after_end
-    ramp_default.color_ramp.elements.new(1.0)
-    ramp_default.color_ramp.elements[2].color = (0.6, 0.7, 0.9, 1.0)  # After: azul claro
+            # Configure ColorRamp with real colors
+            ramp.color_ramp.elements[0].position = 0.0
+            ramp.color_ramp.elements[0].color = (start_color[0], start_color[1], start_color[2], 1.0)
+            ramp.color_ramp.elements[1].position = 0.5
+            ramp.color_ramp.elements[1].color = (active_color[0], active_color[1], active_color[2], 1.0)
+            ramp.color_ramp.elements.new(1.0)
+            ramp.color_ramp.elements[2].color = (end_color[0], end_color[1], end_color[2], 1.0)
 
-    # Conectar animation_state a TODAS las rampas
-    node_tree.links.new(attr_animation_state.outputs['Fac'], ramp_construction.inputs['Fac'])
-    node_tree.links.new(attr_animation_state.outputs['Fac'], ramp_demolition.inputs['Fac'])
-    node_tree.links.new(attr_animation_state.outputs['Fac'], ramp_default.inputs['Fac'])
+            real_colortype_ramps[colortype_name] = ramp
+            print(f"   ✅ Real ColorRamp created for {colortype_name}: start={start_color}, active={active_color}, end={end_color}")
+
+        except Exception as e:
+            print(f"   ⚠️ Error creating real ColorRamp for {colortype_name}: {e}")
+            # Fallback to hardcoded if can't read real colors
+            ramp = node_tree.nodes.new('ShaderNodeValToRGB')
+            ramp.name = f"ColorRamp_{colortype_name}_Fallback"
+            ramp.location = (location[0], location[1] + (i * 100))
+            ramp.color_ramp.elements[0].color = (0.8, 0.8, 0.8, 1.0)
+            ramp.color_ramp.elements[1].color = (0.0, 0.8, 0.0, 1.0)
+            real_colortype_ramps[colortype_name] = ramp
+
+    # Conectar animation_state a TODAS las rampas reales
+    for ramp in real_colortype_ramps.values():
+        node_tree.links.new(attr_animation_state.outputs['Fac'], ramp.inputs['Fac'])
 
     # CREAR SISTEMA SELECTOR (MUX) BASADO EN COLORTYPE_ID
     # Compare para CONSTRUCTION (colortype_id == 1)
@@ -1055,21 +967,22 @@ def create_material_color_system(node_tree, attr_colortype, attr_animation_state
     mix_final.location = (location[0] + 900, location[1] + 150)
     mix_final.blend_type = 'MIX'
 
-    # CONECTAR EL SISTEMA MUX
+    # CONECTAR EL SISTEMA MUX con rampas reales
     # Mix Construction: usa compare_construction como factor
     node_tree.links.new(compare_construction.outputs['Value'], mix_construction.inputs['Fac'])
-    node_tree.links.new(ramp_default.outputs['Color'], mix_construction.inputs['Color1'])  # Default
-    node_tree.links.new(ramp_construction.outputs['Color'], mix_construction.inputs['Color2'])  # Construction
+    node_tree.links.new(real_colortype_ramps['DEFAULT'].outputs['Color'], mix_construction.inputs['Color1'])  # Default
+    node_tree.links.new(real_colortype_ramps['CONSTRUCTION'].outputs['Color'], mix_construction.inputs['Color2'])  # Construction
 
     # Mix Final: usa compare_demolition como factor
     node_tree.links.new(compare_demolition.outputs['Value'], mix_final.inputs['Fac'])
     node_tree.links.new(mix_construction.outputs['Color'], mix_final.inputs['Color1'])  # Resultado anterior
-    node_tree.links.new(ramp_demolition.outputs['Color'], mix_final.inputs['Color2'])  # Demolition
+    node_tree.links.new(real_colortype_ramps['DEMOLITION'].outputs['Color'], mix_final.inputs['Color2'])  # Demolition
 
-    print("   ✅ DYNAMIC Super Material system created with:")
-    print("      - Individual ColorRamps: Construction (Green), Demolition (Red), Default (Blue)")
+    print("   ✅ DYNAMIC Super Material system created with REAL ColorType colors:")
+    print("      - Real ColorRamps from DEFAULT group using actual start/active/end colors")
     print("      - MUX selector based on colortype_id")
     print("      - Full animation_state integration")
+    print("      - Colors match keyframes system exactly")
 
     return mix_final
 
@@ -1262,83 +1175,253 @@ def gn_live_color_update_handler_enhanced(scene, depsgraph=None):
 
         current_frame = scene.frame_current
 
-        # Update object colors based on their GN attributes
+        # UNIFIED COLOR SYSTEM: Update both Super Material and Solid colors together
+        update_unified_color_system(scene, current_frame)
+
+    except Exception as e:
+        print(f"⚠️ Error in enhanced GN live color handler: {e}")
+
+def update_unified_color_system(scene, current_frame):
+    """
+    UNIFIED COLOR SYSTEM: Update both Super Material and Solid colors together
+    Ensures perfect synchronization between Material mode and Solid mode
+    """
+    try:
+        # Step 1: Update Super Material with current active group colors
+        update_super_material_with_active_group_colors()
+
+        # Step 2: Update all objects with GN modifiers
         for obj in scene.objects:
             if obj.type == 'MESH' and has_gn_modifier(obj):
                 update_object_solid_color_from_attributes(obj, current_frame)
 
+        print(f"✅ UNIFIED color system updated for frame {current_frame}")
+
     except Exception as e:
-        print(f"⚠️ Error in enhanced GN live color handler: {e}")
+        print(f"⚠️ Error in unified color system update: {e}")
+
+def update_super_material_with_active_group_colors():
+    """
+    DYNAMIC MATERIAL UPDATE: Update Super Material ColorRamps with colors from active Animation Settings group
+    """
+    try:
+        import bpy
+
+        # Get the Super Material
+        super_material = bpy.data.materials.get(GN_SUPER_MATERIAL_NAME)
+        if not super_material or not super_material.node_tree:
+            return
+
+        # Get main ColorTypes for the active group
+        colortype_names = ['CONSTRUCTION', 'DEMOLITION', 'MOVE', 'INSTALLATION', 'DEFAULT']
+
+        for colortype_name in colortype_names:
+            try:
+                # Get REAL ColorType from current active group
+                real_colortype = get_assigned_ColorType_for_task_enhanced_by_name(colortype_name)
+
+                # Find the corresponding ColorRamp node in Super Material
+                ramp_node_name = f"ColorRamp_{colortype_name}"
+                ramp_node = super_material.node_tree.nodes.get(ramp_node_name)
+
+                if ramp_node and real_colortype:
+                    # Update ColorRamp with REAL colors from active group
+                    start_color = getattr(real_colortype, 'start_color', [0.8, 0.8, 0.8, 1.0])
+                    active_color = getattr(real_colortype, 'active_color', [0.0, 0.8, 0.0, 1.0])
+                    end_color = getattr(real_colortype, 'end_color', [0.8, 0.8, 0.8, 1.0])
+
+                    # Update the ColorRamp elements
+                    if len(ramp_node.color_ramp.elements) >= 3:
+                        ramp_node.color_ramp.elements[0].color = (start_color[0], start_color[1], start_color[2], 1.0)
+                        ramp_node.color_ramp.elements[1].color = (active_color[0], active_color[1], active_color[2], 1.0)
+                        ramp_node.color_ramp.elements[2].color = (end_color[0], end_color[1], end_color[2], 1.0)
+
+                        print(f"   🎨 Super Material ColorRamp updated for {colortype_name}: active={active_color}")
+
+            except Exception as e:
+                print(f"   ⚠️ Error updating Super Material ColorRamp for {colortype_name}: {e}")
+
+    except Exception as e:
+        print(f"⚠️ Error updating Super Material with active group colors: {e}")
+
+def get_assigned_ColorType_for_task_enhanced_by_name(colortype_name):
+    """
+    Get ColorType by name from the currently active group in Animation Settings
+    """
+    try:
+        # Create a dummy task to use the existing function
+        # We just need to get the ColorType by name from active group
+        import bpy
+        from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+
+        context = bpy.context
+        animation_props = tool.Sequence.get_animation_props()
+
+        # Get active group name
+        active_group_name = "DEFAULT"
+        for item in getattr(animation_props, 'animation_group_stack', []):
+            if getattr(item, 'enabled', False) and getattr(item, 'group', None):
+                active_group_name = item.group
+                break
+
+        # Get ColorType from active group
+        return get_colortype_by_name_from_group(colortype_name, active_group_name)
+
+    except Exception as e:
+        print(f"⚠️ Error getting ColorType {colortype_name} from active group: {e}")
+        return None
+
+def get_colortype_by_name_from_group(colortype_name, group_name="DEFAULT"):
+    """
+    Get ColorType by name from a specific group
+    """
+    try:
+        import bpy
+        from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
+
+        context = bpy.context
+
+        # Get ColorTypes from specified group
+        group_colortypes = UnifiedColorTypeManager.get_group_colortypes(context, group_name)
+
+        if colortype_name in group_colortypes:
+            colortype_data = group_colortypes[colortype_name]
+            return create_colortype_from_data(colortype_name, colortype_data)
+        else:
+            print(f"⚠️ ColorType {colortype_name} not found in group {group_name}")
+            return None
+
+    except Exception as e:
+        print(f"⚠️ Error getting ColorType {colortype_name} from group {group_name}: {e}")
+        return None
 
 def has_gn_modifier(obj):
     """Check if object has our GN modifier"""
     return any(mod.name == GN_MODIFIER_NAME and mod.type == 'NODES' for mod in obj.modifiers)
 
+def get_task_for_product(element):
+    """
+    FIXED VERSION: Helper function to find the task that produces/consumes a product.
+    Uses all tasks in the IFC file instead of work_schedule nested tasks.
+    """
+    try:
+        if not element or not tool:
+            return None
+
+        # Get all tasks from the IFC file directly (more reliable)
+        ifc_file = tool.Ifc.get()
+        if not ifc_file:
+            return None
+
+        all_tasks = ifc_file.by_type('IfcTask')
+
+        for task in all_tasks:
+            # Check outputs
+            try:
+                for output in ifcopenshell.util.sequence.get_task_outputs(task):
+                    if output.id() == element.id():
+                        return task
+            except:
+                pass
+
+            # Check inputs
+            try:
+                for input_prod in tool.Sequence.get_task_inputs(task):
+                    if input_prod.id() == element.id():
+                        return task
+            except:
+                pass
+
+        return None
+    except Exception as e:
+        print(f"⚠️ Error finding task for product: {e}")
+        return None
+
 def update_object_solid_color_from_attributes(obj, current_frame):
-    """Update object.color for Solid shading based on baked attributes"""
+    """
+    REAL-TIME SYNCHRONIZATION VERSION: Update object.color for Solid shading
+    ignoring baked colortype_id and recalculating ColorType in real-time.
+    """
     try:
         if not obj.data or not hasattr(obj.data, 'attributes'):
             return
 
-        # Read attributes from the object
+        # Read timing and relationship attributes (these remain valid from baking)
         schedule_start = read_attribute_value(obj, ATTR_SCHEDULE_START, 1.0)
         schedule_end = read_attribute_value(obj, ATTR_SCHEDULE_END, 999999.0)
-        colortype_id = read_attribute_value(obj, ATTR_COLORTYPE_ID, 0)
-        visibility_before = read_attribute_value(obj, ATTR_VISIBILITY_BEFORE_START, 1)
-        visibility_after = read_attribute_value(obj, ATTR_VISIBILITY_AFTER_END, 0)
+        relationship_type = read_attribute_value(obj, ATTR_RELATIONSHIP_TYPE, 0)  # 0=OUTPUT, 1=INPUT
 
         # Determine current state
         if current_frame < schedule_start:
             state = "before_start"
-            visible = visibility_before > 0
         elif current_frame >= schedule_start and current_frame < schedule_end:
             state = "active"
-            visible = True
         else:
             state = "after_end"
-            visible = visibility_after > 0
 
-        # Debug: Print what we're reading
-        print(f"🎨 DEBUG Color Handler - {obj.name}: frame={current_frame}, start={schedule_start}, end={schedule_end}")
-        print(f"   State: {state}, visible: {visible}, colortype_id: {colortype_id}")
-
-        # Get color based on ColorType and state
-        # Try to find the actual ColorType object for real colors
+        # REAL-TIME COLORTYPE CALCULATION: Ignore baked colortype_id and recalculate
         colortype_object = None
         try:
-            # CRITICAL FIX: Get the real ColorType object with real colors
-            import bonsai.tool as tool
-            animation_props = tool.Sequence.get_animation_props()
-
-            # Get active group name (same logic as in get_assigned_ColorType_for_task_enhanced)
-            active_group_name = getattr(animation_props, 'task_colortype_group_selector', None)
-            if not active_group_name or active_group_name in ['DEFAULT', '']:
-                active_group_name = getattr(animation_props, 'ColorType_groups', None)
-            if not active_group_name:
-                active_group_name = "DEFAULT"
-
-            print(f"   🔍 Looking for ColorType in group: {active_group_name}")
-
-            # Get ColorTypes from the active group
-            from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
-            group_colortypes = UnifiedColorTypeManager.get_group_colortypes(context, active_group_name)
-
-            # Find ColorType by ID or name
-            # For now, we'll use a mapping approach - this could be enhanced
-            if group_colortypes:
-                # If we have multiple ColorTypes, we need to determine which one corresponds to our colortype_id
-                # For simplicity, let's use the first available ColorType as a fallback
-                for colortype_name, colortype_data in group_colortypes.items():
-                    # Create the ColorType object using our existing function
-                    colortype_object = create_colortype_from_data(colortype_name, colortype_data)
-                    print(f"   ✅ Using ColorType '{colortype_name}' from group '{active_group_name}' for colors")
-                    break
+            element = tool.Ifc.get_entity(obj)
+            if element:
+                # Find the task for this product
+                task = get_task_for_product(element)
+                if task:
+                    # Recalculate the ColorType using current UI state
+                    colortype_object = get_assigned_ColorType_for_task_enhanced(task)
+                    print(f"🔄 REAL-TIME ColorType for {obj.name}: {getattr(colortype_object, 'name', 'UNKNOWN')}")
+                else:
+                    print(f"   ⚠️ No task found for object {obj.name}")
+            else:
+                print(f"   ⚠️ No IFC element found for object {obj.name}")
 
         except Exception as e:
-            print(f"   ⚠️ Could not get real ColorType object: {e}")
-            pass
+            print(f"   ⚠️ Error getting real-time ColorType: {e}")
 
-        color = get_colortype_color_for_state(colortype_id, state, colortype_object)
+        # KEYFRAMES EXACT LOGIC: Apply visibility based on relationship and ColorType
+        relationship_str = "OUTPUT" if relationship_type == 0 else "INPUT"
+        visible = True  # Default for active state
+
+        if colortype_object:
+            # Get real visibility properties from ColorType
+            consider_start = getattr(colortype_object, 'consider_start', True)
+            hide_at_end = getattr(colortype_object, 'hide_at_end', False)
+            colortype_name = getattr(colortype_object, 'name', 'UNKNOWN')
+
+            # KEYFRAMES EXACT LOGIC: Apply relationship-based visibility rules
+            if state == "before_start":
+                if relationship_type == 0:  # OUTPUT (Construction)
+                    # OUTPUT products: Hidden before start unless consider_start=True
+                    visible = consider_start
+                    print(f"      -> OUTPUT: visible={visible} (consider_start={consider_start})")
+                else:  # INPUT (Demolition/Resources)
+                    # INPUT products: Always visible before (they exist to be consumed/demolished)
+                    visible = True
+                    print(f"      -> INPUT: visible=True (always visible before)")
+            elif state == "active":
+                # Always visible during active phase regardless of relationship
+                visible = True
+            else:  # after_end
+                if colortype_name in ['DEMOLITION', 'DISMANTLE', 'REMOVAL', 'DISPOSAL'] or hide_at_end:
+                    # Objects that disappear after completion
+                    visible = False
+                    print(f"      -> Disappears after completion (hide_at_end={hide_at_end} or demolition type)")
+                else:
+                    # Objects that remain visible after completion
+                    visible = True
+                    print(f"      -> Remains visible after completion")
+
+            print(f"   👁️  KEYFRAMES LOGIC for {obj.name}: {state} + {relationship_str} -> visible={visible}")
+            print(f"      ColorType={colortype_name}, consider_start={consider_start}, hide_at_end={hide_at_end}")
+        else:
+            # Fallback visibility if no ColorType found
+            if state == "before_start" and relationship_type == 0:
+                visible = False  # OUTPUT without ColorType: hidden before start
+            else:
+                visible = state == "active"  # Default: only visible during active
+
+        # Use the recalculated ColorType (colortype_id is now irrelevant)
+        color = get_colortype_color_for_state(0, state, colortype_object)
 
         # Apply color and visibility
         if visible:
@@ -1382,22 +1465,22 @@ def get_colortype_color_for_state(colortype_id, state, colortype_object=None):
                     color = (0.8, 0.8, 0.8, 1.0)  # Default original color
                 else:
                     start_color = getattr(colortype_object, 'start_color', [0.8, 0.8, 0.8, 1.0])
-                    transparency = getattr(colortype_object, 'start_transparency', 0.0)
-                    color = (start_color[0], start_color[1], start_color[2], 1.0 - transparency)
+                    color = (start_color[0], start_color[1], start_color[2], 1.0)  # Keep full opacity for vibrant colors
             elif state == "active":
                 if getattr(colortype_object, 'use_active_original_color', False):
                     color = (0.8, 0.8, 0.8, 1.0)  # Default original color
                 else:
-                    active_color = getattr(colortype_object, 'in_progress_color', [0.0, 0.8, 0.0, 1.0])
-                    transparency = getattr(colortype_object, 'active_start_transparency', 0.0)
-                    color = (active_color[0], active_color[1], active_color[2], 1.0 - transparency)
+                    active_color = getattr(colortype_object, 'active_color', [0.0, 0.8, 0.0, 1.0])
+                    color = (active_color[0], active_color[1], active_color[2], 1.0)  # Keep full opacity for vibrant colors
             else:  # after_end
-                if getattr(colortype_object, 'use_end_original_color', True):
-                    color = (0.8, 0.8, 0.8, 1.0)  # Default original color
+                use_end_original = getattr(colortype_object, 'use_end_original_color', False)
+                if use_end_original:
+                    color = (0.8, 0.8, 0.8, 1.0)  # Default original color (as configured)
+                    print(f"      -> Using original end color (use_end_original_color=True)")
                 else:
                     end_color = getattr(colortype_object, 'end_color', [0.8, 0.8, 0.8, 1.0])
-                    transparency = getattr(colortype_object, 'end_transparency', 0.0)
-                    color = (end_color[0], end_color[1], end_color[2], 1.0 - transparency)
+                    color = (end_color[0], end_color[1], end_color[2], 1.0)  # Keep full opacity for vibrant colors
+                    print(f"      -> Using custom end color: {end_color}")
 
             print(f"   🎨 ColorType {colortype_id} -> State {state} -> Real Color {color}")
             return color
