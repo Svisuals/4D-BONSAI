@@ -40,6 +40,7 @@ ATTR_ACTUAL_END = "actual_end"
 ATTR_ACTUAL_DURATION = "actual_duration"
 ATTR_EFFECT_TYPE = "effect_type"
 ATTR_COLORTYPE_ID = "colortype_id"
+ATTR_TASK_COLOR = "bonsai_task_color"
 ATTR_VISIBILITY_BEFORE_START = "visibility_before_start"
 ATTR_VISIBILITY_AFTER_END = "visibility_after_end"
 ATTR_ANIMATION_STATE = "animation_state"
@@ -379,8 +380,10 @@ def apply_attributes_to_single_object(obj, attributes):
             attr = mesh.attributes[attr_name]
         else:
             # Create new attribute
-            if attr_name in [ATTR_SCHEDULE_START, ATTR_SCHEDULE_END]:
+            if attr_name in [ATTR_SCHEDULE_START, ATTR_SCHEDULE_END, ATTR_SCHEDULE_DURATION, ATTR_ACTUAL_START, ATTR_ACTUAL_END, ATTR_ACTUAL_DURATION]:
                 attr = mesh.attributes.new(attr_name, 'FLOAT', 'POINT')
+            elif attr_name == ATTR_TASK_COLOR:
+                attr = mesh.attributes.new(attr_name, 'FLOAT_COLOR', 'POINT')
             elif attr_name in [ATTR_VISIBILITY_BEFORE_START, ATTR_VISIBILITY_AFTER_END]:
                 attr = mesh.attributes.new(attr_name, 'BOOLEAN', 'POINT')
             else:
@@ -390,11 +393,31 @@ def apply_attributes_to_single_object(obj, attributes):
         if isinstance(values, (list, tuple)):
             for i, value in enumerate(values):
                 if i < len(attr.data):
-                    attr.data[i].value = value
+                    # Handle complex values (dict, etc.) by extracting the appropriate value
+                    if isinstance(value, dict):
+                        # For color attributes, extract RGB values or use first numeric value
+                        if attr_name == ATTR_TASK_COLOR and 'color' in value:
+                            attr.data[i].color = value['color']  # For color attributes
+                        else:
+                            # For other dict attributes, find first numeric value
+                            numeric_value = next((v for v in value.values() if isinstance(v, (int, float))), 0)
+                            attr.data[i].value = numeric_value
+                    else:
+                        attr.data[i].value = value
         else:
             # Single value for all vertices
             for data_point in attr.data:
-                data_point.value = values
+                # Handle complex values (dict, etc.) by extracting the appropriate value
+                if isinstance(values, dict):
+                    # For color attributes, extract RGB values
+                    if attr_name == ATTR_TASK_COLOR and 'color' in values:
+                        data_point.color = values['color']  # For color attributes
+                    else:
+                        # For other dict attributes, find first numeric value
+                        numeric_value = next((v for v in values.values() if isinstance(v, (int, float))), 0)
+                        data_point.value = numeric_value
+                else:
+                    data_point.value = values
 
 def add_gn_modifier_to_object(obj, node_tree):
     """Add GN modifier to object"""

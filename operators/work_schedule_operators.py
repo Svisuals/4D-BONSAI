@@ -938,6 +938,9 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
 
             _clear_previous_animation(context)
 
+            # Initialize product_frames variable for tracking
+            product_frames = {}
+
             # Check animation engine selection
             anim_props = tool.Sequence.get_animation_props()
             animation_engine = getattr(anim_props, 'animation_engine', 'KEYFRAME')
@@ -948,15 +951,18 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                 try:
                     # Try to import and initialize GN system
                     try:
-                        from ..tool import gn_system
-                        gn_system.initialize_complete_gn_system()
+                        from bonsai.tool import gn_system
+                        # No initialization needed - gn_system is ready to use
+                        print("✅ GN system imported successfully")
                     except ImportError as import_error:
                         print(f"⚠️ GN system import failed: {import_error}")
                         raise Exception(f"Geometry Nodes system not available: {import_error}")
 
-                    from ..tool import gn_sequence
+                    from bonsai.tool import gn_sequence
                     success = gn_sequence.create_complete_gn_animation_system_enhanced(context, work_schedule, settings)
                     if success:
+                        # Get product frames for count reporting (GN system handles animation differently)
+                        product_frames = tool.Sequence.get_animation_product_frames_enhanced(work_schedule, settings)
                         self.report({'INFO'}, "Geometry Nodes animation created successfully!")
                     else:
                         self.report({'ERROR'}, "Failed to create Geometry Nodes animation. Falling back to keyframes.")

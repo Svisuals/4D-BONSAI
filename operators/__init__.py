@@ -27,6 +27,13 @@ try:
 except ImportError:
     DEBUG_GN_AVAILABLE = False
 
+# Import test operator
+try:
+    from . import test_gn_registration
+    TEST_GN_AVAILABLE = True
+except ImportError:
+    TEST_GN_AVAILABLE = False
+
 # A single tuple containing all operator classes to be registered
 
 classes = (
@@ -258,11 +265,21 @@ classes = (
     config_operators.BIM_OT_clear_performance_cache,
 )
 
+# Add test operator if available (always first for debugging)
+if TEST_GN_AVAILABLE:
+    test_classes = (
+        test_gn_registration.BONSAI_OT_test_gn_registration,
+    )
+    classes = classes + test_classes
+
 # Add debug operators if available
 if DEBUG_GN_AVAILABLE:
     debug_classes = (
-        debug_gn_operators.BIM_OT_DebugGNSystem,
-        debug_gn_operators.BIM_OT_TestGNSystem,
+        debug_gn_operators.BONSAI_OT_apply_gn_data_to_selection,
+        debug_gn_operators.BONSAI_OT_clean_gn_data_from_selection,
+        debug_gn_operators.BONSAI_OT_debug_gn_system,
+        debug_gn_operators.BONSAI_OT_update_gn_objects,
+        debug_gn_operators.BONSAI_OT_sync_gn_settings,
     )
     classes = classes + debug_classes
 

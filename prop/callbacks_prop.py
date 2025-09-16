@@ -1270,6 +1270,13 @@ def update_ColorType_group(self, context):
 
     # REMOVED: Task synchronization that was corrupting data
     # When switching groups in editor, we should NOT modify task colortype assignments
+
+    # Sync with GN system if using Geometry Nodes
+    try:
+        if hasattr(self, 'animation_engine') and self.animation_engine == 'GEOMETRY_NODES':
+            sync_gn_with_animation_changes(self, context)
+    except Exception as gn_error:
+        print(f"⚠️ GN sync error in update_ColorType_group: {gn_error}")
     # This was causing the last custom group to get overwritten with wrong values
     print(f"ℹ️  Editor group changed to '{self.ColorType_groups}' - task assignments unchanged")
 
@@ -1928,10 +1935,73 @@ def toggle_live_color_updates(self, context):
         else:
             tool.Sequence.unregister_live_color_update_handler()
             print("Live color updates disabled.")
+
+        # Sync with GN system if using Geometry Nodes
+        try:
+            if hasattr(self, 'animation_engine') and self.animation_engine == 'GEOMETRY_NODES':
+                sync_gn_with_animation_changes(self, context)
+        except Exception as gn_error:
+            print(f"⚠️ GN sync error in toggle_live_color_updates: {gn_error}")
+
     except Exception as e:
         print(f"Error toggling live color updates: {e}")
         import traceback
         traceback.print_exc()
+
+
+def sync_gn_with_animation_changes(self, context):
+    """Synchronize GN system when animation settings change"""
+    try:
+        # Check if we're in GN mode
+        if not hasattr(self, 'animation_engine') or self.animation_engine != 'GEOMETRY_NODES':
+            print("🔄 Not in GN mode, skipping sync")
+            return
+
+        print(f"🔄 Syncing GN system (engine: {self.animation_engine})...")
+
+        # Import GN integration
+        try:
+            from bonsai.tool import gn_integration
+        except ImportError:
+            gn_integration = None
+        if gn_integration:
+            gn_integration.sync_gn_with_animation_settings_changes(self, context)
+            print("✅ GN system synchronized with animation changes")
+        else:
+            print("⚠️ GN integration not available")
+
+    except Exception as e:
+        print(f"❌ Error syncing GN system: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+def validate_gn_system_ready():
+    """Validate that the GN system is ready for use"""
+    try:
+        from bonsai.tool import gn_system, gn_integration
+
+        validation_results = {
+            'gn_system_available': gn_system is not None,
+            'gn_integration_available': gn_integration is not None,
+            'tool_available': tool is not None,
+            'managed_objects': 0,
+        }
+
+        if gn_system:
+            managed_objects = gn_system.get_gn_managed_objects()
+            validation_results['managed_objects'] = len(managed_objects)
+
+        print("🔍 GN System Validation Results:")
+        for key, value in validation_results.items():
+            status = "✅" if value else "❌"
+            print(f"  {status} {key}: {value}")
+
+        return validation_results
+
+    except Exception as e:
+        print(f"❌ Error validating GN system: {e}")
+        return {'error': str(e)}
 
 
 def update_legend_hud_on_group_change(self, context):

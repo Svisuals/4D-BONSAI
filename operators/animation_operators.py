@@ -36,23 +36,46 @@ class CreateAnimation(bpy.types.Operator, tool.Ifc.Operator):
     def _execute_gn_animation(self, context, stored_frame):
         """Execute animation creation using Geometry Nodes system"""
         try:
-            from ..tool.gn_system import create_gn_animation_auto
+            # Import GN system components
+            try:
+                from bonsai.tool import gn_system, gn_integration
+            except ImportError as e:
+                self.report({'ERROR'}, f"Geometry Nodes system not available: {e}")
+                print(f"❌ GN modules import failed: {e}")
+                return self._execute_keyframes_animation(context, stored_frame)
 
-            # Use the GN system
-            result = create_gn_animation_auto(preserve_current_frame=self.preserve_current_frame)
-
-            if result == {'FINISHED'}:
-                anim_props = tool.Sequence.get_animation_props()
-                anim_props.is_animation_created = True
-                self.report({'INFO'}, "Geometry Nodes animation created successfully")
-                return {'FINISHED'}
-            else:
-                self.report({'ERROR'}, "Failed to create Geometry Nodes animation")
+            # Get active work schedule and animation settings
+            work_schedule = tool.Sequence.get_active_work_schedule()
+            if not work_schedule:
+                self.report({'ERROR'}, "No active work schedule found")
                 return {'CANCELLED'}
 
+            settings = tool.Sequence.get_animation_settings()
+            if not settings:
+                self.report({'ERROR'}, "Could not get animation settings")
+                return {'CANCELLED'}
+
+            print("🎯 Starting GN animation creation...")
+
+            # Run the V113 enhanced GN integration
+            print("🚀 Running V113 enhanced GN system...")
+            gn_integration.setup_gn_task_integration()
+
+            # Set animation as created
+            anim_props = tool.Sequence.get_animation_props()
+            anim_props.is_animation_created = True
+
+            # Preserve frame if requested
+            if self.preserve_current_frame:
+                context.scene.frame_set(stored_frame)
+
+            self.report({'INFO'}, "Geometry Nodes animation created successfully")
+            return {'FINISHED'}
+
         except Exception as e:
-            self.report({'ERROR'}, f"GN Animation failed: {e}")
-            return {'CANCELLED'}
+            self.report({'ERROR'}, f"Geometry Nodes animation failed: {e}. Falling back to keyframes.")
+            print(f"❌ GN Animation failed: {e}. Falling back to keyframes.")
+            return self._execute_keyframes_animation(context, stored_frame)
 
     def _execute_keyframes_animation(self, context, stored_frame):
         """Execute animation creation using traditional keyframes system"""
@@ -180,22 +203,63 @@ class ClearAnimation(bpy.types.Operator, tool.Ifc.Operator):
     def _clear_gn_animation(self, context):
         """Clear animation using Geometry Nodes system"""
         try:
-            from ..tool.gn_system import clear_gn_animation_auto
+            # Import GN system components
+            try:
+                from bonsai.tool import gn_system
+            except ImportError as e:
+                self.report({'ERROR'}, f"Geometry Nodes system not available: {e}")
+                print(f"❌ GN system import failed: {e}")
+                return self._clear_keyframes_animation(context)
 
-            result = clear_gn_animation_auto()
+            print("🧹 Starting GN animation cleanup...")
 
-            if result == {'FINISHED'}:
-                anim_props = tool.Sequence.get_animation_props()
-                anim_props.is_animation_created = False
-                self.report({'INFO'}, "Geometry Nodes animation cleared")
-                return {'FINISHED'}
-            else:
-                self.report({'ERROR'}, "Failed to clear Geometry Nodes animation")
-                return {'CANCELLED'}
+            # Clean all objects with GN modifiers
+            cleaned_count = 0
+            all_objects = list(context.scene.objects)
+
+            for obj in all_objects:
+                if not obj or obj.type != 'MESH':
+                    continue
+
+                # Check if object has GN modifier
+                has_gn_modifier = False
+                for mod in obj.modifiers:
+                    if mod.name == gn_system.GN_MODIFIER_NAME and mod.type == 'NODES':
+                        obj.modifiers.remove(mod)
+                        print(f"✅ Removed GN modifier from {obj.name}")
+                        has_gn_modifier = True
+                        break
+
+                # Clean GN attributes if object had modifier
+                if has_gn_modifier:
+                    if gn_system.clean_gn_attributes_from_object(obj):
+                        cleaned_count += 1
+
+                    # Remove from GN management
+                    gn_system.remove_object_from_gn_references(obj)
+
+            # Clean up node tree and material
+            from ..tool.gn_sequence_core import GN_NODETREE_NAME, GN_SUPER_MATERIAL_NAME
+
+            if GN_NODETREE_NAME in bpy.data.node_groups:
+                bpy.data.node_groups.remove(bpy.data.node_groups[GN_NODETREE_NAME])
+                print("✅ Removed GN node tree")
+
+            if GN_SUPER_MATERIAL_NAME in bpy.data.materials:
+                bpy.data.materials.remove(bpy.data.materials[GN_SUPER_MATERIAL_NAME])
+                print("✅ Removed GN super material")
+
+            # Set animation as not created
+            anim_props = tool.Sequence.get_animation_props()
+            anim_props.is_animation_created = False
+
+            self.report({'INFO'}, f"Geometry Nodes animation cleared from {cleaned_count} objects")
+            return {'FINISHED'}
 
         except Exception as e:
-            self.report({'ERROR'}, f"GN Clear failed: {e}")
-            return {'CANCELLED'}
+            self.report({'ERROR'}, f"GN clear failed: {e}. Falling back to keyframes cleanup.")
+            print(f"❌ GN Clear failed: {e}. Falling back to keyframes cleanup.")
+            return self._clear_keyframes_animation(context)
 
     def _clear_keyframes_animation(self, context):
         """Clear animation using traditional keyframes system"""
@@ -752,11 +816,8 @@ class AddGNViewController(bpy.types.Operator):
 
     def execute(self, context):
         try:
-            # Import GN sequence constants
-            from ..tool import gn_sequence
-
-            # Create or get the controller collection
-            coll_name = gn_sequence.GN_CONTROLLER_COLLECTION
+            # Use constant for controller collection
+            coll_name = "GN_CONTROLLERS"
             if coll_name not in bpy.data.collections:
                 coll = bpy.data.collections.new(coll_name)
                 context.scene.collection.children.link(coll)
@@ -782,8 +843,8 @@ class AddGNViewController(bpy.types.Operator):
             self.report({'INFO'}, f"Controller '{controller.name}' created in collection '{coll_name}'.")
             return {'FINISHED'}
 
-        except ImportError:
-            self.report({'ERROR'}, "GN sequence module not available")
+        except ImportError as e:
+            self.report({'ERROR'}, f"GN system not available: {e}")
             return {'CANCELLED'}
         except Exception as e:
             self.report({'ERROR'}, f"Failed to create controller: {e}")

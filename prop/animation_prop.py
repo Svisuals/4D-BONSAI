@@ -29,6 +29,17 @@ from . import callbacks_prop as callbacks
 from . import enums_prop as enums
 
 
+class GNObjectReference(PropertyGroup):
+    """Reference to objects managed by Geometry Nodes system"""
+    obj: PointerProperty(
+        name="Object",
+        type=bpy.types.Object,
+        description="Object reference for GN system management"
+    )
+    if TYPE_CHECKING:
+        obj: bpy.types.Object
+
+
 class BIMTaskTypeColor(PropertyGroup):
     """Color by task type (legacy - maintain for compatibility)"""
     name: StringProperty(name="Name")
@@ -137,7 +148,14 @@ class BIMAnimationProperties(PropertyGroup):
     # Animation group stack
     animation_group_stack: CollectionProperty(name="Animation Group Stack", type=AnimationColorTypeGroupItem)
     animation_group_stack_index: IntProperty(name="Animation Group Stack Index", default=-1)
-    
+
+    # Geometry Nodes managed objects
+    gn_object_references: CollectionProperty(
+        name="Geometry Nodes Managed Objects",
+        type=GNObjectReference,
+        description="Objects controlled by the Geometry Nodes animation system"
+    )
+
     # State and configuration
     is_editing: BoolProperty(name="Is Loaded", default=False)
     saved_colortype_name: StringProperty(name="colortype Set Name", default="Default")
@@ -149,7 +167,8 @@ class BIMAnimationProperties(PropertyGroup):
             ('KEYFRAME', "Keyframe (Legacy)", "Hornea la animación a fotogramas clave."),
             ('GEOMETRY_NODES', "Geometry Nodes (Real-time)", "Alto rendimiento para escenas grandes.")
         ],
-        default='KEYFRAME'
+        default='KEYFRAME',
+        update=callbacks.sync_gn_with_animation_changes
     )
     
     # Animation Color Scheme
@@ -228,6 +247,7 @@ class BIM_GN_Controller_Properties(bpy.types.PropertyGroup):
         active_ColorType_system: str
         animation_group_stack: bpy.types.bpy_prop_collection_idprop[AnimationColorTypeGroupItem]
         animation_group_stack_index: int
+        gn_object_references: bpy.types.bpy_prop_collection_idprop[GNObjectReference]
         is_editing: bool
         saved_colortype_name: str
         ColorTypes: bpy.types.bpy_prop_collection_idprop[AnimationColorSchemes]

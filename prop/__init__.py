@@ -43,7 +43,7 @@ classes = (
     WorkCalendar, RecurrenceComponent, BIMWorkCalendarProperties,
     
     # De animation_prop.py
-    BIMTaskTypeColor, AnimationColorSchemes, AnimationColorTypeGroupItem,
+    GNObjectReference, BIMTaskTypeColor, AnimationColorSchemes, AnimationColorTypeGroupItem,
     BIMAnimationProperties, BIM_GN_Controller_Properties,
     
     # De camera_prop.py
