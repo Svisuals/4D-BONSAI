@@ -942,7 +942,8 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
             if not product_frames:
                 self.report({'WARNING'}, "No products found to animate.")
 
-            tool.Sequence.animate_objects_with_ColorTypes(settings, product_frames)
+            # REFACTORED: Use new batch processing approach for better performance
+            tool.Sequence.animate_objects_with_ColorTypes_new(settings, product_frames)
             tool.Sequence.add_text_animation_handler(settings)
             
             # --- ADD SCHEDULE NAME TEXT ---

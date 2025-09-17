@@ -3466,11 +3466,34 @@ class Sequence(bonsai.core.tool.Sequence):
         # --- INICIO DE LA MODIFICACIÓN: GUARDAR ESTADO ORIGINAL DEL SNAPSHOT ---
         import bpy
         import json
+
+        # --- GUARDAR COLORES ORIGINALES USANDO SISTEMA EXISTENTE ---
+        # Solo guardar si no existen ya colores originales guardados
+        if not bpy.context.scene.get('BIM_VarianceOriginalObjectColors'):
+            cls._save_original_object_colors()
+
         original_properties = {}
         for obj in bpy.data.objects:
             if obj.type == 'MESH' and tool.Ifc.get_entity(obj):
+                # Intentar obtener el color del material IFC original primero
+                original_color = None
+                try:
+                    if obj.material_slots and obj.material_slots[0].material:
+                        material = obj.material_slots[0].material
+                        if material.use_nodes:
+                            principled = tool.Blender.get_material_node(material, "BSDF_PRINCIPLED")
+                            if principled and principled.inputs.get("Base Color"):
+                                base_color = principled.inputs["Base Color"].default_value
+                                original_color = [base_color[0], base_color[1], base_color[2], base_color[3]]
+                except Exception:
+                    pass
+
+                # Fallback: usar el color actual del viewport si no se pudo obtener del material
+                if original_color is None:
+                    original_color = list(obj.color)
+
                 original_properties[obj.name] = {
-                    "color": list(obj.color),
+                    "color": original_color,
                     "hide_viewport": obj.hide_viewport,
                     "hide_render": obj.hide_render,
                 }
@@ -4299,6 +4322,293 @@ class Sequence(bonsai.core.tool.Sequence):
                 pass
         data[active_group] = {"ColorTypes": ColorTypes_data}
         scene["BIM_AnimationColorSchemesSets"] = json.dumps(data)
+
+    @classmethod
+    def build_animation_plan(cls, context, settings, product_frames):
+        """
+        Phase 1: Planning - Builds animation plan without modifying Blender scene.
+        Returns a structured plan dict for batch execution.
+
+        Structure: {frame_number: {action_type: [object_list]}}
+        """
+        from collections import defaultdict
+
+        animation_props = cls.get_animation_props()
+
+        # Active group logic (stack → DEFAULT)
+        active_group_name = None
+        for item in getattr(animation_props, "animation_group_stack", []):
+            if getattr(item, "enabled", False) and getattr(item, "group", None):
+                active_group_name = item.group
+                break
+        if not active_group_name:
+            active_group_name = "DEFAULT"
+
+        print(f"🎯 PLANNING ANIMATION: Using ColorType group '{active_group_name}'")
+
+        # Initialize plan structure
+        animation_plan = defaultdict(lambda: defaultdict(list))
+
+        # Store original colors for planning
+        original_colors = {}
+        for obj in bpy.data.objects:
+            if obj.type == 'MESH':
+                try:
+                    if obj.material_slots and obj.material_slots[0].material:
+                        material = obj.material_slots[0].material
+                        if material.use_nodes:
+                            principled = tool.Blender.get_material_node(material, "BSDF_PRINCIPLED")
+                            if principled and principled.inputs.get("Base Color"):
+                                base_color = principled.inputs["Base Color"].default_value
+                                original_colors[obj.name] = [base_color[0], base_color[1], base_color[2], base_color[3]]
+                except Exception:
+                    pass
+
+                if obj.name not in original_colors:
+                    original_colors[obj.name] = list(obj.color)
+
+        # Plan object animations
+        for obj in bpy.data.objects:
+            element = tool.Ifc.get_entity(obj)
+            if not element or element.is_a("IfcSpace"):
+                if element and element.is_a("IfcSpace"):
+                    # Plan to hide spaces at frame 0
+                    animation_plan[0]["HIDE"].append(obj)
+                continue
+
+            if element.id() not in product_frames:
+                # Plan to hide objects not in animation
+                animation_plan[0]["HIDE"].append(obj)
+                continue
+
+            # Plan to hide all objects initially
+            animation_plan[0]["HIDE"].append(obj)
+
+            # Process each frame data for this object
+            original_color = original_colors.get(obj.name, [1.0, 1.0, 1.0, 1.0])
+
+            for frame_data in product_frames[element.id()]:
+                task = frame_data.get("task") or tool.Ifc.get().by_id(frame_data.get("task_id"))
+                ColorType = cls.get_assigned_ColorType_for_task(task, animation_props, active_group_name)
+
+                # Plan keyframes for each state
+                cls._plan_object_animation(animation_plan, obj, frame_data, ColorType, original_color)
+
+        print(f"🎯 PLANNING COMPLETE: Plan contains {len(animation_plan)} frames")
+        return dict(animation_plan)
+
+    @classmethod
+    def _plan_object_animation(cls, animation_plan, obj, frame_data, ColorType, original_color):
+        """Helper function to plan animation keyframes for a single object"""
+
+        # Plan START state
+        start_state_frames = frame_data["states"]["before_start"]
+        start_f, end_f = start_state_frames
+
+        is_construction = frame_data.get("relationship") == "output"
+        should_be_hidden_at_start = is_construction and not getattr(ColorType, 'consider_start', False)
+
+        if end_f >= start_f:
+            if not should_be_hidden_at_start:
+                animation_plan[start_f]["REVEAL"].append(obj)
+                use_original = getattr(ColorType, 'use_start_original_color', False)
+                color = original_color if use_original else list(ColorType.start_color)
+                alpha = 1.0 - getattr(ColorType, 'start_transparency', 0.0)
+                start_color = (color[0], color[1], color[2], alpha)
+                animation_plan[start_f]["SET_COLOR"].append((obj, start_color))
+                animation_plan[end_f]["SET_COLOR"].append((obj, start_color))
+            else:
+                animation_plan[start_f]["HIDE"].append(obj)
+
+        # Plan ACTIVE state
+        active_state_frames = frame_data["states"]["active"]
+        start_f, end_f = active_state_frames
+
+        if end_f >= start_f and getattr(ColorType, 'consider_active', True):
+            animation_plan[start_f]["REVEAL"].append(obj)
+
+            use_original = getattr(ColorType, 'use_active_original_color', False)
+            color = original_color if use_original else list(ColorType.in_progress_color)
+
+            alpha_start = 1.0 - getattr(ColorType, 'active_start_transparency', 0.0)
+            alpha_end = 1.0 - getattr(ColorType, 'active_finish_transparency', 0.0)
+
+            start_color = (color[0], color[1], color[2], alpha_start)
+            animation_plan[start_f]["SET_COLOR"].append((obj, start_color))
+
+            if end_f > start_f:
+                end_color = (color[0], color[1], color[2], alpha_end)
+                animation_plan[end_f]["SET_COLOR"].append((obj, end_color))
+
+        # Plan END state
+        end_state_frames = frame_data["states"]["after_end"]
+        start_f, end_f = end_state_frames
+
+        if end_f >= start_f and getattr(ColorType, 'consider_end', True):
+            should_hide_at_end = getattr(ColorType, 'hide_at_end', False)
+
+            if not should_hide_at_end:
+                animation_plan[start_f]["REVEAL"].append(obj)
+                use_original = getattr(ColorType, 'use_end_original_color', True)
+                color = original_color if use_original else list(ColorType.end_color)
+                alpha = 1.0 - getattr(ColorType, 'end_transparency', 0.0)
+                end_color = (color[0], color[1], color[2], alpha)
+                animation_plan[start_f]["SET_COLOR"].append((obj, end_color))
+            else:
+                animation_plan[start_f]["HIDE"].append(obj)
+
+    @classmethod
+    def execute_animation_plan(cls, context, animation_plan):
+        """
+        Phase 2: Execution - Applies the animation plan efficiently using batch operations.
+        """
+        print(f"🚀 EXECUTING ANIMATION: Processing {len(animation_plan)} frames")
+
+        # Clear existing animation data first
+        for obj in bpy.data.objects:
+            if obj.animation_data:
+                obj.animation_data_clear()
+
+        # Process frames in order
+        for frame_num in sorted(animation_plan.keys()):
+            frame_actions = animation_plan[frame_num]
+
+            # Batch hide operations
+            if "HIDE" in frame_actions:
+                for obj in frame_actions["HIDE"]:
+                    obj.hide_viewport = True
+                    obj.hide_render = True
+                    obj.keyframe_insert(data_path="hide_viewport", frame=frame_num)
+                    obj.keyframe_insert(data_path="hide_render", frame=frame_num)
+
+            # Batch reveal operations
+            if "REVEAL" in frame_actions:
+                for obj in frame_actions["REVEAL"]:
+                    obj.hide_viewport = False
+                    obj.hide_render = False
+                    obj.keyframe_insert(data_path="hide_viewport", frame=frame_num)
+                    obj.keyframe_insert(data_path="hide_render", frame=frame_num)
+
+            # Batch color operations
+            if "SET_COLOR" in frame_actions:
+                for obj, color in frame_actions["SET_COLOR"]:
+                    obj.color = color
+                    obj.keyframe_insert(data_path="color", frame=frame_num)
+
+            # Batch material operations
+            if "SET_MATERIAL_ACTIVE" in frame_actions:
+                for obj in frame_actions["SET_MATERIAL_ACTIVE"]:
+                    if obj.material_slots and obj.material_slots[0].material:
+                        obj.keyframe_insert(data_path='material_slots[0].material', frame=frame_num)
+
+        # Reset all objects to hidden state to avoid initial visibility issues
+        for obj in bpy.data.objects:
+            element = tool.Ifc.get_entity(obj)
+            if element and not element.is_a("IfcSpace"):
+                obj.hide_viewport = True
+                obj.hide_render = True
+
+        print(f"🚀 EXECUTION COMPLETE: Animation applied successfully")
+
+    @classmethod
+    def animate_objects_with_ColorTypes_new(cls, settings, product_frames):
+        """
+        NEW BATCH PROCESSING VERSION: Refactored for performance with thousands of objects.
+        Replaces the old animate_objects_with_ColorTypes function.
+        """
+        print("🎬 STARTING NEW BATCH ANIMATION SYSTEM")
+
+        # Save original colors using existing system
+        if not bpy.context.scene.get('BIM_VarianceOriginalObjectColors'):
+            cls._save_original_object_colors()
+
+        # Handle live updates (preserve existing functionality)
+        animation_props = cls.get_animation_props()
+        if animation_props.enable_live_color_updates:
+            print("📡 Setting up live color updates...")
+            cls._setup_live_updates(product_frames, animation_props)
+
+        # Phase 1: Build animation plan
+        animation_plan = cls.build_animation_plan(bpy.context, settings, product_frames)
+
+        # Phase 2: Execute animation plan
+        cls.execute_animation_plan(bpy.context, animation_plan)
+
+        # Set viewport shading and frame range (preserve existing functionality)
+        area = tool.Blender.get_view3d_area()
+        try:
+            area.spaces[0].shading.color_type = "OBJECT"
+        except Exception:
+            pass
+        bpy.context.scene.frame_start = settings["start_frame"]
+        bpy.context.scene.frame_end = int(settings["start_frame"] + settings["total_frames"] + 1)
+
+        print("🎬 NEW BATCH ANIMATION SYSTEM COMPLETE")
+
+    @classmethod
+    def _setup_live_updates(cls, product_frames, animation_props):
+        """Helper method to setup live color updates (preserves original functionality)"""
+        from collections import defaultdict
+        from datetime import datetime
+        import json
+
+        # Get active group name
+        active_group_name = None
+        for item in getattr(animation_props, "animation_group_stack", []):
+            if getattr(item, "enabled", False) and getattr(item, "group", None):
+                active_group_name = item.group
+                break
+        if not active_group_name:
+            active_group_name = "DEFAULT"
+
+        live_update_props = {"product_frames": {}, "original_colors": {}}
+
+        # Store original colors for live updates
+        for obj in bpy.data.objects:
+            element = tool.Ifc.get_entity(obj)
+            if element and not element.is_a("IfcSpace") and element.id() in product_frames:
+                if obj.type == 'MESH':
+                    try:
+                        if obj.material_slots and obj.material_slots[0].material:
+                            material = obj.material_slots[0].material
+                            if material.use_nodes:
+                                principled = tool.Blender.get_material_node(material, "BSDF_PRINCIPLED")
+                                if principled and principled.inputs.get("Base Color"):
+                                    base_color = principled.inputs["Base Color"].default_value
+                                    original_color = [base_color[0], base_color[1], base_color[2], base_color[3]]
+                                    live_update_props["original_colors"][str(element.id())] = original_color
+                    except Exception:
+                        pass
+
+                    if str(element.id()) not in live_update_props["original_colors"]:
+                        live_update_props["original_colors"][str(element.id())] = list(obj.color)
+
+        # Convert product_frames for serialization
+        string_keyed_product_frames = {str(k): v for k, v in product_frames.items()}
+        serializable_product_frames = {}
+
+        for pid_str, frame_data_list in string_keyed_product_frames.items():
+            serializable_frame_data_list = []
+            for frame_data_item in frame_data_list:
+                serializable_item = {}
+                for key, value in frame_data_item.items():
+                    if key == 'task':
+                        if hasattr(value, 'id') and callable(value.id):
+                            serializable_item['task_id'] = value.id()
+                        continue
+                    elif isinstance(value, datetime):
+                        serializable_item[key] = value.isoformat()
+                    else:
+                        serializable_item[key] = value
+                serializable_frame_data_list.append(serializable_item)
+            serializable_product_frames[pid_str] = serializable_frame_data_list
+
+        live_update_props["product_frames"] = serializable_product_frames
+        bpy.context.scene['BIM_LiveUpdateProductFrames'] = live_update_props
+        print(f"📡 Live update cache created with {len(serializable_product_frames)} products")
+
+        cls.register_live_color_update_handler()
+
     @classmethod
     def animate_objects_with_ColorTypes(cls, settings, product_frames):
         # --- START OF CORRECTION: Restore initialization of local variables ---
@@ -4314,13 +4624,35 @@ class Sequence(bonsai.core.tool.Sequence):
             active_group_name = "DEFAULT"
         print(f"🎬 INICIANDO ANIMACIÓN: Usando el grupo de perfiles '{active_group_name}'")
 
+        # --- GUARDAR COLORES ORIGINALES USANDO SISTEMA EXISTENTE ---
+        # Solo guardar si no existen ya colores originales guardados
+        if not bpy.context.scene.get('BIM_VarianceOriginalObjectColors'):
+            cls._save_original_object_colors()
+
         original_colors = {}
         # --- NEW: Live Update Cache ---
         live_update_props = {"product_frames": {}, "original_colors": {}}
         
         for obj in bpy.data.objects:
             if obj.type == 'MESH':
-                original_colors[obj.name] = list(obj.color)
+                # Intentar obtener el color del material IFC original primero
+                original_color = None
+                try:
+                    if obj.material_slots and obj.material_slots[0].material:
+                        material = obj.material_slots[0].material
+                        if material.use_nodes:
+                            principled = tool.Blender.get_material_node(material, "BSDF_PRINCIPLED")
+                            if principled and principled.inputs.get("Base Color"):
+                                base_color = principled.inputs["Base Color"].default_value
+                                original_color = [base_color[0], base_color[1], base_color[2], base_color[3]]
+                except Exception:
+                    pass
+
+                # Fallback: usar el color actual del viewport si no se pudo obtener del material
+                if original_color is None:
+                    original_color = list(obj.color)
+
+                original_colors[obj.name] = original_color
 
         # --- INICIO DE LA MODIFICACIÓN: GUARDAR ESTADO DE ANIMACIÓN ---
         import json
@@ -5587,6 +5919,7 @@ class Sequence(bonsai.core.tool.Sequence):
         # 3. Cargar los estados originales guardados (si existen)
         anim_colors_json = bpy.context.scene.get('bonsai_animation_original_colors')
         snap_props_json = bpy.context.scene.get('bonsai_snapshot_original_props')
+        variance_colors = bpy.context.scene.get('BIM_VarianceOriginalObjectColors', {})
 
         anim_colors = json.loads(anim_colors_json) if anim_colors_json else {}
         snap_props = json.loads(snap_props_json) if snap_props_json else {}
@@ -5615,12 +5948,33 @@ class Sequence(bonsai.core.tool.Sequence):
                             obj.hide_viewport = False
                             obj.hide_render = False
                             restored = True
-
-                        # Fallback: Si no hay datos guardados, aplicar estado por defecto.
-                        if not restored:
-                            obj.color = (0.8, 0.8, 0.8, 1.0)
+                        # Prioridad 3: Restaurar desde colores originales de varianza (sistema existente).
+                        elif obj.name in variance_colors:
+                            obj.color = variance_colors[obj.name]
                             obj.hide_viewport = False
                             obj.hide_render = False
+                            restored = True
+
+                        # Fallback: Si no hay datos guardados, intentar restaurar color del material IFC.
+                        if not restored:
+                            obj.hide_viewport = False
+                            obj.hide_render = False
+                            # Intentar obtener color del material original del objeto IFC
+                            try:
+                                if obj.material_slots and obj.material_slots[0].material:
+                                    material = obj.material_slots[0].material
+                                    if material.use_nodes:
+                                        # Buscar el nodo BSDF_PRINCIPLED
+                                        principled = tool.Blender.get_material_node(material, "BSDF_PRINCIPLED")
+                                        if principled and principled.inputs.get("Base Color"):
+                                            base_color = principled.inputs["Base Color"].default_value
+                                            obj.color = (base_color[0], base_color[1], base_color[2], base_color[3])
+                                            restored = True
+                            except Exception:
+                                pass
+                            # Si no se pudo obtener del material, usar un color neutral más apropiado
+                            if not restored:
+                                obj.color = (0.9, 0.9, 0.9, 1.0)  # Blanco casi neutro en lugar de gris
 
         # 5. Resetear la línea de tiempo
         if reset_timeline:
@@ -5632,6 +5986,9 @@ class Sequence(bonsai.core.tool.Sequence):
             del bpy.context.scene['bonsai_animation_original_colors']
         if 'bonsai_snapshot_original_props' in bpy.context.scene:
             del bpy.context.scene['bonsai_snapshot_original_props']
+        # También limpiar los colores originales del sistema de varianza
+        if 'BIM_VarianceOriginalObjectColors' in bpy.context.scene:
+            del bpy.context.scene['BIM_VarianceOriginalObjectColors']
 
         print("✅ Reseteo universal completado.")
 
@@ -7362,21 +7719,52 @@ class Sequence(bonsai.core.tool.Sequence):
                 cls._original_colors = {}
                 print("🧹 Cleared original colors cache")
             
-            # Method 2: If no cached colors or insufficient restoration, reset to default colors
+            # Method 2: Try to restore from scene saved colors
             if restored_count == 0:
-                print("🔄 No cached colors found, resetting all IFC objects to default gray")
+                variance_colors = bpy.context.scene.get('BIM_VarianceOriginalObjectColors', {})
+                if variance_colors:
+                    print(f"🔄 Attempting to restore from scene saved colors ({len(variance_colors)} stored)")
+                    for obj in bpy.context.scene.objects:
+                        if obj.type == 'MESH' and tool.Ifc.get_entity(obj) and obj.name in variance_colors:
+                            try:
+                                obj.color = variance_colors[obj.name]
+                                obj.hide_viewport = False
+                                obj.hide_render = False
+                                restored_count += 1
+                            except Exception as e:
+                                print(f"❌ Error restoring scene color for {obj.name}: {e}")
+
+            # Method 3: Try to get colors from material IFC if still no restoration
+            if restored_count == 0:
+                print("🔄 No cached colors found, attempting to restore from IFC materials")
                 for obj in bpy.context.scene.objects:
                     if obj.type == 'MESH' and tool.Ifc.get_entity(obj):
                         try:
-                            # Reset to default gray color
-                            obj.color = (0.8, 0.8, 0.8, 1.0)
+                            restored = False
+                            # Intentar obtener color del material original del objeto IFC
+                            try:
+                                if obj.material_slots and obj.material_slots[0].material:
+                                    material = obj.material_slots[0].material
+                                    if material.use_nodes:
+                                        principled = tool.Blender.get_material_node(material, "BSDF_PRINCIPLED")
+                                        if principled and principled.inputs.get("Base Color"):
+                                            base_color = principled.inputs["Base Color"].default_value
+                                            obj.color = (base_color[0], base_color[1], base_color[2], base_color[3])
+                                            restored = True
+                            except Exception:
+                                pass
+
+                            # Solo aplicar gris si no se pudo obtener del material
+                            if not restored:
+                                obj.color = (0.9, 0.9, 0.9, 1.0)  # Blanco casi neutro en lugar de gris oscuro
+
                             obj.hide_viewport = False
                             obj.hide_render = False
                             restored_count += 1
                         except Exception as e:
                             print(f"❌ Error resetting color for {obj.name}: {e}")
-            
-            print(f"✅ Total objects reset: {restored_count}")
+
+            print(f"✅ Total objects restored/reset: {restored_count}")
             
             # Method 3: Force complete viewport refresh
             try:
@@ -7429,8 +7817,25 @@ class Sequence(bonsai.core.tool.Sequence):
                 for obj in bpy.context.scene.objects:
                     if obj.type == 'MESH' and tool.Ifc.get_entity(obj):
                         if hasattr(obj, 'color'):
-                            cls._original_colors[obj.name] = tuple(obj.color)
-                print(f"💾 Saved original colors for {len(cls._original_colors)} objects")
+                            # Intentar obtener el color del material IFC original primero
+                            original_color = None
+                            try:
+                                if obj.material_slots and obj.material_slots[0].material:
+                                    material = obj.material_slots[0].material
+                                    if material.use_nodes:
+                                        principled = tool.Blender.get_material_node(material, "BSDF_PRINCIPLED")
+                                        if principled and principled.inputs.get("Base Color"):
+                                            base_color = principled.inputs["Base Color"].default_value
+                                            original_color = tuple([base_color[0], base_color[1], base_color[2], base_color[3]])
+                            except Exception:
+                                pass
+
+                            # Fallback: usar el color actual del viewport si no se pudo obtener del material
+                            if original_color is None:
+                                original_color = tuple(obj.color)
+
+                            cls._original_colors[obj.name] = original_color
+                print(f"💾 Saved original colors for {len(cls._original_colors)} objects (from materials where possible)")
             
             # Identificar tareas con checkbox activo
             variance_selected_tasks = [t for t in tprops.tasks if getattr(t, 'is_variance_color_selected', False)]
@@ -7560,16 +7965,33 @@ class Sequence(bonsai.core.tool.Sequence):
     
     @classmethod
     def _save_original_object_colors(cls):
-        """Guardar los colores originales de todos los objetos"""
+        """Guardar los colores originales de todos los objetos desde material IFC si es posible"""
         try:
             original_colors = {}
             for obj in bpy.context.scene.objects:
                 if obj.type == 'MESH' and hasattr(obj, 'color'):
-                    original_colors[obj.name] = tuple(obj.color)
-            
+                    # Intentar obtener el color del material IFC original primero
+                    original_color = None
+                    try:
+                        if obj.material_slots and obj.material_slots[0].material:
+                            material = obj.material_slots[0].material
+                            if material.use_nodes:
+                                principled = tool.Blender.get_material_node(material, "BSDF_PRINCIPLED")
+                                if principled and principled.inputs.get("Base Color"):
+                                    base_color = principled.inputs["Base Color"].default_value
+                                    original_color = tuple([base_color[0], base_color[1], base_color[2], base_color[3]])
+                    except Exception:
+                        pass
+
+                    # Fallback: usar el color actual del viewport si no se pudo obtener del material
+                    if original_color is None:
+                        original_color = tuple(obj.color)
+
+                    original_colors[obj.name] = original_color
+
             bpy.context.scene['BIM_VarianceOriginalObjectColors'] = original_colors
-            print(f"🔄 Saved original colors for {len(original_colors)} objects")
-            
+            print(f"🔄 Saved original colors for {len(original_colors)} objects (from materials where possible)")
+
         except Exception as e:
             print(f"❌ Error saving original object colors: {e}")
 
@@ -7990,7 +8412,9 @@ class Sequence(bonsai.core.tool.Sequence):
             
             # STEP 2: Clear variance color mode and restore original colors
             print("🧹 CLEAR_SCHEDULE_VARIANCE: Clearing variance color mode...")
-            cls.clear_variance_color_mode()
+            # Suponiendo que cls.clear_variance_color_mode() existe y funciona correctamente.
+            # Si el problema persiste, el error podría estar también dentro de esa función.
+            # cls.clear_variance_color_mode() # Esta línea puede ser redundante si reseteamos manualmente abajo
             
             # STEP 3: Remove variance mode flags from scene
             scene_flags_cleared = 0
@@ -8018,8 +8442,11 @@ class Sequence(bonsai.core.tool.Sequence):
             for obj in bpy.context.scene.objects:
                 if obj.type == 'MESH' and tool.Ifc.get_entity(obj):
                     try:
-                        # Reset color to default gray
-                        obj.color = (0.8, 0.8, 0.8, 1.0)
+                        # --- INICIO DE LA CORRECCIÓN DEFINITIVA ---
+                        # Reset color a blanco para desactivar la sobreescritura del objeto
+                        # y permitir que se vea el color del material.
+                        obj.color = (1.0, 1.0, 1.0, 1.0)
+                        # --- FIN DE LA CORRECCIÓN ---
                         
                         # Reset visibility
                         obj.hide_viewport = False
@@ -8029,11 +8456,12 @@ class Sequence(bonsai.core.tool.Sequence):
                         if obj.animation_data:
                             obj.animation_data_clear()
                         
-                        # Reset material overrides if any
-                        if obj.material_slots:
-                            for slot in obj.material_slots:
-                                if slot.material:
-                                    slot.material.diffuse_color = (0.8, 0.8, 0.8, 1.0)
+                        # (Opcional) No es necesario resetear el color del material,
+                        # ya que ahora el viewport lo leerá correctamente.
+                        # if obj.material_slots:
+                        #     for slot in obj.material_slots:
+                        #         if slot.material:
+                        #             slot.material.diffuse_color = (0.8, 0.8, 0.8, 1.0)
                         
                         reset_objects += 1
                         
@@ -8052,12 +8480,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 for area in bpy.context.screen.areas:
                     if area.type == 'VIEW_3D':
                         area.tag_redraw()
-                        for space in area.spaces:
-                            if space.type == 'VIEW_3D':
-                                # Ensure object colors are visible
-                                if hasattr(space.shading, 'color_type'):
-                                    space.shading.color_type = 'OBJECT'
-                                    
+                
                 print("✅ CLEAR_SCHEDULE_VARIANCE: Viewport refresh completed")
                 
             except Exception as e:
@@ -8069,6 +8492,7 @@ class Sequence(bonsai.core.tool.Sequence):
             print(f"❌ Error in clear_schedule_variance: {e}")
             import traceback
             traceback.print_exc()
+
 
 
 class SearchCustomColorTypeGroup(bpy.types.Operator):

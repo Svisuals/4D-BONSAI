@@ -605,8 +605,9 @@ def _restore_3d_texts_state():
         print(f"❌ Error restoring 3D texts state: {e}")
 
 def _clear_previous_animation(context) -> None:
-    print("🧹 Iniciando limpieza completa de la animación...")
+    print("🧹 Iniciando limpieza completa y optimizada de la animación...")
     try:
+        # --- 1. DETENER ANIMACIÓN Y HANDLERS (Igual que antes) ---
         if bpy.context.screen.is_animation_playing:
             bpy.ops.screen.animation_cancel(restore_frame=False)
         if hud_overlay.is_hud_enabled():
@@ -615,6 +616,8 @@ def _clear_previous_animation(context) -> None:
             tool.Sequence.unregister_live_color_update_handler()
         if hasattr(tool.Sequence, '_unregister_frame_change_handler'):
             tool.Sequence._unregister_frame_change_handler()
+
+        # --- 2. LIMPIAR COLECCIONES Y OBJETOS DE LA ANIMACIÓN (Igual que antes) ---
         for coll_name in ["Schedule_Display_Texts", "Bar Visual", "Schedule_Display_3D_Legend"]:
             if coll_name in bpy.data.collections:
                 collection = bpy.data.collections[coll_name]
@@ -624,44 +627,43 @@ def _clear_previous_animation(context) -> None:
         parent_empty = bpy.data.objects.get("Schedule_Display_Parent")
         if parent_empty:
             bpy.data.objects.remove(parent_empty, do_unlink=True)
+
+        # --- 3. RESETEO OPTIMIZADO DE OBJETOS IFC ---
+        print("🧹 Reseteando el estado de los objetos IFC de forma eficiente...")
         cleaned_count = 0
         reset_count = 0
-        
-        # CRITICAL FIX 2: More aggressive cleanup of ALL IFC objects
-        print("🧹 CLEARING: Resetting all IFC object states...")
         for obj in bpy.data.objects:
             if obj.type == 'MESH' and tool.Ifc.get_entity(obj):
-                # Clear animation data
+                # Limpia todos los datos de animación del objeto
                 if obj.animation_data:
                     obj.animation_data_clear()
                     cleaned_count += 1
-                
-                # FORCE reset visibility and colors - this is critical
+
+                # Restaura la visibilidad por defecto
                 obj.hide_viewport = False
                 obj.hide_render = False
-                obj.color = (0.8, 0.8, 0.8, 1.0)  # Default gray color
+
+                # ¡SOLUCIÓN CLAVE Y RÁPIDA!
+                # Resetea el color del objeto a blanco (valor neutro).
+                # Esto desactiva la sobreescritura y permite que se vea el color del material.
+                # Es una operación muy rápida.
+                obj.color = (1.0, 1.0, 1.0, 1.0)
                 
-                # CRITICAL FIX: Also reset any material overrides that might exist
-                if obj.material_slots:
-                    for slot in obj.material_slots:
-                        if slot.material and hasattr(slot.material, 'node_tree'):
-                            # Reset any viewport display overrides
-                            slot.material.diffuse_color = (0.8, 0.8, 0.8, 1.0)
-                
-                # Force update the object to ensure changes are applied
-                obj.update_tag()
                 reset_count += 1
-        
-        # Force a viewport update to ensure all changes are visible
-        for area in bpy.context.screen.areas:
-            if area.type == 'VIEW_3D':
-                area.tag_redraw()
-        
-        print(f"🧹 CLEARED: {cleaned_count} animations, {reset_count} objects reset to default state")
+
+        print(f"🧹 LIMPIEZA COMPLETA: {cleaned_count} animaciones limpiadas, {reset_count} objetos reseteados.")
+
+        # --- 4. RESTAURAR UI Y TIMELINE (Igual que antes) ---
         if "is_snapshot_mode" in context.scene:
             del context.scene["is_snapshot_mode"]
         restore_all_ui_state(context)
         context.scene.frame_set(context.scene.frame_start)
+
+        # Fuerza un único redibujado al final para asegurar que la vista se actualice
+        for area in bpy.context.screen.areas:
+            if area.type == 'VIEW_3D':
+                area.tag_redraw()
+
     except Exception as e:
         print(f"Bonsai WARNING: Ocurrió un error durante la limpieza de la animación: {e}")
         import traceback
