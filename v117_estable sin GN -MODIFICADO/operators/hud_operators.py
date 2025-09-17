@@ -443,6 +443,8 @@ class Setup3DLegendHUD(bpy.types.Operator):
         should_hide = not getattr(camera_props, "show_3d_schedule_texts", False)
         collection.hide_viewport = should_hide
         collection.hide_render = should_hide
+
+        # Usar el Schedule_Display_Parent como root - TODO va ahí
         parent_name = "Schedule_Display_Parent"
         parent_empty = bpy.data.objects.get(parent_name)
         if not parent_empty:
@@ -450,12 +452,10 @@ class Setup3DLegendHUD(bpy.types.Operator):
             bpy.context.scene.collection.objects.link(parent_empty)
             parent_empty.empty_display_type = 'PLAIN_AXES'
             parent_empty.empty_display_size = 2
-            try:
-                from . import prop
-                prop.update_schedule_display_parent_constraint(bpy.context)
-            except Exception as e:
-                print(f"Could not configure parent constraints: {e}")
+
+        # El 3D Legend HUD se crea DENTRO del Schedule_Display_Parent
         root = parent_empty
+        print(f"✅ 3D Legend HUD creado como hijo de '{parent_name}' - constraints via checkboxes")
         total_rows = len(legend_data)
         title_height = settings['font_size_title'] + 0.12 if settings['show_title'] else 0
         column_titles_height = settings['row_height'] * 0.8 if (settings['show_start_title'] or settings['show_active_title'] or settings['show_end_title']) else 0

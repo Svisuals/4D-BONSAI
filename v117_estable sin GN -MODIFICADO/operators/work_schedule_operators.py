@@ -1008,19 +1008,21 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                         context.scene.collection.objects.link(parent_empty)
                         parent_empty.empty_display_type = 'PLAIN_AXES'
                         parent_empty.empty_display_size = 2
-                    # Persist world-origin anchoring for Snapshot workflow
-                    try:
-                        parent_empty['anchor_mode'] = 'WORLD_ORIGIN'
-                        context.scene['hud_anchor_mode'] = 'WORLD_ORIGIN'
-                    except Exception:
-                        pass
+                    # Persist world-origin anchoring for Snapshot workflow - COMENTADO para permitir constraints
+                    # try:
+                    #     parent_empty['anchor_mode'] = 'WORLD_ORIGIN'
+                    #     context.scene['hud_anchor_mode'] = 'WORLD_ORIGIN'
+                    # except Exception:
+                    #     pass
 
                     for obj in text_coll.objects:
                         if obj.parent != parent_empty:
                             obj.parent = parent_empty
                             obj.matrix_parent_inverse = parent_empty.matrix_world.inverted()
 
-                    prop.update_schedule_display_parent_constraint(context)
+                    # Llamar directamente a la función en lugar de usar prop fallback
+                    from ..prop import callbacks_prop
+                    callbacks_prop.update_schedule_display_parent_constraint(context)
             except Exception as e:
                 print(f"⚠️ Could not parent schedule texts: {e}")
             tool.Sequence.set_object_shading()

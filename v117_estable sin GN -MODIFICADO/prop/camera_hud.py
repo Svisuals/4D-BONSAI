@@ -39,70 +39,65 @@ from . import callbacks_prop
 
 def update_schedule_display_parent_constraint(context):
     """
-    Finds the 'Schedule_Display_Parent' empty and updates its rotation and location constraints.
-    Rotation and location can follow the active camera or custom targets.
+    [LÓGICA CORREGIDA Y FINAL] Encuentra el 'Schedule_Display_Parent' empty y actualiza 
+    sus constraints de forma intuitiva.
     """
     import bpy
     import bonsai.tool as tool
     parent_name = "Schedule_Display_Parent"
     parent_empty = bpy.data.objects.get(parent_name)
+    if not parent_empty: return
 
-    if not parent_empty:
-        return
-
-    # --- WORLD ORIGIN ANCHOR (Snapshot / Forced) ---
-    # Respect persistent anchor mode even across resets.
-    scene = getattr(context, 'scene', None)
-    if scene is None:
-        import bpy as _bpy
-        scene = _bpy.context.scene
-
-    force_world_origin = False
-
-    # Check for persistent world origin anchor mode
-    try:
-        wprops = tool.Sequence.get_work_schedule_props()
-        camera_props = tool.Sequence.get_camera_orbit_props()
-        force_world_origin = getattr(camera_props, 'force_world_origin_anchor', False)
-        if force_world_origin:
-            print("🔒 Persistent anchor mode active - forcing world origin anchoring")
-    except Exception:
-        pass
-
-    # Clear all existing constraints on the parent empty
-    parent_empty.constraints.clear()
-
-    if force_world_origin:
-        print("🌍 Schedule Display Parent: Anchored to world origin (no constraints)")
-        return
-
-    # Get active camera from camera settings
-    active_camera = None
     try:
         camera_props = tool.Sequence.get_camera_orbit_props()
-        active_camera = getattr(camera_props, 'active_animation_camera', None)
-    except Exception:
-        pass
+        use_custom_rot = getattr(camera_props, 'use_custom_rotation_target', False)
+        custom_rot_target = getattr(camera_props, 'schedule_display_rotation_target', None)
+        use_custom_loc = getattr(camera_props, 'use_custom_location_target', False)
+        custom_loc_target = getattr(camera_props, 'schedule_display_location_target', None)
+    except Exception: return
 
-    # Fallback to scene camera if no active animation camera
-    if not active_camera:
-        active_camera = scene.camera
+    active_camera = getattr(context.scene, 'camera', None)
 
-    if not active_camera:
-        print("⚠️ No active camera found for Schedule Display Parent constraints")
-        return
+    # --- LÓGICA DE ROTACIÓN EXPLÍCITA Y CORREGIDA ---
+    # 1. Por defecto, el objetivo es siempre la cámara activa.
+    rotation_target = active_camera
+    # 2. SOLO si el checkbox está activado Y se ha seleccionado un objetivo, se cambia el objetivo.
+    if use_custom_rot and custom_rot_target:
+        rotation_target = custom_rot_target
 
-    # Add rotation constraint (always follow camera)
-    rotation_constraint = parent_empty.constraints.new(type='COPY_ROTATION')
-    rotation_constraint.target = active_camera
-    rotation_constraint.name = "Follow_Camera_Rotation"
+    # --- LÓGICA DE UBICACIÓN EXPLÍCITA Y CORREGIDA ---
+    # 1. Por defecto, el objetivo es siempre la cámara activa.
+    location_target = active_camera
+    # 2. SOLO si el checkbox está activado Y se ha seleccionado un objetivo, se cambia el objetivo.
+    if use_custom_loc and custom_loc_target:
+        location_target = custom_loc_target
 
-    # Add location constraint
-    location_constraint = parent_empty.constraints.new(type='COPY_LOCATION')
-    location_constraint.target = active_camera
-    location_constraint.name = "Follow_Camera_Location"
+    # --- Clear existing constraints to ensure a clean state ---
+    for c in list(parent_empty.constraints):
+        parent_empty.constraints.remove(c)
 
-    print(f"✅ Schedule Display Parent constraints updated to follow camera: {active_camera.name}")
+    # Si CUALQUIER checkbox está activado, crear AMBOS constraints
+    if use_custom_rot or use_custom_loc:
+        # Determinar targets
+        rotation_target = custom_rot_target if (use_custom_rot and custom_rot_target) else active_camera
+        location_target = custom_loc_target if (use_custom_loc and custom_loc_target) else active_camera
+
+        # Crear constraint de rotación
+        if rotation_target:
+            rot_constraint = parent_empty.constraints.new(type='COPY_ROTATION')
+            rot_constraint.target = rotation_target
+            print(f"✅ Constraint de Rotación creado en '{parent_name}' apuntando a '{rotation_target.name}'")
+
+        # Crear constraint de ubicación
+        if location_target:
+            loc_constraint = parent_empty.constraints.new(type='COPY_LOCATION')
+            loc_constraint.target = location_target
+            print(f"✅ Constraint de Ubicación creado en '{parent_name}' apuntando a '{location_target.name}'")
+    else:
+        # Si ningún checkbox está activado, no se crean constraints
+        print(f"📝 Sin checkboxes activados - '{parent_name}' sin constraints (libre)")
+
+
 
 # update_gpu_hud_visibility is imported from callbacks_prop.py to avoid duplication
 
@@ -268,89 +263,6 @@ def update_active_4d_camera(self, context):
 
     bpy.app.timers.register(set_camera_deferred, first_interval=0.01)
 
-def update_legend_3d_hud_constraint(context):
-    """
-    Finds the 'HUD_3D_Legend' empty and updates its rotation and location constraints.
-    Rotation and location can follow the active camera or custom targets.
-    """
-    import bpy
-    import bonsai.tool as tool
-    
-    hud_empty = None
-    for obj in bpy.data.objects:
-        if obj.get("is_3d_legend_hud", False):
-            hud_empty = obj
-            break
-    
-    if not hud_empty:
-        return
-
-    # --- WORLD ORIGIN ANCHOR (Snapshot / Forced) ---
-    scene = getattr(context, 'scene', None)
-    if scene is None:
-        import bpy as _bpy
-        scene = _bpy.context.scene
-
-    force_world_origin = False
-
-    # Check for persistent world origin anchor mode
-    try:
-        camera_props = tool.Sequence.get_camera_orbit_props()
-        force_world_origin = getattr(camera_props, 'force_world_origin_anchor', False)
-        if force_world_origin:
-            print("🔒 Persistent anchor mode active - forcing world origin anchoring for 3D Legend HUD")
-    except Exception:
-        pass
-
-    # Clear all existing constraints on the 3D legend HUD
-    hud_empty.constraints.clear()
-
-    if force_world_origin:
-        print("🌍 3D Legend HUD: Anchored to world origin (no constraints)")
-        return
-
-    # Get active camera from camera settings
-    active_camera = None
-    try:
-        camera_props = tool.Sequence.get_camera_orbit_props()
-        active_camera = getattr(camera_props, 'active_animation_camera', None)
-    except Exception:
-        pass
-
-    # Fallback to scene camera if no active animation camera
-    if not active_camera:
-        active_camera = scene.camera
-
-    if not active_camera:
-        print("⚠️ No active camera found for 3D Legend HUD constraints")
-        return
-
-    # Get custom targets from camera properties
-    try:
-        camera_props = tool.Sequence.get_camera_orbit_props()
-        use_custom_rotation = getattr(camera_props, 'legend_3d_hud_use_custom_rotation_target', False)
-        rotation_target = getattr(camera_props, 'legend_3d_hud_rotation_target', None) if use_custom_rotation else None
-        use_custom_location = getattr(camera_props, 'legend_3d_hud_use_custom_location_target', False)
-        location_target = getattr(camera_props, 'legend_3d_hud_location_target', None) if use_custom_location else None
-    except Exception:
-        rotation_target = None
-        location_target = None
-
-    # Add rotation constraint
-    final_rotation_target = rotation_target if rotation_target else active_camera
-    if final_rotation_target:
-        rotation_constraint = hud_empty.constraints.new(type='COPY_ROTATION')
-        rotation_constraint.target = final_rotation_target
-        rotation_constraint.name = "Follow_Rotation"
-        print(f"✅ 3D Legend HUD rotation follows: {final_rotation_target.name}")
-
-    # Add location constraint  
-    final_location_target = location_target if location_target else active_camera
-    if final_location_target:
-        location_constraint = hud_empty.constraints.new(type='COPY_LOCATION')
-        location_constraint.target = final_location_target
-        location_constraint.name = "Follow_Location"
-        print(f"✅ 3D Legend HUD location follows: {final_location_target.name}")
 
 # ============================================================================
 # CAMERA AND HUD PROPERTY GROUP CLASSES
@@ -1158,145 +1070,91 @@ hide_all_snapshot_cameras: BoolProperty(
     update=callbacks.update_snapshot_camera_visibility,
 )
     
-    # Legacy property for backward compatibility - will be deprecated
-    active_4d_camera: PointerProperty(
-        name="Active 4D Camera (Legacy)",
-        type=bpy.types.Object,
-        description="Legacy camera selector - use context-specific selectors instead",
-        poll=lambda self, obj: (obj and obj.type == 'CAMERA' and 
-                               (obj.get('is_4d_camera') or 
-                                '4D_Animation_Camera' in obj.name or 
-                                'Snapshot_Camera' in obj.name)),
-        update=update_active_4d_camera,
-    )
-    # --- NEW: Custom Rotation for 3D HUD Render Settings ---
-    use_custom_rotation_target: BoolProperty(
-        name="Use Custom Rotation Target",
-        description="Override the default camera tracking and constrain the rotation of the 3D text group to a specific object",
-        default=False,
-        update=lambda self, context: update_schedule_display_parent_constraint(context)
-    )
-    schedule_display_rotation_target: PointerProperty(
-        name="Rotation Target",
-        type=bpy.types.Object,
-        description="Object to which the 3D text group's rotation will be constrained",
-        poll=lambda self, object: object.type in {'CAMERA', 'EMPTY'},
-        update=lambda self, context: update_schedule_display_parent_constraint(context)
-    )
-    use_custom_location_target: BoolProperty(
-        name="Use Custom Location Target",
-        description="Override the default camera tracking and constrain the location of the 3D text group to a specific object",
-        default=False,
-        update=lambda self, context: update_schedule_display_parent_constraint(context)
-    )
-    schedule_display_location_target: PointerProperty(
-        name="Location Target",
-        type=bpy.types.Object,
-        description="Object to which the 3D text group's location will be constrained",
-        poll=lambda self, object: object.type in {'CAMERA', 'EMPTY'},
-        update=lambda self, context: update_schedule_display_parent_constraint(context)
-    )
-    # --- NEW: Custom Rotation for 3D Legend HUD ---
-    legend_3d_hud_use_custom_rotation_target: BoolProperty(
-        name="Use Custom Rotation Target",
-        description="Override the default camera tracking and constrain the rotation of the 3D Legend HUD to a specific object",
-        default=False,
-        update=lambda self, context: update_legend_3d_hud_constraint(context)
-    )
-    legend_3d_hud_rotation_target: PointerProperty(
-        name="Rotation Target",
-        type=bpy.types.Object,
-        description="Object to which the 3D Legend HUD's rotation will be constrained",
-        poll=lambda self, object: object.type in {'CAMERA', 'EMPTY'},
-        update=lambda self, context: update_legend_3d_hud_constraint(context)
-    )
-    legend_3d_hud_use_custom_location_target: BoolProperty(
-        name="Use Custom Location Target",
-        description="Override the default camera tracking and constrain the location of the 3D Legend HUD to a specific object",
-        default=False,
-        update=lambda self, context: update_legend_3d_hud_constraint(context)
-    )
-    legend_3d_hud_location_target: PointerProperty(
-        name="Location Target",
-        type=bpy.types.Object,
-        description="Object to which the 3D Legend HUD's location will be constrained",
-        poll=lambda self, object: object.type in {'CAMERA', 'EMPTY'},
-        update=lambda self, context: update_legend_3d_hud_constraint(context)
-    )
+# Legacy property for backward compatibility - will be deprecated
+active_4d_camera: PointerProperty(
+    name="Active 4D Camera (Legacy)",
+    type=bpy.types.Object,
+    description="Legacy camera selector - use context-specific selectors instead",
+    poll=lambda self, obj: (obj and obj.type == 'CAMERA' and 
+                            (obj.get('is_4d_camera') or 
+                            '4D_Animation_Camera' in obj.name or 
+                            'Snapshot_Camera' in obj.name)),
+    update=update_active_4d_camera,
+)
 
-    # Type checking
-    if TYPE_CHECKING:
-        camera_focal_mm: float
-        camera_clip_start: float
-        camera_clip_end: float
-        active_animation_camera: bpy.types.Object
-        active_snapshot_camera: bpy.types.Object
-        show_animation_cameras: bool
-        show_snapshot_cameras: bool
-        show_camera_orbit_settings: bool
-        enable_text_hud: bool
-        expand_hud_settings: bool
-        expand_schedule_hud: bool
-        expand_timeline_hud: bool
-        expand_legend_hud: bool
-        hud_position: str
-        hud_scale_factor: float
-        hud_margin_horizontal: float
-        hud_margin_vertical: float
-        hud_text_color: tuple[float, float, float, float]
-        hud_background_color: tuple[float, float, float, float]
-        hud_text_spacing: float
-        hud_text_alignment: str
-        hud_padding_horizontal: float
-        hud_padding_vertical: float
-        hud_border_radius: float
-        hud_border_width: float
-        hud_border_color: tuple[float, float, float, float]
-        hud_text_shadow_enabled: bool
-        hud_text_shadow_offset_x: float
-        hud_text_shadow_offset_y: float
-        hud_text_shadow_color: tuple[float, float, float, float]
-        hud_background_shadow_enabled: bool
-        hud_background_shadow_offset_x: float
-        hud_background_shadow_offset_y: float
-        hud_background_shadow_blur: float
-        hud_background_shadow_color: tuple[float, float, float, float]
-        hud_font_weight: str
-        hud_letter_spacing: float
-        hud_background_gradient_enabled: bool
-        hud_background_gradient_color: tuple[float, float, float, float]
-        hud_gradient_direction: str
-        enable_timeline_hud: bool
-        timeline_hud_position: str
-        timeline_hud_margin_vertical: float
-        timeline_hud_margin_horizontal: float
-        timeline_hud_zoom_level: str
-        timeline_hud_height: float
-        timeline_hud_color_inactive_range: tuple[float, float, float, float]
-        timeline_hud_color_active_range: tuple[float, float, float, float]
-        timeline_hud_color_progress: tuple[float, float, float, float]
-        timeline_hud_color_text: tuple[float, float, float, float]
-        timeline_hud_border_radius: float
-        timeline_hud_show_progress_bar: bool
-        enable_legend_hud: bool
-        legend_hud_position: str
-        legend_hud_margin_horizontal: float
-        legend_hud_margin_vertical: float
-        legend_hud_scale_factor: float
-        legend_hud_background_color: tuple[float, float, float, float]
-        legend_hud_text_color: tuple[float, float, float, float]
-        legend_hud_padding: float
-        legend_hud_border_radius: float
-        legend_hud_item_spacing: float
-        legend_hud_color_box_size: float
-        legend_hud_show_task_count: bool
-        legend_hud_show_inactive_types: bool
-        legend_hud_max_items: int
-        enable_3d_legend_hud: bool
-        legend_3d_location: tuple[float, float, float]
-        legend_3d_scale: float
-        legend_3d_spacing: float
-        legend_3d_always_face_camera: bool
-        force_world_origin_anchor: bool
-        orbit_speed: float
-        orbit_radius: float
+# Type checking
+if TYPE_CHECKING:
+    camera_focal_mm: float
+    camera_clip_start: float
+    camera_clip_end: float
+    active_animation_camera: bpy.types.Object
+    active_snapshot_camera: bpy.types.Object
+    show_animation_cameras: bool
+    show_snapshot_cameras: bool
+    show_camera_orbit_settings: bool
+    enable_text_hud: bool
+    expand_hud_settings: bool
+    expand_schedule_hud: bool
+    expand_timeline_hud: bool
+    expand_legend_hud: bool
+    hud_position: str
+    hud_scale_factor: float
+    hud_margin_horizontal: float
+    hud_margin_vertical: float
+    hud_text_color: tuple[float, float, float, float]
+    hud_background_color: tuple[float, float, float, float]
+    hud_text_spacing: float
+    hud_text_alignment: str
+    hud_padding_horizontal: float
+    hud_padding_vertical: float
+    hud_border_radius: float
+    hud_border_width: float
+    hud_border_color: tuple[float, float, float, float]
+    hud_text_shadow_enabled: bool
+    hud_text_shadow_offset_x: float
+    hud_text_shadow_offset_y: float
+    hud_text_shadow_color: tuple[float, float, float, float]
+    hud_background_shadow_enabled: bool
+    hud_background_shadow_offset_x: float
+    hud_background_shadow_offset_y: float
+    hud_background_shadow_blur: float
+    hud_background_shadow_color: tuple[float, float, float, float]
+    hud_font_weight: str
+    hud_letter_spacing: float
+    hud_background_gradient_enabled: bool
+    hud_background_gradient_color: tuple[float, float, float, float]
+    hud_gradient_direction: str
+    enable_timeline_hud: bool
+    timeline_hud_position: str
+    timeline_hud_margin_vertical: float
+    timeline_hud_margin_horizontal: float
+    timeline_hud_zoom_level: str
+    timeline_hud_height: float
+    timeline_hud_color_inactive_range: tuple[float, float, float, float]
+    timeline_hud_color_active_range: tuple[float, float, float, float]
+    timeline_hud_color_progress: tuple[float, float, float, float]
+    timeline_hud_color_text: tuple[float, float, float, float]
+    timeline_hud_border_radius: float
+    timeline_hud_show_progress_bar: bool
+    enable_legend_hud: bool
+    legend_hud_position: str
+    legend_hud_margin_horizontal: float
+    legend_hud_margin_vertical: float
+    legend_hud_scale_factor: float
+    legend_hud_background_color: tuple[float, float, float, float]
+    legend_hud_text_color: tuple[float, float, float, float]
+    legend_hud_padding: float
+    legend_hud_border_radius: float
+    legend_hud_item_spacing: float
+    legend_hud_color_box_size: float
+    legend_hud_show_task_count: bool
+    legend_hud_show_inactive_types: bool
+    legend_hud_max_items: int
+    enable_3d_legend_hud: bool
+    legend_3d_location: tuple[float, float, float]
+    legend_3d_scale: float
+    legend_3d_spacing: float
+    legend_3d_always_face_camera: bool
+    force_world_origin_anchor: bool
+    orbit_speed: float
+    orbit_radius: float 

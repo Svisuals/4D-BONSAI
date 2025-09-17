@@ -116,70 +116,32 @@ def update_schedule_display_parent_constraint(context):
     parent_empty = bpy.data.objects.get(parent_name)
 
     if not parent_empty:
-        return
+        # Crear el empty si no existe
+        parent_empty = bpy.data.objects.new(parent_name, None)
+        bpy.context.scene.collection.objects.link(parent_empty)
+        parent_empty.empty_display_type = 'PLAIN_AXES'
+        parent_empty.empty_display_size = 2
 
-    # --- WORLD ORIGIN ANCHOR (Snapshot / Forced) ---
-    # Respect persistent anchor mode even across resets.
-    scene = getattr(context, 'scene', None)
-    if scene is None:
-        import bpy as _bpy
-        scene = _bpy.context.scene
+    # LIMPIAR anchor modes SIEMPRE (como en el script que funcionaba)
+    if 'anchor_mode' in parent_empty:
+        del parent_empty['anchor_mode']
+    if 'hud_anchor_mode' in context.scene:
+        del context.scene['hud_anchor_mode']
 
-    force_world_origin = False
-    try:
-        # Explicit object-level override
-        if parent_empty.get('anchor_mode') == 'WORLD_ORIGIN':
-            force_world_origin = True
-        # Scene-level persistence (survives object deletion/recreation)
-        elif scene and scene.get('hud_anchor_mode') == 'WORLD_ORIGIN':
-            force_world_origin = True
-        else:
-            # Heuristic: active camera is a snapshot camera
-            active_cam = getattr(scene, 'camera', None)
-            if active_cam and (active_cam.get('is_snapshot_camera') or
-                               active_cam.get('camera_context') == 'snapshot' or
-                               'Snapshot_Camera' in getattr(active_cam, 'name', '')):
-                force_world_origin = True
-    except Exception:
-        pass
-
-    if force_world_origin:
-        # Clear constraints and pin to world origin
-        try:
-            parent_empty.constraints.clear()
-        except Exception:
-            try:
-                for c in list(parent_empty.constraints):
-                    parent_empty.constraints.remove(c)
-            except Exception:
-                pass
-        try:
-            parent_empty.location = (0.0, 0.0, 0.0)
-            parent_empty.rotation_euler = (0.0, 0.0, 0.0)
-            parent_empty.scale = (1.0, 1.0, 1.0)
-        except Exception:
-            pass
-        # Persist intent
-        try:
-            parent_empty['anchor_mode'] = 'WORLD_ORIGIN'
-            if scene is not None:
-                scene['hud_anchor_mode'] = 'WORLD_ORIGIN'
-        except Exception:
-            pass
-        return
 
     # Get camera orbit properties to check for custom targets
     try:
         anim_props = tool.Sequence.get_animation_props()
         camera_props = anim_props.camera_orbit
-        
+
         # Rotation properties
         use_custom_rot_target = getattr(camera_props, 'use_custom_rotation_target', False)
         custom_rotation_target = getattr(camera_props, 'schedule_display_rotation_target', None)
-        
+
         # Location properties
         use_custom_loc_target = getattr(camera_props, 'use_custom_location_target', False)
         custom_location_target = getattr(camera_props, 'schedule_display_location_target', None)
+
     except Exception:
         use_custom_rot_target = False
         custom_rotation_target = None
@@ -188,29 +150,25 @@ def update_schedule_display_parent_constraint(context):
 
     active_camera = getattr(context.scene, 'camera', None)
 
-    # Determine the final targets
-    rotation_target = custom_rotation_target if use_custom_rot_target and custom_rotation_target else active_camera
-    location_target = custom_location_target if use_custom_loc_target and custom_location_target else active_camera
-
-    # --- Clear existing constraints to ensure a clean state ---
+    # Clear existing constraints
     for c in list(parent_empty.constraints):
         parent_empty.constraints.remove(c)
 
-    # Add rotation constraint
-    if rotation_target:
-        rot_constraint = parent_empty.constraints.new(type='COPY_ROTATION')
-        rot_constraint.target = rotation_target
-        print(f"✅ Constrained '{parent_name}' rotation to target '{rotation_target.name}'")
-    else:
-        print(f"⚠️ No rotation target for '{parent_name}'")
+    # Si CUALQUIER checkbox está activado, crear AMBOS constraints
+    if use_custom_rot_target or use_custom_loc_target:
+        # Determinar targets
+        rotation_target = custom_rotation_target if (use_custom_rot_target and custom_rotation_target) else active_camera
+        location_target = custom_location_target if (use_custom_loc_target and custom_location_target) else active_camera
 
-    # Add location constraint
-    if location_target:
-        loc_constraint = parent_empty.constraints.new(type='COPY_LOCATION')
-        loc_constraint.target = location_target
-        print(f"✅ Constrained '{parent_name}' location to target '{location_target.name}'")
-    else:
-        print(f"⚠️ No location target for '{parent_name}'")
+        # Crear constraint de rotación
+        if rotation_target:
+            rot_constraint = parent_empty.constraints.new(type='COPY_ROTATION')
+            rot_constraint.target = rotation_target
+
+        # Crear constraint de ubicación
+        if location_target:
+            loc_constraint = parent_empty.constraints.new(type='COPY_LOCATION')
+            loc_constraint.target = location_target
 
 
 def update_legend_3d_hud_constraint(context):
@@ -218,16 +176,20 @@ def update_legend_3d_hud_constraint(context):
     Finds the 'HUD_3D_Legend' empty and updates its rotation and location constraints.
     Rotation and location can follow the active camera or custom targets.
     """
+    print("🚀 DEBUG: ¡update_legend_3d_hud_constraint EJECUTÁNDOSE!")
     import bpy
     import bonsai.tool as tool
-    
+
     hud_empty = None
     for obj in bpy.data.objects:
         if obj.get("is_3d_legend_hud", False):
             hud_empty = obj
             break
 
+    print(f"🔍 DEBUG: 3D Legend HUD encontrado: {hud_empty.name if hud_empty else 'None'}")
+
     if not hud_empty:
+        print("❌ DEBUG: No se encontró 3D Legend HUD")
         return
 
     # --- WORLD ORIGIN ANCHOR (Snapshot / Forced) for Legend HUD ---
@@ -267,12 +229,13 @@ def update_legend_3d_hud_constraint(context):
             hud_empty.scale = (1.0, 1.0, 1.0)
         except Exception:
             pass
-        try:
-            hud_empty['anchor_mode'] = 'WORLD_ORIGIN'
-            if scene is not None:
-                scene['hud_anchor_mode'] = 'WORLD_ORIGIN'
-        except Exception:
-            pass
+        # Persist intent - COMENTADO para permitir constraints custom
+        # try:
+        #     hud_empty['anchor_mode'] = 'WORLD_ORIGIN'
+        #     if scene is not None:
+        #         scene['hud_anchor_mode'] = 'WORLD_ORIGIN'
+        # except Exception:
+        #     pass
         return
 
     # Get camera orbit properties to check for custom targets
@@ -295,29 +258,35 @@ def update_legend_3d_hud_constraint(context):
 
     active_camera = getattr(context.scene, 'camera', None)
 
-    # Determine the final targets
-    rotation_target = custom_rotation_target if use_custom_rot_target and custom_rotation_target else active_camera
-    location_target = custom_location_target if use_custom_loc_target and custom_location_target else active_camera
-
     # --- Clear existing constraints to ensure a clean state ---
     for c in list(hud_empty.constraints):
         hud_empty.constraints.remove(c)
 
-    # Add rotation constraint
-    if rotation_target:
-        rot_constraint = hud_empty.constraints.new(type='COPY_ROTATION')
-        rot_constraint.target = rotation_target
-        print(f"✅ Constrained '{hud_empty.name}' rotation to target '{rotation_target.name}'")
-    else:
-        print(f"⚠️ No rotation target for '{hud_empty.name}'")
+    # SOLO crear constraints si los checkboxes están activados
 
-    # Add location constraint
-    if location_target:
-        loc_constraint = hud_empty.constraints.new(type='COPY_LOCATION')
-        loc_constraint.target = location_target
-        print(f"✅ Constrained '{hud_empty.name}' location to target '{location_target.name}'")
-    else:
-        print(f"⚠️ No location target for '{hud_empty.name}'")
+    # Add rotation constraint SOLO si el checkbox está activado
+    if use_custom_rot_target:
+        rotation_target = custom_rotation_target if custom_rotation_target else active_camera
+        if rotation_target:
+            rot_constraint = hud_empty.constraints.new(type='COPY_ROTATION')
+            rot_constraint.target = rotation_target
+            print(f"✅ Constraint de Rotación creado en '{hud_empty.name}' apuntando a '{rotation_target.name}'")
+        else:
+            print(f"⚠️ Checkbox de rotación activado pero no hay target para '{hud_empty.name}'")
+
+    # Add location constraint SOLO si el checkbox está activado
+    if use_custom_loc_target:
+        location_target = custom_location_target if custom_location_target else active_camera
+        if location_target:
+            loc_constraint = hud_empty.constraints.new(type='COPY_LOCATION')
+            loc_constraint.target = location_target
+            print(f"✅ Constraint de Ubicación creado en '{hud_empty.name}' apuntando a '{location_target.name}'")
+        else:
+            print(f"⚠️ Checkbox de ubicación activado pero no hay target para '{hud_empty.name}'")
+
+    # Si ningún checkbox está activado, no se crean constraints
+    if not use_custom_rot_target and not use_custom_loc_target:
+        print(f"📝 Sin checkboxes activados - '{hud_empty.name}' sin constraints (libre)")
 
 def update_filter_column(self, context):
     """

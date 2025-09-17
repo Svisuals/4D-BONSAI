@@ -1151,7 +1151,7 @@ class BIMCameraOrbitProperties(PropertyGroup):
         name="Use Custom Rotation Target",
         description="Override the default camera tracking and constrain the rotation of the 3D text group to a specific object",
         default=False,
-        update=lambda self, context: callbacks.update_schedule_display_parent_constraint(context)
+        update=lambda self, context: (print("🚀 DEBUG: Checkbox 'use_custom_rotation_target' CAMBIADO!"), callbacks.update_schedule_display_parent_constraint(context))[1]
     )
     schedule_display_rotation_target: PointerProperty(
         name="Rotation Target",
@@ -1164,7 +1164,7 @@ class BIMCameraOrbitProperties(PropertyGroup):
         name="Use Custom Location Target",
         description="Override the default camera tracking and constrain the location of the 3D text group to a specific object",
         default=False,
-        update=lambda self, context: callbacks.update_schedule_display_parent_constraint(context)
+        update=lambda self, context: (print("🚀 DEBUG: Checkbox 'use_custom_location_target' CAMBIADO!"), callbacks.update_schedule_display_parent_constraint(context))[1]
     )
     schedule_display_location_target: PointerProperty(
         name="Location Target",
@@ -1178,25 +1178,25 @@ class BIMCameraOrbitProperties(PropertyGroup):
         name="Use Custom Rotation Target",
         description="Override the default camera tracking and constrain the rotation of the 3D Legend HUD to a specific object",
         default=False,
-        update=lambda self, context: callbacks.update_legend_3d_hud_constraint(context)
+        update=lambda self, context: callbacks.update_schedule_display_parent_constraint(context)
     )
     legend_3d_hud_rotation_target: PointerProperty(
         name="Rotation Target",
         type=bpy.types.Object,
         description="Object to which the 3D Legend HUD's rotation will be constrained",
         poll=lambda self, object: object.type in {'CAMERA', 'EMPTY'},
-        update=lambda self, context: callbacks.update_legend_3d_hud_constraint(context)
+        update=lambda self, context: callbacks.update_schedule_display_parent_constraint(context)
     )
     legend_3d_hud_use_custom_location_target: BoolProperty(
         name="Use Custom Location Target",
         description="Override the default camera tracking and constrain the location of the 3D Legend HUD to a specific object",
         default=False,
-        update=lambda self, context: callbacks.update_legend_3d_hud_constraint(context)
+        update=lambda self, context: callbacks.update_schedule_display_parent_constraint(context)
     )
     legend_3d_hud_location_target: PointerProperty(
         name="Location Target",
         type=bpy.types.Object,
         description="Object to which the 3D Legend HUD's location will be constrained",
         poll=lambda self, object: object.type in {'CAMERA', 'EMPTY'},
-        update=lambda self, context: callbacks.update_legend_3d_hud_constraint(context)
+        update=lambda self, context: callbacks.update_schedule_display_parent_constraint(context)
     )

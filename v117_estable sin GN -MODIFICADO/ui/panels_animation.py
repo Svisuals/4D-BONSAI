@@ -1063,22 +1063,20 @@ class BIM_PT_animation_tools(Panel):
 
 
     def draw_3d_hud_render_settings(self, layout):
-        """Draw 3D HUD Render settings (empty controls + individual text controls)"""
         import bpy
         import bonsai.tool as tool
 
-        # ==================== 3D LEGEND HUD ====================
         try:
-            anim_props = tool.Sequence.get_animation_props()
-            camera_props = anim_props.camera_orbit
-            
-            # 3D Legend HUD simple checkbox - NO ICONS
-            layout.prop(camera_props, "enable_3d_legend_hud", text="3D Legend HUD")
-                    
+            camera_props = tool.Sequence.get_camera_orbit_props()
         except Exception:
-            pass # Fail silently if props aren't available
+            layout.label(text="Error al cargar propiedades de cámara.", icon='ERROR')
+            return
 
-        # --- Parent Empty Controls (from original version) ---
+        try:
+            layout.prop(camera_props, "enable_3d_legend_hud", text="3D Legend HUD")
+        except Exception:
+            pass
+
         parent_empty = bpy.data.objects.get("Schedule_Display_Parent")
         if parent_empty:
             box = layout.box()
@@ -1091,63 +1089,46 @@ class BIM_PT_animation_tools(Panel):
             col.prop(parent_empty, "rotation_euler", text="Group Rotation")
             col.prop(parent_empty, "scale", text="Group Scale")
 
-            # --- Custom Rotation Constraint ---
-            try:
-                anim_props = tool.Sequence.get_animation_props()
-                camera_props = anim_props.camera_orbit
-                
-                # --- Rotation Constraint ---
-                col.separator()
-                col.label(text="Rotation Constraint:")
-                
-                row = col.row(align=True)
-                row.prop(camera_props, "use_custom_rotation_target", text="Use Custom Target")
-                
-                sub_row = col.row(align=True)
-                sub_row.enabled = camera_props.use_custom_rotation_target
-                sub_row.prop(camera_props, "schedule_display_rotation_target", text="")
-                
-                # --- Location Constraint ---
-                col.separator()
-                col.label(text="Location Constraint:")
-                
-                row = col.row(align=True)
-                row.prop(camera_props, "use_custom_location_target", text="Use Custom Target")
-                
-                sub_row = col.row(align=True)
-                sub_row.enabled = camera_props.use_custom_location_target
-                sub_row.prop(camera_props, "schedule_display_location_target", text="")
-            except Exception:
-                pass # Fail silently if props aren't available
+            col.separator()
+            col.label(text="Rotation Constraint:")
+            row = col.row(align=True)
+            row.prop(camera_props, "use_custom_rotation_target", text="Use Custom Target")
+            sub_row = col.row(align=True)
+            sub_row.enabled = camera_props.use_custom_rotation_target
+            sub_row.prop(camera_props, "schedule_display_rotation_target", text="")
+
+            col.separator()
+            col.label(text="Location Constraint:")
+            row = col.row(align=True)
+            row.prop(camera_props, "use_custom_location_target", text="Use Custom Target")
+            sub_row = col.row(align=True)
+            sub_row.enabled = camera_props.use_custom_location_target
+            sub_row.prop(camera_props, "schedule_display_location_target", text="")
 
             info_row = box.row()
-            info_row.label(text="Note: Rotation and Location follow the active camera by default.", icon='INFO')
+            info_row.label(text="Nota: Sigue a la cámara activa por defecto.", icon='INFO')
             layout.separator()
 
         collection = bpy.data.collections.get("Schedule_Display_Texts")
         if not collection or not collection.objects:
-            layout.label(text="No display texts found", icon='INFO')
+            layout.label(text="No se encontraron textos de visualización", icon='INFO')
             return
-        
-        # Define the desired order
+
         order = ["Schedule_Name", "Schedule_Date", "Schedule_Week", "Schedule_Day_Counter", "Schedule_Progress"]
-        
-        # Get objects in the desired order, and any others at the end
         sorted_objects = []
         existing_objects = {obj.name: obj for obj in collection.objects}
-        
+
         for name in order:
             if name in existing_objects:
                 sorted_objects.append(existing_objects.pop(name))
-        
-        # Add any remaining objects (e.g., if new ones are added in the future)
+
         sorted_objects.extend(existing_objects.values())
 
         for text_obj in sorted_objects:
             box = layout.box()
             row = box.row(align=True)
             text_type = text_obj.data.get("text_type", "unknown")
-            icon_map = {"schedule_name": "TEXT", "date": "TIME","week": "COLLAPSEMENU","day_counter": "SORTTIME","progress": "STATUSBAR"}
+            icon_map = {"schedule_name": "TEXT", "date": "TIME", "week": "COLLAPSEMENU", "day_counter": "SORTTIME", "progress": "STATUSBAR"}
             row.label(text=text_type.replace("_", " ").title(), icon=icon_map.get(text_type, "FONT_DATA"))
             row.prop(text_obj, "hide_viewport", text="", icon='HIDE_OFF', emboss=False)
             col = box.column(align=True)
@@ -1164,8 +1145,5 @@ class BIM_PT_animation_tools(Panel):
                         col.prop(bsdf.inputs["Base Color"], "default_value", text="Color")
         row = layout.row(align=True)
         row.operator("bim.arrange_schedule_texts", text="Auto-Arrange", icon="ALIGN_TOP")
-
-    
-
 
 
