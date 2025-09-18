@@ -347,6 +347,10 @@ class ImportAnimationColorSchemesSetFromFile(bpy.types.Operator, ImportHelper):
 
     def execute(self, context):
         try:
+            # Generate group name from filename
+            import os
+            self.set_name = os.path.splitext(os.path.basename(self.filepath))[0]
+
             # Load data from file
             with open(self.filepath, 'r') as f:
                 imported_data = json.load(f)
@@ -386,9 +390,8 @@ class ImportAnimationColorSchemesSetFromFile(bpy.types.Operator, ImportHelper):
             return {'CANCELLED'}
 
     def invoke(self, context, event):
-        import os
-        self.set_name = os.path.splitext(os.path.basename(self.filepath))[0]
-        return context.window_manager.invoke_props_dialog(self)
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 class CleanupTaskcolortypeMappings(bpy.types.Operator):
     bl_idname = "bim.cleanup_task_colortype_mappings"

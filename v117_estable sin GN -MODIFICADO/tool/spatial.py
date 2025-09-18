@@ -152,7 +152,7 @@ class Spatial(bonsai.core.tool.Spatial):
 
     @classmethod
     def run_spatial_import_spatial_decomposition(cls) -> None:
-        return bonsai.core.spatial.import_spatial_decomposition(tool.Spatial)
+        return cls.import_spatial_decomposition()
 
     @classmethod
     def select_object(cls, obj: bpy.types.Object) -> None:

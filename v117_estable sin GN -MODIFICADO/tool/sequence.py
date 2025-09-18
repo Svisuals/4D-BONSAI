@@ -194,10 +194,10 @@ class Sequence(bonsai.core.tool.Sequence):
                 print("🎯 Auto-enabling GPU HUD for 4D animation...")
                 # Enable GPU HUD automatically
                 bpy.ops.bim.enable_schedule_hud()
-                print("✅ GPU HUD auto-configured successfully")
+                print("[OK] GPU HUD auto-configured successfully")
 
         except Exception as e:
-            print(f"⚠️ Auto-setup of GPU HUD failed: {e}")
+            print(f"[WARNING]️ Auto-setup of GPU HUD failed: {e}")
         return created_texts
 
 
@@ -413,7 +413,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 bpy.data.objects.remove(cam_obj, do_unlink=True)
                 # Usar la cámara existente
                 bpy.context.scene.camera = existing_camera
-                print(f"✅ Scene camera set to: {existing_camera.name}")
+                print(f"[OK] Scene camera set to: {existing_camera.name}")
                 return existing_camera
             else:
                 print("📍 Using newly created static camera (no existing camera found)")
@@ -429,7 +429,7 @@ class Sequence(bonsai.core.tool.Sequence):
             else:
                 raise Exception("No animation settings")
         except Exception as e:
-            print(f"⚠️ Using fallback timeline: {{e}}")
+            print(f"[WARNING]️ Using fallback timeline: {{e}}")
             total_frames_4d = 250
             start_frame = 1
 
@@ -440,7 +440,7 @@ class Sequence(bonsai.core.tool.Sequence):
             end_frame = start_frame + int(max(1, camera_props.orbit_duration_frames))
 
         dur = max(1, end_frame - start_frame)
-        print(f"⏱️ Animation timeline: frames {{start_frame}} to {{end_frame}} (duration: {{dur}})")
+        print(f"[TIME]️ Animation timeline: frames {{start_frame}} to {{end_frame}} (duration: {{dur}})")
 
         # CORRECTED: Orbit animation implementation
         # RESTAURADO: Mantener método original pero con mejoras de fluidez
@@ -452,7 +452,7 @@ class Sequence(bonsai.core.tool.Sequence):
             cls._create_keyframe_orbit(cam_obj, center, r, z, angle0, start_frame, end_frame, sign, mode)
 
         bpy.context.scene.camera = cam_obj
-        print(f"✅ 4D Camera created successfully: {{cam_obj.name}}")
+        print(f"[OK] 4D Camera created successfully: {{cam_obj.name}}")
         return cam_obj
 
     @classmethod
@@ -506,10 +506,10 @@ class Sequence(bonsai.core.tool.Sequence):
         tcon.up_axis = 'UP_Y'
         
         bpy.context.scene.camera = cam_obj
-        print(f"✅ Snapshot Camera created successfully: {cam_obj.name}")
+        print(f"[OK] Snapshot Camera created successfully: {cam_obj.name}")
 
         # --- CREAR EMPTY PARENT SIEMPRE (necesario para 3D texts) ---
-        print("📊 Ensuring Schedule_Display_Parent exists for 3D texts...")
+        print("[STATS] Ensuring Schedule_Display_Parent exists for 3D texts...")
         try:
             # Crear el Empty parent si no existe
             parent_name = "Schedule_Display_Parent"
@@ -519,9 +519,9 @@ class Sequence(bonsai.core.tool.Sequence):
                 bpy.context.scene.collection.objects.link(parent_empty)
                 parent_empty.empty_display_type = 'PLAIN_AXES'
                 parent_empty.empty_display_size = 2
-                print(f"✅ Created Schedule_Display_Parent empty for 3D texts")
+                print(f"[OK] Created Schedule_Display_Parent empty for 3D texts")
             else:
-                print(f"✅ Schedule_Display_Parent already exists")
+                print(f"[OK] Schedule_Display_Parent already exists")
 
             # Ahora crear el 3D Legend HUD si está habilitado
             anim_props = cls.get_animation_props()
@@ -533,7 +533,7 @@ class Sequence(bonsai.core.tool.Sequence):
             if not legend_hud_exists and legend_hud_enabled:
                 if show_3d_texts:
                     bpy.ops.bim.setup_3d_legend_hud()
-                    print("✅ 3D Legend HUD created and configured")
+                    print("[OK] 3D Legend HUD created and configured")
                 else:
                     bpy.ops.bim.setup_3d_legend_hud()
                     # Ocultar inmediatamente
@@ -541,14 +541,14 @@ class Sequence(bonsai.core.tool.Sequence):
                         if obj.get("is_3d_legend_hud", False):
                             obj.hide_viewport = True
                             obj.hide_render = True
-                    print("✅ 3D Legend HUD created but hidden (3D HUD Render disabled)")
+                    print("[OK] 3D Legend HUD created but hidden (3D HUD Render disabled)")
             elif legend_hud_exists:
-                print("✅ 3D Legend HUD already exists")
+                print("[OK] 3D Legend HUD already exists")
             else:
-                print("📊 3D Legend HUD not enabled, only Empty parent created")
+                print("[STATS] 3D Legend HUD not enabled, only Empty parent created")
 
         except Exception as e:
-            print(f"⚠️ Could not setup 3D HUD components: {e}")
+            print(f"[WARNING]️ Could not setup 3D HUD components: {e}")
             import traceback
             traceback.print_exc()
 
@@ -587,10 +587,10 @@ class Sequence(bonsai.core.tool.Sequence):
 
                     # Crear textos estáticos específicos para snapshot
                     cls.create_text_objects_static(snapshot_settings)
-                    print("✅ Static 3D texts created for snapshot camera")
+                    print("[OK] Static 3D texts created for snapshot camera")
 
                 except Exception as static_error:
-                    print(f"⚠️ Static text creation failed, using fallback: {static_error}")
+                    print(f"[WARNING]️ Static text creation failed, using fallback: {static_error}")
                     # FALLBACK: Crear manualmente los textos básicos
                     cls._create_basic_snapshot_texts(schedule_name)
 
@@ -604,20 +604,20 @@ class Sequence(bonsai.core.tool.Sequence):
                 if texts_collection:
                     texts_collection.hide_viewport = should_hide
                     texts_collection.hide_render = should_hide
-                    print(f"✅ 3D texts created and visibility set (hidden: {should_hide})")
+                    print(f"[OK] 3D texts created and visibility set (hidden: {should_hide})")
 
                 # Auto-arrange texts para posicionamiento por defecto
                 try:
                     bpy.ops.bim.arrange_schedule_texts()
-                    print("✅ 3D texts auto-arranged")
+                    print("[OK] 3D texts auto-arranged")
                 except Exception as e:
-                    print(f"⚠️ Could not auto-arrange texts: {e}")
+                    print(f"[WARNING]️ Could not auto-arrange texts: {e}")
 
             else:
-                print("⚠️ No active work schedule found, skipping 3D text creation")
+                print("[WARNING]️ No active work schedule found, skipping 3D text creation")
 
         except Exception as e:
-            print(f"⚠️ Could not create 3D texts for snapshot camera: {e}")
+            print(f"[WARNING]️ Could not create 3D texts for snapshot camera: {e}")
             import traceback
             traceback.print_exc()
         
@@ -670,12 +670,12 @@ class Sequence(bonsai.core.tool.Sequence):
                 # Add to collection
                 collection.objects.link(text_obj)
                 
-                print(f"✅ Created basic text: {config['name']}")
+                print(f"[OK] Created basic text: {config['name']}")
                 
             except Exception as e:
-                print(f"⚠️ Failed to create text {config['name']}: {e}")
+                print(f"[WARNING]️ Failed to create text {config['name']}: {e}")
         
-        print("✅ Basic snapshot texts created manually")
+        print("[OK] Basic snapshot texts created manually")
 
     @classmethod
     def align_snapshot_camera_to_view(cls):
@@ -836,7 +836,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 cls._create_keyframe_orbit(cam_obj, center, r, z, angle0, start_frame, end_frame, sign, mode)
 
         bpy.context.scene.camera = cam_obj
-        print(f"✅ Camera '{cam_obj.name}' updated successfully.")
+        print(f"[OK] Camera '{cam_obj.name}' updated successfully.")
         return cam_obj
     # [[----- INICIO DEL CÓDIGO A AÑADIR -----]]
     # [[----- START OF CODE TO ADD -----]]
@@ -873,9 +873,9 @@ class Sequence(bonsai.core.tool.Sequence):
             if tgt_obj:
                 bpy.data.objects.remove(tgt_obj, do_unlink=True)
 
-            print(f"✅ Animation cleared for camera '{cam_obj.name}'")
+            print(f"[OK] Animation cleared for camera '{cam_obj.name}'")
         except Exception as e:
-            print(f"⚠️ Error clearing camera animation: {e}")
+            print(f"[WARNING]️ Error clearing camera animation: {e}")
 
     @classmethod
     def _create_follow_path_orbit(cls, cam_obj, center, radius, z, angle0, start_frame, end_frame, sign, mode):
@@ -981,7 +981,7 @@ class Sequence(bonsai.core.tool.Sequence):
                             kf.handle_left_type = 'AUTO'
                             kf.handle_right_type = 'AUTO'
                         fcurve.update()
-                        print(f"🔧 FORCED LINEAR interpolation on {len(fcurve.keyframe_points)} keyframes")
+                        print(f"[PROCESS] FORCED LINEAR interpolation on {len(fcurve.keyframe_points)} keyframes")
                     else:
                         # PINGPONG: Always use LINEAR for consistency and smoothness
                         for kf in fcurve.keyframe_points:
@@ -997,7 +997,7 @@ class Sequence(bonsai.core.tool.Sequence):
             tcon.up_axis = 'UP_Y'
             print(f"🎯 Camera tracking target: {target_obj.name}")
 
-        print(f"✅ Follow Path orbit created: {mode} from {start_frame} to {end_frame} with LINEAR interpolation (forced)")
+        print(f"[OK] Follow Path orbit created: {mode} from {start_frame} to {end_frame} with LINEAR interpolation (forced)")
 
     @classmethod
     def _create_empty_pivot_orbit(cls, cam_obj, center, radius, z, angle0, start_frame, end_frame, sign):
@@ -1050,7 +1050,7 @@ class Sequence(bonsai.core.tool.Sequence):
                     pivot.lock_rotation[1] = True  # Lock Y rotation
                     # Z rotation remains unlocked for animation
                     
-                    print(f"🔧 FORCED LINEAR + locked axes for perfect rotation: {len(fcurve.keyframe_points)} keyframes")
+                    print(f"[PROCESS] FORCED LINEAR + locked axes for perfect rotation: {len(fcurve.keyframe_points)} keyframes")
                     
         # 7. Add Track-To constraint to camera for proper aim
         tcon = cam_obj.constraints.new(type='TRACK_TO')
@@ -1060,7 +1060,7 @@ class Sequence(bonsai.core.tool.Sequence):
             tcon.up_axis = 'UP_Y'
             print(f"🎯 Camera tracking target: {tcon.target.name}")
         
-        print(f"✅ OPTIMAL Empty Pivot orbit created: 360° from {start_frame} to {end_frame} with LINEAR interpolation")
+        print(f"[OK] OPTIMAL Empty Pivot orbit created: 360° from {start_frame} to {end_frame} with LINEAR interpolation")
 
     @classmethod
     def _create_keyframe_orbit(cls, cam_obj, center, radius, z, angle0, start_frame, end_frame, sign, mode):
@@ -1117,7 +1117,7 @@ class Sequence(bonsai.core.tool.Sequence):
                             kf.handle_left_type = 'AUTO'
                             kf.handle_right_type = 'AUTO'
                         fcurve.update()
-                        print(f"🔧 FORCED LINEAR on Empty pivot rotation: {len(fcurve.keyframe_points)} keyframes")
+                        print(f"[PROCESS] FORCED LINEAR on Empty pivot rotation: {len(fcurve.keyframe_points)} keyframes")
         elif mode == "PINGPONG":
             # SIMPLE PINGPONG: Only 3 keyframes for smooth constant velocity
             mid_frame = start_frame + (end_frame - start_frame) // 2
@@ -1138,13 +1138,13 @@ class Sequence(bonsai.core.tool.Sequence):
                             kp.handle_left_type = 'AUTO'
                             kp.handle_right_type = 'AUTO'
                         fcurve.update()
-                        print(f"🔧 FORCED LINEAR on camera location: {len(fcurve.keyframe_points)} keyframes")
+                        print(f"[PROCESS] FORCED LINEAR on camera location: {len(fcurve.keyframe_points)} keyframes")
                     else:
                         # PINGPONG: Always use LINEAR for consistency
                         for kp in fcurve.keyframe_points:
                             kp.interpolation = 'LINEAR'
 
-        print(f"✅ Keyframe orbit created: {mode} from {start_frame} to {end_frame} with LINEAR interpolation (forced)")
+        print(f"[OK] Keyframe orbit created: {mode} from {start_frame} to {end_frame} with LINEAR interpolation (forced)")
     @classmethod
     def parse_isodate_datetime(cls, value, include_time: bool = True):
         """Parsea fechas ISO (o datetime/date) y devuelve datetime sin microsegundos.
@@ -1242,7 +1242,7 @@ class Sequence(bonsai.core.tool.Sequence):
         if task_id not in task_bars:
             task_bars.append(task_id)
             props.task_bars = json.dumps(task_bars)
-            print(f"✅ Task {task_id} added to visual bars list")
+            print(f"[OK] Task {task_id} added to visual bars list")
 
     @classmethod
     def remove_task_bar(cls, task_id: int) -> None:
@@ -1255,7 +1255,7 @@ class Sequence(bonsai.core.tool.Sequence):
         if task_id in task_bars:
             task_bars.remove(task_id)
             props.task_bars = json.dumps(task_bars)
-            print(f"❌ Task {task_id} removed from visual bars list")
+            print(f"[ERROR] Task {task_id} removed from visual bars list")
 
     @classmethod
     def get_animation_bar_tasks(cls) -> list:
@@ -1270,7 +1270,7 @@ class Sequence(bonsai.core.tool.Sequence):
                     if task and cls.validate_task_object(task, "get_animation_bar_tasks"):
                         tasks.append(task)
                 except Exception as e:
-                    print(f"⚠️ Error getting task {task_id}: {e}")
+                    print(f"[WARNING]️ Error getting task {task_id}: {e}")
         return tasks
 
     @classmethod
@@ -1278,14 +1278,14 @@ class Sequence(bonsai.core.tool.Sequence):
         """Actualiza la visualización de las barras de tareas en el viewport."""
         tasks = cls.get_animation_bar_tasks()
         if not tasks:
-            print("⚠️ No tasks selected for bar visualization")
+            print("[WARNING]️ No tasks selected for bar visualization")
             if "Bar Visual" in bpy.data.collections:
                 collection = bpy.data.collections["Bar Visual"]
                 for obj in list(collection.objects):
                     bpy.data.objects.remove(obj)
             return
         cls.create_bars(tasks)
-        print(f"✅ Created bars for {len(tasks)} tasks")
+        print(f"[OK] Created bars for {len(tasks)} tasks")
 
 
     @classmethod
@@ -1314,7 +1314,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 bpy.data.objects.remove(obj, do_unlink=True)
             # Eliminar la colección vacía.
             bpy.data.collections.remove(collection)
-            print("✅ Barras de tareas y su colección eliminadas.")
+            print("[OK] Barras de tareas y su colección eliminadas.")
 
 
     @classmethod
@@ -1518,11 +1518,11 @@ class Sequence(bonsai.core.tool.Sequence):
                 
                 # Crear nueva entidad con los datos copiados
                 new_entity = ifc_file.create_entity(entity.is_a(), **entity_info)
-                print(f"✅ Tarea copiada: '{entity.Name}' - Original ID: {entity.id()} → Nuevo ID: {new_entity.id()}")
+                print(f"[OK] Tarea copiada: '{entity.Name}' - Original ID: {entity.id()} → Nuevo ID: {new_entity.id()}")
                 return new_entity
                 
             except Exception as e:
-                print(f"❌ Error copiando entidad {entity} - {e}")
+                print(f"[ERROR] Error copiando entidad {entity} - {e}")
                 # Fallback: intentar con método API si está disponible
                 try:
                     if entity.is_a("IfcTask"):
@@ -1540,10 +1540,10 @@ class Sequence(bonsai.core.tool.Sequence):
                         if hasattr(entity, 'PredefinedType') and entity.PredefinedType:
                             new_task.PredefinedType = entity.PredefinedType
                             
-                        print(f"✅ Tarea creada con API: '{entity.Name}' - Original ID: {entity.id()} → Nuevo ID: {new_task.id()}")
+                        print(f"[OK] Tarea creada con API: '{entity.Name}' - Original ID: {entity.id()} → Nuevo ID: {new_task.id()}")
                         return new_task
                 except Exception as api_error:
-                    print(f"❌ También falló el método API: {api_error}")
+                    print(f"[ERROR] También falló el método API: {api_error}")
                 
                 return None
 
@@ -1584,14 +1584,14 @@ class Sequence(bonsai.core.tool.Sequence):
                     if hasattr(old_task, 'IsMilestone') and old_task.IsMilestone is not None:
                         new_task.IsMilestone = old_task.IsMilestone
                         
-                    print(f"✅ NUEVA TAREA CREADA: '{old_task.Name}' - Original ID: {old_task.id()} → Nuevo ID: {new_task.id()}")
+                    print(f"[OK] NUEVA TAREA CREADA: '{old_task.Name}' - Original ID: {old_task.id()} → Nuevo ID: {new_task.id()}")
                     
                 except Exception as api_error:
-                    print(f"❌ Error con API, intentando método directo: {api_error}")
+                    print(f"[ERROR] Error con API, intentando método directo: {api_error}")
                     # Fallback al método de copia de entidad
                     new_task = _create_entity_copy(file, old_task)
                     if not new_task:
-                        print(f"❌ FALLO TOTAL: No se pudo copiar tarea {getattr(old_task, 'id', 'N/A')}. Saltando.")
+                        print(f"[ERROR] FALLO TOTAL: No se pudo copiar tarea {getattr(old_task, 'id', 'N/A')}. Saltando.")
                         return
 
                 # 2. Copiar TaskTime si existe
@@ -1615,15 +1615,15 @@ class Sequence(bonsai.core.tool.Sequence):
                         if hasattr(old_time, 'ActualFinish') and old_time.ActualFinish:
                             new_task_time.ActualFinish = old_time.ActualFinish
                             
-                        print(f"✅ TaskTime copiado para tarea '{new_task.Name}'")
+                        print(f"[OK] TaskTime copiado para tarea '{new_task.Name}'")
                         
                     except Exception as time_error:
-                        print(f"⚠️ Error copiando TaskTime: {time_error}")
+                        print(f"[WARNING]️ Error copiando TaskTime: {time_error}")
                         # Fallback: copiar TaskTime con método directo
                         try:
                             new_task.TaskTime = _create_entity_copy(file, old_task.TaskTime)
                         except:
-                            print(f"⚠️ No se pudo copiar TaskTime para '{new_task.Name}'")
+                            print(f"[WARNING]️ No se pudo copiar TaskTime para '{new_task.Name}'")
                 
                 old_to_new_tasks[old_task.id()] = new_task
                 cls.last_duplication_mapping[old_task.id()] = new_task.id()
@@ -2642,8 +2642,8 @@ class Sequence(bonsai.core.tool.Sequence):
         finish_attr = f"{date_source.capitalize()}Finish"
 
         # CRITICAL FIX 3: Debug info to track what's happening
-        print(f"🔍 GUESS_DATE_RANGE: Using date source '{date_source}' -> {start_attr}/{finish_attr}")
-        print(f"📊 GUESS_DATE_RANGE: Processing {len(all_schedule_tasks)} tasks")
+        print(f"[CHECK] GUESS_DATE_RANGE: Using date source '{date_source}' -> {start_attr}/{finish_attr}")
+        print(f"[STATS] GUESS_DATE_RANGE: Processing {len(all_schedule_tasks)} tasks")
 
         all_starts = []
         all_finishes = []
@@ -2666,12 +2666,12 @@ class Sequence(bonsai.core.tool.Sequence):
         # --- END OF CORRECTION ---
 
         if not all_starts or not all_finishes:
-            print(f"❌ GUESS_DATE_RANGE: No valid dates found for {date_source}")
+            print(f"[ERROR] GUESS_DATE_RANGE: No valid dates found for {date_source}")
             return None, None
 
         result_start = min(all_starts)
         result_finish = max(all_finishes)
-        print(f"✅ GUESS_DATE_RANGE: Result for {date_source}: {result_start.strftime('%Y-%m-%d')} to {result_finish.strftime('%Y-%m-%d')}")
+        print(f"[OK] GUESS_DATE_RANGE: Result for {date_source}: {result_start.strftime('%Y-%m-%d')} to {result_finish.strftime('%Y-%m-%d')}")
         
         return result_start, result_finish
     @classmethod
@@ -2688,7 +2688,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 work_schedule = cls.get_active_work_schedule()
 
             if not work_schedule:
-                print("⚠️ No hay cronograma activo para obtener fechas")
+                print("[WARNING]️ No hay cronograma activo para obtener fechas")
                 return None, None
 
             # TEMPORARILY DISABLED: Cache optimization to prevent infinite loops
@@ -2700,7 +2700,7 @@ class Sequence(bonsai.core.tool.Sequence):
             # cached_dates = SequenceCache.get_schedule_dates(work_schedule_id, date_source)
             # if cached_dates and cached_dates['date_range'][0] and cached_dates['date_range'][1]:
             #     schedule_start, schedule_finish = cached_dates['date_range']
-            #     print(f"⚡ Schedule dates (cached): {schedule_start.strftime('%Y-%m-%d')} to {schedule_finish.strftime('%Y-%m-%d')}")
+            #     print(f"[FAST] Schedule dates (cached): {schedule_start.strftime('%Y-%m-%d')} to {schedule_finish.strftime('%Y-%m-%d')}")
             #     return schedule_start, schedule_finish
 
             # Fallback to original logic if cache fails
@@ -2711,7 +2711,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 if infer:
                     schedule_start, schedule_finish = infer(work_schedule)
             except Exception as e:
-                print(f"⚠️ Error en _infer_schedule_date_range: {e}")
+                print(f"[WARNING]️ Error en _infer_schedule_date_range: {e}")
 
             if schedule_start and schedule_finish:
                 print(f"📅 Schedule dates: {schedule_start.strftime('%Y-%m-%d')} to {schedule_finish.strftime('%Y-%m-%d')}")
@@ -2723,13 +2723,13 @@ class Sequence(bonsai.core.tool.Sequence):
                 if schedule_start and schedule_finish:
                     return schedule_start, schedule_finish
             except Exception as e:
-                print(f"⚠️ Error en guess_date_range: {e}")
+                print(f"[WARNING]️ Error en guess_date_range: {e}")
 
-            print("⚠️ No se pudieron determinar las fechas del cronograma")
+            print("[WARNING]️ No se pudieron determinar las fechas del cronograma")
             return None, None
 
         except Exception as e:
-            print(f"❌ Error obteniendo fechas del cronograma: {e}")
+            print(f"[ERROR] Error obteniendo fechas del cronograma: {e}")
             return None, None
 
     @classmethod
@@ -2747,9 +2747,9 @@ class Sequence(bonsai.core.tool.Sequence):
             props.visualisation_finish = finish_iso
             
             # Verify the update worked
-            print(f"✅ UPDATE_VIZ_DATE: New values are: {props.visualisation_start} to {props.visualisation_finish}")
+            print(f"[OK] UPDATE_VIZ_DATE: New values are: {props.visualisation_start} to {props.visualisation_finish}")
         else:
-            print(f"❌ UPDATE_VIZ_DATE: Invalid dates provided - start: {start_date}, finish: {finish_date}")
+            print(f"[ERROR] UPDATE_VIZ_DATE: Invalid dates provided - start: {start_date}, finish: {finish_date}")
             props.visualisation_start = ""
             props.visualisation_finish = ""
     @classmethod
@@ -2768,13 +2768,13 @@ class Sequence(bonsai.core.tool.Sequence):
                 if cls.validate_task_object(_t, "create_bars"):
                     _valid.append(_t)
                 else:
-                    print(f"⚠️ Skipping invalid task in create_bars: {_t}")
+                    print(f"[WARNING]️ Skipping invalid task in create_bars: {_t}")
             if not _valid:
-                print("⚠️ Warning: No valid tasks found for bar creation")
+                print("[WARNING]️ Warning: No valid tasks found for bar creation")
                 return
             tasks = _valid
         else:
-            print("⚠️ Warning: No tasks provided to create_bars")
+            print("[WARNING]️ Warning: No tasks provided to create_bars")
             return
 
 
@@ -2787,11 +2787,11 @@ class Sequence(bonsai.core.tool.Sequence):
                 task_start_date = ifcopenshell.util.sequence.derive_date(task, "ScheduleStart", is_earliest=True)
                 finish_date = ifcopenshell.util.sequence.derive_date(task, "ScheduleFinish", is_latest=True)
             except Exception as e:
-                print(f"⚠️ Error deriving dates for task {getattr(task, 'Name', 'Unknown')}: {e}")
+                print(f"[WARNING]️ Error deriving dates for task {getattr(task, 'Name', 'Unknown')}: {e}")
                 return None
 
             if not (task_start_date and finish_date):
-                print(f"⚠️ Warning: Task {getattr(task, 'Name', 'Unknown')} has no valid dates")
+                print(f"[WARNING]️ Warning: Task {getattr(task, 'Name', 'Unknown')} has no valid dates")
                 return None
 
             try:
@@ -2801,7 +2801,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 schedule_duration = schedule_finish - schedule_start
 
                 if schedule_duration.total_seconds() <= 0:
-                    print(f"⚠️ Invalid schedule duration: {schedule_duration}")
+                    print(f"[WARNING]️ Invalid schedule duration: {schedule_duration}")
                     return None
 
                 total_frames = settings["end_frame"] - settings["start_frame"]
@@ -2826,7 +2826,7 @@ class Sequence(bonsai.core.tool.Sequence):
                     "finish_frame": task_finish_frame,
                 }
             except Exception as e:
-                print(f"⚠️ Error calculating frames for task {getattr(task, 'Name', 'Unknown')}: {e}")
+                print(f"[WARNING]️ Error calculating frames for task {getattr(task, 'Name', 'Unknown')}: {e}")
                 return None
         def create_task_bar_data(tasks, vertical_increment, collection):
             # CORRECTION: Use active schedule dates, NOT visualization dates
@@ -2834,7 +2834,7 @@ class Sequence(bonsai.core.tool.Sequence):
 
             if not (schedule_start and schedule_finish):
                 # Fallback: if there are no schedule dates, show message and abort
-                print("❌ No se pueden crear Task Bars: fechas del cronograma no disponibles")
+                print("[ERROR] No se pueden crear Task Bars: fechas del cronograma no disponibles")
                 return None
 
             settings = {
@@ -3054,7 +3054,7 @@ class Sequence(bonsai.core.tool.Sequence):
             context = bpy.context
             tprops = getattr(context.scene, 'BIMTaskTreeProperties', None)
             if not tprops:
-                print("❌ RESET: No se encontraron propiedades de tareas")
+                print("[ERROR] RESET: No se encontraron propiedades de tareas")
                 return
 
             reset_count = 0
@@ -3093,9 +3093,9 @@ class Sequence(bonsai.core.tool.Sequence):
                                     task.selected_colortype_in_active_group = ""
 
                             reset_count += 1
-                            print(f"✅ RESET: Tarea {task_id} restaurada con ColorType '{predefined_type}' del grupo '{original_group}'")
+                            print(f"[OK] RESET: Tarea {task_id} restaurada con ColorType '{predefined_type}' del grupo '{original_group}'")
                         else:
-                            print(f"⚠️ RESET: No se encontró ColorType '{predefined_type}' en grupo '{original_group}' para tarea {task_id}")
+                            print(f"[WARNING]️ RESET: No se encontró ColorType '{predefined_type}' en grupo '{original_group}' para tarea {task_id}")
 
                     # 3. Si la tarea usa DEFAULT, mantener configuración actual
                     elif not original_group or original_group == "DEFAULT":
@@ -3103,12 +3103,12 @@ class Sequence(bonsai.core.tool.Sequence):
                         # No hacer cambios para tareas que usan DEFAULT
 
                 except Exception as e:
-                    print(f"❌ RESET: Error procesando tarea {task_id}: {e}")
+                    print(f"[ERROR] RESET: Error procesando tarea {task_id}: {e}")
 
-            print(f"✅ RESET COMPLETADO: {reset_count} tareas restauradas a sus grupos personalizados originales")
+            print(f"[OK] RESET COMPLETADO: {reset_count} tareas restauradas a sus grupos personalizados originales")
 
         except Exception as e:
-            print(f"❌ RESET FALLÓ: {e}")
+            print(f"[ERROR] RESET FALLÓ: {e}")
             # Fallback al comportamiento anterior solo si hay error crítico
             cls._legacy_load_default_colors()
 
@@ -3188,7 +3188,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 dt = parser.parse(str(s), yearfirst=True, dayfirst=True, fuzzy=True)
                 return dt.replace(microsecond=0)
             except Exception as e:
-                print(f"❌ Error parseando visualisation_start: {s} -> {e}")
+                print(f"[ERROR] Error parseando visualisation_start: {s} -> {e}")
                 return None
 
     @classmethod
@@ -3227,7 +3227,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 dt = parser.parse(str(s), yearfirst=True, dayfirst=True, fuzzy=True)
                 return dt.replace(microsecond=0)
             except Exception as e:
-                print(f"❌ Error parseando visualisation_finish: {s} -> {e}")
+                print(f"[ERROR] Error parseando visualisation_finish: {s} -> {e}")
                 return None
 
 
@@ -3246,7 +3246,7 @@ class Sequence(bonsai.core.tool.Sequence):
 
             return viz_start, viz_finish
         except Exception as e:
-            print(f"⚠️ Error obteniendo rango de visualización: {e}")
+            print(f"[WARNING]️ Error obteniendo rango de visualización: {e}")
             return None, None
 
     @classmethod
@@ -3295,10 +3295,10 @@ class Sequence(bonsai.core.tool.Sequence):
                 cls.in_demolition = vectorized_result.get("IN_DEMOLITION", set())
                 cls.demolished = vectorized_result.get("DEMOLISHED", set())
                 optimization_used = f"NumPy vectorized: {vectorized_result['tasks_processed']} tasks, {vectorized_result['products_processed']} products"
-                print(f"🚀 {optimization_used}")
+                print(f"[OPTIMIZED] {optimization_used}")
                 return  # Early return - optimization successful
         except Exception as e:
-            print(f"⚠️ NumPy optimization failed (safe fallback): {e}")
+            print(f"[WARNING]️ NumPy optimization failed (safe fallback): {e}")
         
         # FAST FALLBACK PATH: Use cached data if available
         try:
@@ -3309,7 +3309,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 # CACHED OPTIMIZATION: Process using cached data (faster than full iteration)
                 tasks_data = cached_dates.get('tasks_dates', [])
                 optimization_used = f"Cached data: {len(tasks_data)} tasks from cache"
-                print(f"⚡ {optimization_used}")
+                print(f"[FAST] {optimization_used}")
                 
                 # Process cached data efficiently
                 for task_id, start_date, finish_date in tasks_data:
@@ -3336,7 +3336,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 
                 return  # Early return - cached optimization successful
         except Exception as e:
-            print(f"⚠️ Cache optimization failed (safe fallback): {e}")
+            print(f"[WARNING]️ Cache optimization failed (safe fallback): {e}")
         
         # TRADITIONAL FALLBACK PATH: Use original logic if optimizations fail
         print("🔄 Using original processing logic")
@@ -3617,7 +3617,7 @@ class Sequence(bonsai.core.tool.Sequence):
 
         # 5. Configurar el 3D view
         cls.set_object_shading()
-        print(f"✅ Snapshot aplicado. {applied_count} objetos procesados.")
+        print(f"[OK] Snapshot aplicado. {applied_count} objetos procesados.")
 
     @classmethod
     def get_task_for_product(cls, product):
@@ -3745,7 +3745,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 pass
 
         if not start or not finish:
-            print("❌ No se pudieron determinar fechas de visualización (UI ni inferidas)")
+            print("[ERROR] No se pudieron determinar fechas de visualización (UI ni inferidas)")
             return None
 
         try:
@@ -3760,10 +3760,10 @@ class Sequence(bonsai.core.tool.Sequence):
                 if finish == start:
                     finish = start + _td(days=1)
                 else:
-                    print(f"❌ Error: Fecha de fin ({finish}) debe ser posterior a fecha de inicio ({start})")
+                    print(f"[ERROR] Error: Fecha de fin ({finish}) debe ser posterior a fecha de inicio ({start})")
                     return None
             except Exception:
-                print(f"❌ Error ajustando rango de fechas: start={start}, finish={finish}")
+                print(f"[ERROR] Error ajustando rango de fechas: start={start}, finish={finish}")
                 return None
 
 
@@ -3805,27 +3805,129 @@ class Sequence(bonsai.core.tool.Sequence):
 
     @classmethod
     def get_animation_product_frames(cls, work_schedule: ifcopenshell.entity_instance, settings: dict[str, Any]):
+        """Fixed version: Define preprocess_task before calling it"""
 
-            def add_product_frame(product_id, type, product_start, product_finish, relationship):
-                product_frames.setdefault(product_id, []).append(
-                    {
-                        "type": type,
-                        "relationship": relationship,
-                        "STARTED": round(
-                            settings["start_frame"]
-                            + (((product_start - settings["start"]) / settings["duration"]) * settings["total_frames"])
-                        ),
-                        "COMPLETED": round(
-                            settings["start_frame"]
-                            + (((product_finish - settings["start"]) / settings["duration"]) * settings["total_frames"])
-                        ),
-                    }
+        # Import required modules
+        import ifcopenshell.util.sequence
+
+        # Get animation properties for ColorType processing
+        anim_props = cls.get_animation_props()
+
+        # Get date range for visualization
+        viz_start = settings.get("start")
+        viz_finish = settings.get("finish")
+
+        if not viz_start or not viz_finish:
+            print("Warning: No start/finish dates in settings")
+            return {}
+
+        # Determine date source preferences
+        start_date_type = "ScheduleStart"
+        finish_date_type = "ScheduleFinish"
+
+        def add_product_frame(product_id, type, product_start, product_finish, relationship, task):
+            start_frame = round(
+                settings["start_frame"]
+                + (((product_start - settings["start"]) / settings["duration"]) * settings["total_frames"])
+            )
+            finish_frame = round(
+                settings["start_frame"]
+                + (((product_finish - settings["start"]) / settings["duration"]) * settings["total_frames"])
+            )
+
+            # Create proper states dictionary structure
+            animation_start = settings["start_frame"]
+            animation_end = settings["start_frame"] + settings["total_frames"]
+
+            product_frames.setdefault(product_id, []).append(
+                {
+                    "task": task,
+                    "task_id": task.id() if task is not None else None,
+                    "type": type,
+                    "relationship": relationship,
+                    "STARTED": start_frame,
+                    "COMPLETED": finish_frame,
+                    "start_frame": start_frame,
+                    "finish_frame": finish_frame,
+                    "states": {
+                        "before_start": (animation_start, max(animation_start, start_frame - 1)),
+                        "active": (start_frame, finish_frame),
+                        "after_end": (min(finish_frame + 1, animation_end), animation_end),
+                    },
+                }
+            )
+
+        def add_product_frame_full_range(product_id, task, relationship):
+            """Add product frame for full animation range (priority mode)"""
+            animation_start = settings["start_frame"]
+            animation_end = settings["start_frame"] + settings["total_frames"]
+
+            product_frames.setdefault(product_id, []).append({
+                "task": task,
+                "task_id": task.id() if task is not None else None,
+                "type": "output" if relationship == "output" else "input",
+                "relationship": relationship,
+                "start_date": viz_start, "finish_date": viz_finish,
+                "STARTED": animation_start, "COMPLETED": animation_end,
+                "start_frame": animation_start, "finish_frame": animation_end,
+                "states": {
+                    "before_start": (animation_start, animation_start - 1),
+                    "active": (animation_start, animation_end),
+                    "after_end": (animation_end + 1, animation_end),
+                },
+                "consider_start_active": True,
+            })
+
+        def preprocess_task(task):
+            """Process task and its subtasks for animation frames"""
+            # Process nested tasks first
+            for subtask in ifcopenshell.util.sequence.get_nested_tasks(task):
+                preprocess_task(subtask)
+
+            # Get task dates
+            task_start = ifcopenshell.util.sequence.derive_date(task, start_date_type, is_earliest=True)
+            task_finish = ifcopenshell.util.sequence.derive_date(task, finish_date_type, is_latest=True)
+
+            if not task_start or not task_finish:
+                return
+
+            # Get ColorType for this task
+            try:
+                ColorType = cls._get_best_ColorType_for_task(task, anim_props)
+                is_priority_mode = (
+                    getattr(ColorType, 'consider_start', False) and
+                    not getattr(ColorType, 'consider_active', True) and
+                    not getattr(ColorType, 'consider_end', True)
                 )
+            except:
+                is_priority_mode = False
 
-            product_frames = {}
-            for root_task in ifcopenshell.util.sequence.get_root_tasks(work_schedule):
-                preprocess_task(root_task)
-            return product_frames
+            # Priority mode: ignore dates, use full range
+            if is_priority_mode:
+                for output in ifcopenshell.util.sequence.get_task_outputs(task):
+                    add_product_frame_full_range(output.id(), task, "output")
+                for input_prod in cls.get_task_inputs(task):
+                    add_product_frame_full_range(input_prod.id(), task, "input")
+                return
+
+            # Standard mode: use task dates
+            if task_start > viz_finish or task_finish < viz_start:
+                return  # Task outside visualization range
+
+            # Process task outputs
+            for output in ifcopenshell.util.sequence.get_task_outputs(task):
+                add_product_frame(output.id(), "output", task_start, task_finish, "output", task)
+
+            # Process task inputs
+            for input_prod in cls.get_task_inputs(task):
+                add_product_frame(input_prod.id(), "input", task_start, task_finish, "input", task)
+
+        # Now execute the processing
+        product_frames = {}
+        for root_task in ifcopenshell.util.sequence.get_root_tasks(work_schedule):
+            preprocess_task(root_task)
+
+        return product_frames
     @classmethod
     def create_default_ColorType_group(cls):
             """
@@ -4025,13 +4127,14 @@ class Sequence(bonsai.core.tool.Sequence):
 
         # Debug info when DEFAULT is active
         if active_group_name == "DEFAULT":
-            print(f"🎯 DEBUG: DEFAULT group is active for task {task.id()} (PredefinedType: {getattr(task, 'PredefinedType', 'NOTDEFINED')})")
+            task_id_str = str(task.id()) if task is not None else "None"
+            print(f"🎯 DEBUG: DEFAULT group is active for task {task_id_str} (PredefinedType: {getattr(task, 'PredefinedType', 'NOTDEFINED') if task is not None else 'NOTDEFINED'})")
 
         # NEW: Get task configuration from the persistent cache instead of the UI list.
         # This makes the function independent of the current UI filters.
         import bpy, json
         context = bpy.context
-        task_id_str = str(task.id())
+        task_id_str = str(task.id()) if task is not None else "None"
         task_config = None
         
         try:
@@ -4055,7 +4158,7 @@ class Sequence(bonsai.core.tool.Sequence):
                     if ColorType:
                         return ColorType
 
-        task_predefined_type = getattr(task, "PredefinedType", "NOTDEFINED") or "NOTDEFINED"
+        task_predefined_type = getattr(task, "PredefinedType", "NOTDEFINED") if task is not None else "NOTDEFINED"
 
         # 2) PredefinedType in active group
         ColorType = cls.load_ColorType_from_group(active_group_name, task_predefined_type)
@@ -4080,7 +4183,8 @@ class Sequence(bonsai.core.tool.Sequence):
                 return notdefined_profile
 
         # 5) Final fallback: create a basic ColorType only if DEFAULT group has no profiles
-        print(f"⚠️ WARNING: No ColorType found for task {task.id()} (PredefinedType: {task_predefined_type}) in group '{active_group_name}' - using fallback")
+        task_id_for_warning = task.id() if task is not None else "None"
+        print(f"[WARNING]️ WARNING: No ColorType found for task {task_id_for_warning} (PredefinedType: {task_predefined_type}) in group '{active_group_name}' - using fallback")
         return cls.create_fallback_ColorType(task_predefined_type)
 
     @classmethod
@@ -4095,7 +4199,7 @@ class Sequence(bonsai.core.tool.Sequence):
 
         # Debug: Show full DEFAULT group data
         if group_name == "DEFAULT":
-            print(f"🔍 DEBUG: Raw scene data for BIM_AnimationColorSchemesSets:")
+            print(f"[CHECK] DEBUG: Raw scene data for BIM_AnimationColorSchemesSets:")
             print(f"    Raw type: {type(raw)}")
             print(f"    Raw content: {raw[:200] if isinstance(raw, str) else str(raw)[:200]}...")
             print(f"    Parsed data keys: {list(data.keys())}")
@@ -4107,7 +4211,7 @@ class Sequence(bonsai.core.tool.Sequence):
 
         # Debug info for DEFAULT group specifically
         if group_name == "DEFAULT":
-            print(f"🔍 DEBUG: Loading ColorType '{ColorType_name}' from DEFAULT group")
+            print(f"[CHECK] DEBUG: Loading ColorType '{ColorType_name}' from DEFAULT group")
             print(f"    Available ColorTypes in DEFAULT: {available_types}")
             print(f"    Group data has {len(group_data.get('ColorTypes', []))} ColorTypes")
 
@@ -4131,7 +4235,7 @@ class Sequence(bonsai.core.tool.Sequence):
         for prof_data in group_data.get("ColorTypes", []):
             if prof_data.get("name") == ColorType_name:
                 if group_name == "DEFAULT":
-                    print(f"✅ DEBUG: Found ColorType '{ColorType_name}' in DEFAULT group")
+                    print(f"[OK] DEBUG: Found ColorType '{ColorType_name}' in DEFAULT group")
                 return type('AnimationColorSchemes', (object,), {
                     'name': prof_data.get("name", ""),
                     'consider_start': prof_data.get("consider_start", True),
@@ -4153,7 +4257,7 @@ class Sequence(bonsai.core.tool.Sequence):
 
         # Debug when ColorType not found in DEFAULT group
         if group_name == "DEFAULT":
-            print(f"❌ DEBUG: ColorType '{ColorType_name}' NOT found in DEFAULT group")
+            print(f"[ERROR] DEBUG: ColorType '{ColorType_name}' NOT found in DEFAULT group")
 
         return None
 
@@ -4171,7 +4275,7 @@ class Sequence(bonsai.core.tool.Sequence):
         except Exception:
             data = {}
 
-        print("🔧 FORCE RECREATING DEFAULT group with distinctive colors...")
+        print("[PROCESS] FORCE RECREATING DEFAULT group with distinctive colors...")
 
         # LISTA COMPLETA de ColorTypes para el grupo DEFAULT (14 tipos)
         default_ColorTypes = {
@@ -4226,7 +4330,7 @@ class Sequence(bonsai.core.tool.Sequence):
         data["DEFAULT"] = {"ColorTypes": ColorTypes}
         scene[key] = json.dumps(data)
 
-        print(f"✅ FORCE RECREATED DEFAULT group with {len(ColorTypes)} distinctive ColorTypes")
+        print(f"[OK] FORCE RECREATED DEFAULT group with {len(ColorTypes)} distinctive ColorTypes")
 
         # Debug: Mostrar los nuevos colores
         for ct in ColorTypes[:3]:  # Solo mostrar los primeros 3
@@ -4288,7 +4392,7 @@ class Sequence(bonsai.core.tool.Sequence):
         # --- INICIO DE LA CORRECCIÓN ---
         if active_group == "DEFAULT":
             # TEMPORAL: Permitir recrear el grupo DEFAULT para corregir colores
-            print("🔧 RECREATING DEFAULT group with correct colors...")
+            print("[PROCESS] RECREATING DEFAULT group with correct colors...")
             cls.force_recreate_default_group()
             return
         # --- FIN DE LA CORRECCIÓN ---
@@ -4462,7 +4566,7 @@ class Sequence(bonsai.core.tool.Sequence):
         """
         Phase 2: Execution - Applies the animation plan efficiently using batch operations.
         """
-        print(f"🚀 EXECUTING ANIMATION: Processing {len(animation_plan)} frames")
+        print(f"[OPTIMIZED] EXECUTING ANIMATION: Processing {len(animation_plan)} frames")
 
         # Clear existing animation data first
         for obj in bpy.data.objects:
@@ -4508,7 +4612,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 obj.hide_viewport = True
                 obj.hide_render = True
 
-        print(f"🚀 EXECUTION COMPLETE: Animation applied successfully")
+        print(f"[OPTIMIZED] EXECUTION COMPLETE: Animation applied successfully")
 
     @classmethod
     def animate_objects_with_ColorTypes_new(cls, settings, product_frames):
@@ -4516,7 +4620,7 @@ class Sequence(bonsai.core.tool.Sequence):
         NEW BATCH PROCESSING VERSION: Refactored for performance with thousands of objects.
         Replaces the old animate_objects_with_ColorTypes function.
         """
-        print("🎬 STARTING NEW BATCH ANIMATION SYSTEM")
+        print("[ANIM] STARTING NEW BATCH ANIMATION SYSTEM")
 
         # Save original colors using existing system
         if not bpy.context.scene.get('BIM_VarianceOriginalObjectColors'):
@@ -4543,7 +4647,7 @@ class Sequence(bonsai.core.tool.Sequence):
         bpy.context.scene.frame_start = settings["start_frame"]
         bpy.context.scene.frame_end = int(settings["start_frame"] + settings["total_frames"] + 1)
 
-        print("🎬 NEW BATCH ANIMATION SYSTEM COMPLETE")
+        print("[ANIM] NEW BATCH ANIMATION SYSTEM COMPLETE")
 
     @classmethod
     def _setup_live_updates(cls, product_frames, animation_props):
@@ -4611,10 +4715,40 @@ class Sequence(bonsai.core.tool.Sequence):
 
     @classmethod
     def animate_objects_with_ColorTypes(cls, settings, product_frames):
-        # --- START OF CORRECTION: Restore initialization of local variables ---
+        """
+        COMPLETE_SYSTEM_ULTRA_FAST OPTIMIZATIONS - Solo las optimizaciones puras
+        """
+        import time
+        start_time = time.time()
+
+        print(f"🚀 [ULTRA-FAST] Starting animation for {len(product_frames)} products")
+
+        # Save original colors using existing system
+        if not bpy.context.scene.get('BIM_VarianceOriginalObjectColors'):
+            cls._save_original_object_colors()
+
+        # === EXACT OPTIMIZATIONS FROM COMPLETE_SYSTEM_ULTRA_FAST.py ===
+
+        # MAPEO: IFC a Blender - OPTIMIZATION 1
+        print("📦 Mapping IFC objects...")
+        map_start = time.time()
+        ifc_to_blender = {}
+        all_ifc_objects = []
+
+        for obj in bpy.data.objects:
+            if obj.type == 'MESH':
+                element = tool.Ifc.get_entity(obj)
+                if element and not element.is_a("IfcSpace"):
+                    ifc_to_blender[element.id()] = obj
+                    all_ifc_objects.append(obj)
+
+        map_time = time.time() - map_start
+        print(f"📦 Mapped {len(ifc_to_blender)} IFC objects in {map_time:.3f}s")
+
+        # Get animation properties
         animation_props = cls.get_animation_props()
-        
-        # Active group logic (stack → DEFAULT)
+
+        # Get active ColorType group - EXACT FROM SCRIPT
         active_group_name = None
         for item in getattr(animation_props, "animation_group_stack", []):
             if getattr(item, "enabled", False) and getattr(item, "group", None):
@@ -4622,87 +4756,150 @@ class Sequence(bonsai.core.tool.Sequence):
                 break
         if not active_group_name:
             active_group_name = "DEFAULT"
-        print(f"🎬 INICIANDO ANIMACIÓN: Usando el grupo de perfiles '{active_group_name}'")
+        print(f"🎨 Real ColorType group: '{active_group_name}'")
 
-        # --- GUARDAR COLORES ORIGINALES USANDO SISTEMA EXISTENTE ---
-        # Solo guardar si no existen ya colores originales guardados
-        if not bpy.context.scene.get('BIM_VarianceOriginalObjectColors'):
-            cls._save_original_object_colors()
+        # VISIBILITY LOGIC - EXACT FROM SCRIPT (lines 4779-4789)
+        hide_start = time.time()
 
-        original_colors = {}
-        # --- NEW: Live Update Cache ---
-        live_update_props = {"product_frames": {}, "original_colors": {}}
-        
-        for obj in bpy.data.objects:
-            if obj.type == 'MESH':
-                # Intentar obtener el color del material IFC original primero
-                original_color = None
-                try:
-                    if obj.material_slots and obj.material_slots[0].material:
-                        material = obj.material_slots[0].material
-                        if material.use_nodes:
-                            principled = tool.Blender.get_material_node(material, "BSDF_PRINCIPLED")
-                            if principled and principled.inputs.get("Base Color"):
-                                base_color = principled.inputs["Base Color"].default_value
-                                original_color = [base_color[0], base_color[1], base_color[2], base_color[3]]
-                except Exception:
-                    pass
+        # Clear animation from ALL objects
+        for obj in all_ifc_objects:
+            if obj.animation_data:
+                obj.animation_data_clear()
 
-                # Fallback: usar el color actual del viewport si no se pudo obtener del material
-                if original_color is None:
-                    original_color = list(obj.color)
+        # Apply EXACT logic from real system
+        assigned_objects = set()
+        unassigned_objects = set()
 
-                original_colors[obj.name] = original_color
-
-        # --- INICIO DE LA MODIFICACIÓN: GUARDAR ESTADO DE ANIMACIÓN ---
-        import json
-        try:
-            # Guardamos una copia serializada de los colores en la escena.
-            # Esta propiedad actuará como nuestra "memoria" para la restauración.
-            bpy.context.scene['bonsai_animation_original_colors'] = json.dumps(original_colors)
-            print(f"🎨 Se han guardado los colores originales de {len(original_colors)} objetos para la animación.")
-        except Exception as e:
-            print(f"⚠️ No se pudieron guardar los colores originales de la animación: {e}")
-        # --- FIN DE LA MODIFICACIÓN ---
-        # --- END OF CORRECTION ---
-        # --- REFACTORED: Separated logic for baking vs. live updates ---
-        for obj in bpy.data.objects:
+        for obj in all_ifc_objects:
             element = tool.Ifc.get_entity(obj)
-            if not element or element.is_a("IfcSpace"):
-                if element and element.is_a("IfcSpace"): cls.hide_object(obj)
+            if not element:
                 continue
 
             if element.id() not in product_frames:
+                # Objects NOT assigned: Hidden WITHOUT keyframes
                 obj.hide_viewport = True
                 obj.hide_render = True
+                unassigned_objects.add(obj)
+            else:
+                # Objects assigned: Hidden WITH keyframe at frame 0
+                obj.hide_viewport = True
+                obj.hide_render = True
+                obj.keyframe_insert(data_path="hide_viewport", frame=0)
+                obj.keyframe_insert(data_path="hide_render", frame=0)
+                assigned_objects.add(obj)
+
+        hide_time = time.time() - hide_start
+        print(f"👁️ Visibility configured according to real system in {hide_time:.3f}s")
+        print(f"🚫 Objects NOT assigned: {len(unassigned_objects)} (hidden WITHOUT keyframes)")
+        print(f"📋 Objects assigned: {len(assigned_objects)} (hidden WITH keyframe frame 0)")
+
+        # Original colors only for ASSIGNED objects - OPTIMIZATION 2
+        colors_start = time.time()
+        original_colors = {}
+
+        for obj in assigned_objects:
+            try:
+                if obj.material_slots and obj.material_slots[0].material:
+                    material = obj.material_slots[0].material
+                    if material.use_nodes:
+                        principled = tool.Blender.get_material_node(material, "BSDF_PRINCIPLED")
+                        if principled and principled.inputs.get("Base Color"):
+                            base_color = principled.inputs["Base Color"].default_value
+                            original_colors[obj.name] = [base_color[0], base_color[1], base_color[2], base_color[3]]
+                            continue
+                original_colors[obj.name] = list(obj.color)
+            except:
+                original_colors[obj.name] = [1.0, 1.0, 1.0, 1.0]
+
+        colors_time = time.time() - colors_start
+        print(f"🎨 Original colors for {len(original_colors)} assigned objects in {colors_time:.3f}s")
+
+        # BATCH PROCESSING - EXACT FROM SCRIPT - OPTIMIZATION 3
+        process_start = time.time()
+        colortype_cache = {}
+        visibility_ops = []
+        color_ops = []
+        processed_count = 0
+
+        print("📋 Planning batch operations...")
+
+        for product_id, frame_data_list in product_frames.items():
+            if product_id not in ifc_to_blender:
                 continue
 
-            # CORRECCIÓN PRINCIPAL: Para objetos que SÍ van a ser animados, 
-            # los ocultamos inmediatamente y establecemos keyframes en frame 0
-            obj.hide_viewport = True
-            obj.hide_render = True
-            obj.keyframe_insert(data_path="hide_viewport", frame=0)
-            obj.keyframe_insert(data_path="hide_render", frame=0)
+            obj = ifc_to_blender[product_id]
+            if obj not in assigned_objects:
+                continue
 
-            if animation_props.enable_live_color_updates:
-                # No hacer los objetos visibles aquí - la visibilidad se controlará por apply_ColorType_animation
-                live_update_props["original_colors"][str(element.id())] = original_colors.get(obj.name, [1.0, 1.0, 1.0, 1.0])
-            else: # Baking mode
-                original_color = original_colors.get(obj.name, [1.0, 1.0, 1.0, 1.0])
-                for frame_data in product_frames[element.id()]:
-                    task = frame_data.get("task") or tool.Ifc.get().by_id(frame_data.get("task_id"))
-                    ColorType = cls.get_assigned_ColorType_for_task(task, animation_props, active_group_name)
-                    # The fallback to DEFAULT is now handled inside get_assigned_ColorType_for_task
-                    cls.apply_ColorType_animation(obj, frame_data, ColorType, original_color, settings)
+            original_color = original_colors.get(obj.name, [1.0, 1.0, 1.0, 1.0])
 
-        # --- NEW: Cache data for live updates ---
-        print(f"[DEBUG] Checking live updates: enable_live_color_updates = {animation_props.enable_live_color_updates}")
+            for frame_data in frame_data_list:
+                task = frame_data.get("task")
+
+                # Cache REAL ColorType (handles custom ranges)
+                task_key = task.id() if task else "None"
+                if task_key not in colortype_cache:
+                    try:
+                        # USE real system that handles custom START/FINISH
+                        colortype_cache[task_key] = cls.get_assigned_ColorType_for_task(
+                            task, animation_props, active_group_name)
+                    except Exception as e:
+                        print(f"⚠️ Error getting ColorType for task {task_key}: {e}")
+                        colortype_cache[task_key] = None
+
+                ColorType = colortype_cache[task_key]
+                if not ColorType:
+                    continue
+
+                states = frame_data.get("states", {})
+                if states:
+                    # PLAN operations with REAL ColorType - EXACT FROM SCRIPT
+                    cls._plan_complete_system_animation(obj, states, ColorType, original_color,
+                                                      frame_data, visibility_ops, color_ops)
+                    processed_count += 1
+
+        process_time = time.time() - process_start
+        print(f"📋 Planned {processed_count} frames with REAL ColorTypes in {process_time:.3f}s")
+
+        # EXECUTE batch operations - EXACT FROM SCRIPT
+        exec_start = time.time()
+        print(f"⚡ Executing batch: {len(visibility_ops)} visibility + {len(color_ops)} color operations...")
+
+        for op in visibility_ops:
+            if op['obj'] in assigned_objects:
+                op['obj'].hide_viewport = op['hide']
+                op['obj'].hide_render = op['hide']
+                op['obj'].keyframe_insert(data_path="hide_viewport", frame=op['frame'])
+                op['obj'].keyframe_insert(data_path="hide_render", frame=op['frame'])
+
+        for op in color_ops:
+            if op['obj'] in assigned_objects:
+                op['obj'].color = op['color']
+                op['obj'].keyframe_insert(data_path="color", frame=op['frame'])
+
+        exec_time = time.time() - exec_start
+        print(f"⚡ Executed {len(visibility_ops)} visibilities + {len(color_ops)} colors in {exec_time:.3f}s")
+
+        # Save state
+        import json
+        try:
+            bpy.context.scene['bonsai_animation_original_colors'] = json.dumps(original_colors)
+            print(f"🎨 Saved original colors for {len(original_colors)} objects.")
+        except Exception as e:
+            print(f"[WARNING] Could not save original colors: {e}")
+
+        # Live updates (if enabled) - PRESERVED FROM ORIGINAL
+        live_update_props = {"product_frames": {}, "original_colors": {}}
         if animation_props.enable_live_color_updates:
-            # CORRECCIÓN 1: Convertir las claves de product_frames a string para el almacenamiento en la escena
+            for obj in assigned_objects:
+                element = tool.Ifc.get_entity(obj)
+                if element:
+                    live_update_props["original_colors"][str(element.id())] = original_colors.get(obj.name, [1.0, 1.0, 1.0, 1.0])
+
+            # Setup live updates cache - PRESERVED FROM ORIGINAL
+            from datetime import datetime
             string_keyed_product_frames = {str(k): v for k, v in product_frames.items()}
 
-            # CORRECCIÓN 2: Crear una versión serializable de los datos de frames
-            # para evitar guardar objetos de ifcopenshell en las propiedades de la escena.
             serializable_product_frames = {}
             for pid_str, frame_data_list in string_keyed_product_frames.items():
                 serializable_frame_data_list = []
@@ -4710,36 +4907,86 @@ class Sequence(bonsai.core.tool.Sequence):
                     serializable_item = {}
                     for key, value in frame_data_item.items():
                         if key == 'task':
-                            # Store task_id to recover task in live handler
-                            if hasattr(value, 'id') and callable(value.id):
+                            if value is not None and hasattr(value, 'id') and callable(value.id):
                                 serializable_item['task_id'] = value.id()
-                            continue  # Omitir el objeto 'task' que no es serializable
+                            continue
                         elif isinstance(value, datetime):
-                            serializable_item[key] = value.isoformat()  # Convertir datetime a string
+                            serializable_item[key] = value.isoformat()
                         else:
                             serializable_item[key] = value
                     serializable_frame_data_list.append(serializable_item)
                 serializable_product_frames[pid_str] = serializable_frame_data_list
+
             live_update_props["product_frames"] = serializable_product_frames
             bpy.context.scene['BIM_LiveUpdateProductFrames'] = live_update_props
-            print(f"[DEBUG] Created live update cache with {len(serializable_product_frames)} products")
-            
-            # Immediate verification
-            if bpy.context.scene.get('BIM_LiveUpdateProductFrames'):
-                print("[DEBUG] Cache verification: SUCCESS - BIM_LiveUpdateProductFrames exists")
-            else:
-                print("[DEBUG] Cache verification: FAILED - BIM_LiveUpdateProductFrames missing!")
-                
-            cls.register_live_color_update_handler() # Ensure handler is active
+            cls.register_live_color_update_handler()
 
+        # Configure viewport and scene - PRESERVED FROM ORIGINAL
         area = tool.Blender.get_view3d_area()
         try:
-            # This ensures colors are visible if baked, or if live updates are on
             area.spaces[0].shading.color_type = "OBJECT"
         except Exception:
             pass
+
         bpy.context.scene.frame_start = settings["start_frame"]
         bpy.context.scene.frame_end = int(settings["start_frame"] + settings["total_frames"] + 1)
+
+        # Performance summary
+        total_time = time.time() - start_time
+        print(f"\n🎉 [ULTRA-FAST] Animation completed in {total_time:.2f}s")
+        if total_time > 0:
+            improvement = 25 / total_time  # vs original 25s
+            print(f"📈 Performance improvement: {improvement:.1f}x faster than original")
+        print(f"📊 Processed {processed_count} frames")
+        print(f"🎯 Pure optimizations from COMPLETE_SYSTEM_ULTRA_FAST.py applied!")
+
+    @classmethod
+    def _plan_complete_system_animation(cls, obj, states, ColorType, original_color, frame_data, visibility_ops, color_ops):
+        """Plan operations using REAL ColorType with complete support - EXACT FROM SCRIPT"""
+        is_construction = frame_data.get("relationship") == "output"
+
+        # START state with REAL ColorType
+        before_start = states.get("before_start", (0, -1))
+        if before_start[1] >= before_start[0]:
+            should_be_hidden = is_construction and not getattr(ColorType, 'consider_start', False)
+            if not should_be_hidden:
+                visibility_ops.append({'obj': obj, 'frame': before_start[0], 'hide': False})
+
+                # START COLOR using REAL ColorType
+                use_original = getattr(ColorType, 'use_start_original_color', False)
+                if use_original:
+                    color = original_color
+                else:
+                    start_color = getattr(ColorType, 'start_color', [0.8, 0.8, 0.8, 1.0])
+                    transparency = getattr(ColorType, 'start_transparency', 0.0)
+                    color = [start_color[0], start_color[1], start_color[2], 1.0 - transparency]
+                color_ops.append({'obj': obj, 'frame': before_start[0], 'color': color})
+
+        # ACTIVE state with REAL ColorType
+        active = states.get("active", (0, -1))
+        if active[1] >= active[0] and getattr(ColorType, 'consider_active', True):
+            visibility_ops.append({'obj': obj, 'frame': active[0], 'hide': False})
+
+            # ACTIVE COLOR using REAL ColorType
+            active_color = getattr(ColorType, 'in_progress_color', [0.5, 0.9, 0.5, 1.0])
+            transparency = getattr(ColorType, 'in_progress_transparency', 0.0)
+            color = [active_color[0], active_color[1], active_color[2], 1.0 - transparency]
+            color_ops.append({'obj': obj, 'frame': active[0], 'color': color})
+
+        # END state with REAL ColorType
+        after_end = states.get("after_end", (0, -1))
+        if after_end[1] >= after_end[0] and getattr(ColorType, 'consider_end', True):
+            visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': False})
+
+            # END COLOR using REAL ColorType
+            use_original = getattr(ColorType, 'use_end_original_color', False)
+            if use_original:
+                color = original_color
+            else:
+                end_color = getattr(ColorType, 'end_color', [0.7, 0.7, 0.7, 1.0])
+                transparency = getattr(ColorType, 'end_transparency', 0.0)
+                color = [end_color[0], end_color[1], end_color[2], 1.0 - transparency]
+            color_ops.append({'obj': obj, 'frame': after_end[0], 'color': color})
 
     @classmethod
     def apply_visibility_animation(cls, obj, frame_data, ColorType):
@@ -4767,7 +5014,7 @@ class Sequence(bonsai.core.tool.Sequence):
     @classmethod
     def debug_ColorType_application(cls, obj, ColorType, frame_data):
         """Debug helper para verificar aplicación de perfiles"""
-        print(f"🔍 DEBUG ColorType Application:")
+        print(f"[CHECK] DEBUG ColorType Application:")
         print(f"   Object: {obj.name}")
         print(f"   ColorType: {getattr(ColorType, 'name', 'Unknown')}")
         print(f"   consider_start: {getattr(ColorType, 'consider_start', False)}")
@@ -5030,7 +5277,7 @@ class Sequence(bonsai.core.tool.Sequence):
             ColorType = cls._get_best_ColorType_for_task(task, anim_props)
             return getattr(ColorType, 'consider_start', False)
         except Exception as e:
-            print(f"⚠️ Error in _task_has_consider_start_ColorType for task {getattr(task, 'Name', 'N/A')}: {e}")
+            print(f"[WARNING]️ Error in _task_has_consider_start_ColorType for task {getattr(task, 'Name', 'N/A')}: {e}")
             return False
 
     @classmethod
@@ -5370,7 +5617,7 @@ class Sequence(bonsai.core.tool.Sequence):
                         def setup_hud_deferred():
                             try:
                                 bpy.ops.bim.setup_text_hud()
-                                print("✅ Deferred HUD setup completed")
+                                print("[OK] Deferred HUD setup completed")
                             except Exception as e:
                                 print(f"Deferred HUD setup failed: {e}")
 
@@ -5424,7 +5671,7 @@ class Sequence(bonsai.core.tool.Sequence):
                     if work_schedule and hasattr(work_schedule, 'Name'):
                         schedule_name = work_schedule.Name or "Unnamed Schedule"
         except Exception as e:
-            print(f"⚠️ Could not get schedule name: {e}")
+            print(f"[WARNING]️ Could not get schedule name: {e}")
 
         text_configs = [
                 {"name": "Schedule_Name", "position": (0, 10, 6), "size": 1.4, "align": "CENTER", "color": (1, 1, 1, 1), "type": "schedule_name", "content": f"Schedule: {schedule_name}"},
@@ -5438,7 +5685,7 @@ class Sequence(bonsai.core.tool.Sequence):
             text_obj = cls._create_static_text(config, settings, collection)
             created_texts.append(text_obj)
 
-        print(f"✅ Created {len(created_texts)} static 3D text objects for snapshot mode")
+        print(f"[OK] Created {len(created_texts)} static 3D text objects for snapshot mode")
         return created_texts
 
     @classmethod
@@ -5497,9 +5744,9 @@ class Sequence(bonsai.core.tool.Sequence):
                 text_obj.parent = parent_empty
                 print(f"📝 Text '{config['name']}' parented to Schedule_Display_Parent")
             else:
-                print(f"⚠️ Schedule_Display_Parent not found for text '{config['name']}'")
+                print(f"[WARNING]️ Schedule_Display_Parent not found for text '{config['name']}'")
         except Exception as e:
-            print(f"⚠️ Could not parent text '{config['name']}': {e}")
+            print(f"[WARNING]️ Could not parent text '{config['name']}': {e}")
 
         print(f"📝 Created static text: {config['name']} = '{text_curve.body}'")
         return text_obj
@@ -5527,7 +5774,7 @@ class Sequence(bonsai.core.tool.Sequence):
 
             return f"Week {week_number}"
         except Exception as e:
-            print(f"❌ Error calculating static week: {e}")
+            print(f"[ERROR] Error calculating static week: {e}")
             return "Week --"
 
     @classmethod
@@ -5553,7 +5800,7 @@ class Sequence(bonsai.core.tool.Sequence):
 
             return f"Day {day_number}"
         except Exception as e:
-            print(f"❌ Error calculating static day: {e}")
+            print(f"[ERROR] Error calculating static day: {e}")
             return "Day --"
 
     @classmethod
@@ -5588,7 +5835,7 @@ class Sequence(bonsai.core.tool.Sequence):
 
             return f"Progress: {progress_pct}%"
         except Exception as e:
-            print(f"❌ Error calculating static progress: {e}")
+            print(f"[ERROR] Error calculating static progress: {e}")
             return "Progress: --%"
 
     @classmethod
@@ -5737,10 +5984,10 @@ class Sequence(bonsai.core.tool.Sequence):
                         else:
                             week_number = max(1, (delta_days // 7) + 1)
                         
-                        print(f"📊 3D Week: current={cd_d}, schedule_start={fss_d}, week={week_number}")
+                        print(f"[STATS] 3D Week: current={cd_d}, schedule_start={fss_d}, week={week_number}")
                         return f"Week {week_number}"
                 except Exception as e:
-                    print(f"⚠️ 3D Week: Could not get schedule dates, using animation range: {e}")
+                    print(f"[WARNING]️ 3D Week: Could not get schedule dates, using animation range: {e}")
                 
                 # Fallback: use animation range
                 days_elapsed = (current_date - start_date).days
@@ -5766,10 +6013,10 @@ class Sequence(bonsai.core.tool.Sequence):
                         else:
                             day_from_schedule = max(1, delta_days + 1)
                         
-                        print(f"📊 3D Day: current={cd_d}, schedule_start={fss_d}, day={day_from_schedule}")
+                        print(f"[STATS] 3D Day: current={cd_d}, schedule_start={fss_d}, day={day_from_schedule}")
                         return f"Day {day_from_schedule}"
                 except Exception as e:
-                    print(f"⚠️ 3D Day: Could not get schedule dates, using animation range: {e}")
+                    print(f"[WARNING]️ 3D Day: Could not get schedule dates, using animation range: {e}")
                 
                 # Fallback: use animation range
                 days_elapsed = (current_date - start_date).days + 1
@@ -5803,10 +6050,10 @@ class Sequence(bonsai.core.tool.Sequence):
                                 progress_pct = round(progress_pct)
                                 progress_pct = max(0, min(100, progress_pct))
                         
-                        print(f"📊 3D Progress: current={cd_d}, schedule_start={fss_d}, end={fse_d}, progress={progress_pct}%")
+                        print(f"[STATS] 3D Progress: current={cd_d}, schedule_start={fss_d}, end={fse_d}, progress={progress_pct}%")
                         return f"Progress: {progress_pct}%"
                 except Exception as e:
-                    print(f"⚠️ 3D Progress: Could not get schedule dates, using animation range: {e}")
+                    print(f"[WARNING]️ 3D Progress: Could not get schedule dates, using animation range: {e}")
                 
                 # Fallback: use animation range
                 total = (finish_date - start_date).days
@@ -5826,11 +6073,11 @@ class Sequence(bonsai.core.tool.Sequence):
             cls._unregister_frame_change_handler()
 
             def update_all_schedule_texts(scene):
-                print("🎬 3D Text Handler (main): Starting update...")
+                print("[ANIM] 3D Text Handler (main): Starting update...")
                 collection_name = "Schedule_Display_Texts"
                 coll = bpy.data.collections.get(collection_name)
                 if not coll:
-                    print("⚠️ 3D Text Handler (main): No 'Schedule_Display_Texts' collection found")
+                    print("[WARNING]️ 3D Text Handler (main): No 'Schedule_Display_Texts' collection found")
                     return
                 print(f"📝 3D Text Handler (main): Found collection with {len(coll.objects)} objects")
                 current_frame = int(scene.frame_current)
@@ -5990,7 +6237,7 @@ class Sequence(bonsai.core.tool.Sequence):
         if 'BIM_VarianceOriginalObjectColors' in bpy.context.scene:
             del bpy.context.scene['BIM_VarianceOriginalObjectColors']
 
-        print("✅ Reseteo universal completado.")
+        print("[OK] Reseteo universal completado.")
 
     @classmethod
     def get_tasks_for_product(cls, product, work_schedule=None):
@@ -6100,20 +6347,20 @@ class Sequence(bonsai.core.tool.Sequence):
             bool: True si la tarea es válida, False en caso contrario
         """
         if task is None:
-            print(f"⚠️ Warning: None task in {operation_name}")
+            print(f"[WARNING]️ Warning: None task in {operation_name}")
             return False
 
         if not hasattr(task, 'id') or not callable(getattr(task, 'id', None)):
-            print(f"⚠️ Warning: Invalid task object in {operation_name}: {task}")
+            print(f"[WARNING]️ Warning: Invalid task object in {operation_name}: {task}")
             return False
 
         try:
             task_id = task.id()
             if task_id is None or task_id <= 0:
-                print(f"⚠️ Warning: Invalid task ID in {operation_name}: {task_id}")
+                print(f"[WARNING]️ Warning: Invalid task ID in {operation_name}: {task_id}")
                 return False
         except Exception as e:
-            print(f"⚠️ Error getting task ID in {operation_name}: {e}")
+            print(f"[WARNING]️ Error getting task ID in {operation_name}: {e}")
             return False
 
         return True
@@ -6311,10 +6558,10 @@ class Sequence(bonsai.core.tool.Sequence):
                 context.scene[cache_key] = json.dumps(cache_data)
                 print(f"🔄 Copy3D: Added {tasks_added_to_cache} uncached tasks to snapshot cache")
             
-            print(f"✅ Copy3D: Complete task snapshot forced - {len(cache_data)} tasks ready for export")
+            print(f"[OK] Copy3D: Complete task snapshot forced - {len(cache_data)} tasks ready for export")
             
         except Exception as e:
-            print(f"❌ Copy3D: Error forcing complete task snapshot: {e}")
+            print(f"[ERROR] Copy3D: Error forcing complete task snapshot: {e}")
 
     @classmethod
     def _sync_source_animation_color_schemes(cls, context):
@@ -6347,7 +6594,7 @@ class Sequence(bonsai.core.tool.Sequence):
                             # Encontrar el grupo activo (enabled=True) que no sea DEFAULT
                             if enabled and group_name != 'DEFAULT' and choice_colortype:
                                 selected_colortype = choice_colortype
-                                print(f"🔍 Copy3D SYNC: Task {task.ifc_definition_id} - Found active group '{group_name}' with colortype '{selected_colortype}'")
+                                print(f"[CHECK] Copy3D SYNC: Task {task.ifc_definition_id} - Found active group '{group_name}' with colortype '{selected_colortype}'")
                                 break
                         
                         # Si el grupo activo tiene un ColorType pero animation_color_schemes no coincide
@@ -6359,18 +6606,18 @@ class Sequence(bonsai.core.tool.Sequence):
                             safe_set_animation_color_schemes(task, selected_colortype)
                             tasks_synced += 1
                         elif selected_colortype:
-                            print(f"✅ Copy3D SYNC: Task {task.ifc_definition_id} already synced: '{selected_colortype}'")
+                            print(f"[OK] Copy3D SYNC: Task {task.ifc_definition_id} already synced: '{selected_colortype}'")
                         else:
-                            print(f"⚠️ Copy3D SYNC: Task {task.ifc_definition_id} has active group but no selected colortype")
+                            print(f"[WARNING]️ Copy3D SYNC: Task {task.ifc_definition_id} has active group but no selected colortype")
                             
                 except Exception as e:
-                    print(f"❌ Copy3D SYNC: Error syncing task {getattr(task, 'ifc_definition_id', '?')}: {e}")
+                    print(f"[ERROR] Copy3D SYNC: Error syncing task {getattr(task, 'ifc_definition_id', '?')}: {e}")
                     continue
             
-            print(f"✅ Copy3D: Synced animation_color_schemes for {tasks_synced} tasks with active groups")
+            print(f"[OK] Copy3D: Synced animation_color_schemes for {tasks_synced} tasks with active groups")
             
         except Exception as e:
-            print(f"❌ Copy3D: Error syncing source animation_color_schemes: {e}")
+            print(f"[ERROR] Copy3D: Error syncing source animation_color_schemes: {e}")
 
     @classmethod
     def _force_fresh_snapshot_from_ui(cls, context):
@@ -6432,10 +6679,10 @@ class Sequence(bonsai.core.tool.Sequence):
             snap_key = f"_task_colortype_snapshot_json_WS_{ws.id()}"
             context.scene[snap_key] = json.dumps(fresh_snapshot)
             
-            print(f"✅ Copy3D: Fresh snapshot created with {len(fresh_snapshot)} tasks from current UI state")
+            print(f"[OK] Copy3D: Fresh snapshot created with {len(fresh_snapshot)} tasks from current UI state")
             
         except Exception as e:
-            print(f"❌ Copy3D: Error creating fresh snapshot: {e}")
+            print(f"[ERROR] Copy3D: Error creating fresh snapshot: {e}")
 
     @classmethod
     def export_schedule_configuration(cls, work_schedule):
@@ -6472,21 +6719,21 @@ class Sequence(bonsai.core.tool.Sequence):
         if context.scene.get(specific_snapshot_key):
             try:
                 task_ColorType_snapshot = json.loads(context.scene[specific_snapshot_key])
-                print(f"✅ DEBUG EXPORT: Cargados {len(task_ColorType_snapshot)} perfiles desde clave específica WS_{work_schedule.id()}")
+                print(f"[OK] DEBUG EXPORT: Cargados {len(task_ColorType_snapshot)} perfiles desde clave específica WS_{work_schedule.id()}")
                 snapshot_found = True
             except Exception as e:
-                print(f"❌ DEBUG EXPORT: Error cargando perfiles desde clave específica: {e}")
+                print(f"[ERROR] DEBUG EXPORT: Error cargando perfiles desde clave específica: {e}")
         
         # Fallback to generic snapshot key if specific not found
         if not snapshot_found and context.scene.get(generic_snapshot_key):
             try:
                 task_ColorType_snapshot = json.loads(context.scene[generic_snapshot_key])
-                print(f"✅ DEBUG EXPORT: Cargados {len(task_ColorType_snapshot)} perfiles desde clave genérica (fallback)")
+                print(f"[OK] DEBUG EXPORT: Cargados {len(task_ColorType_snapshot)} perfiles desde clave genérica (fallback)")
             except Exception as e:
-                print(f"❌ DEBUG EXPORT: Error cargando perfiles desde clave genérica: {e}")
+                print(f"[ERROR] DEBUG EXPORT: Error cargando perfiles desde clave genérica: {e}")
         
         if not snapshot_found and not context.scene.get(generic_snapshot_key):
-            print("❌ DEBUG EXPORT: No se encontraron datos de perfiles en ninguna clave")
+            print("[ERROR] DEBUG EXPORT: No se encontraron datos de perfiles en ninguna clave")
         
         # Clean problematic values before processing
         if task_ColorType_snapshot:
@@ -6695,12 +6942,12 @@ class Sequence(bonsai.core.tool.Sequence):
         """
         DEBUG: Internal testing function to verify Copy3D state at different stages
         """
-        print(f"\n🔍 COPY3D DEBUG [{stage}] - Schedule: {schedule_name}, Tasks: {task_count}")
+        print(f"\n[CHECK] COPY3D DEBUG [{stage}] - Schedule: {schedule_name}, Tasks: {task_count}")
         
         try:
             tprops = cls.get_task_tree_props()
             if not tprops or not hasattr(tprops, 'tasks'):
-                print("❌ No task properties available")
+                print("[ERROR] No task properties available")
                 return
                 
             # Sample first 3 tasks for detailed inspection
@@ -6733,22 +6980,22 @@ class Sequence(bonsai.core.tool.Sequence):
                 print(f"    groups: [{', '.join(group_info)}]")
                 
         except Exception as e:
-            print(f"❌ Debug state error: {e}")
+            print(f"[ERROR] Debug state error: {e}")
         
-        print(f"🔍 END COPY3D DEBUG [{stage}]\n")
+        print(f"[CHECK] END COPY3D DEBUG [{stage}]\n")
 
     @classmethod
     def _test_copy3d_results(cls, copied_schedules, total_matches):
         """
         TEST: Comprehensive verification of Copy3D results
         """
-        print(f"\n🧪 COPY3D RESULT TEST: Verifying {copied_schedules} schedules with {total_matches} matches")
+        print(f"\n[TEST] COPY3D RESULT TEST: Verifying {copied_schedules} schedules with {total_matches} matches")
         
         try:
             # Test 1: Check if active schedule has proper ColorType data
             tprops = cls.get_task_tree_props()
             if not tprops or not hasattr(tprops, 'tasks'):
-                print("❌ TEST FAIL: No task properties available for verification")
+                print("[ERROR] TEST FAIL: No task properties available for verification")
                 return False
             
             test_results = {
@@ -6783,11 +7030,11 @@ class Sequence(bonsai.core.tool.Sequence):
                     test_results["tasks_with_empty_configs"] += 1
                 
                 # Detailed result for this task
-                status = "✅" if (use_active or animation_schemes or group_choices) else "❌"
+                status = "[OK]" if (use_active or animation_schemes or group_choices) else "[ERROR]"
                 print(f"  {status} Task {tid} ({name}): active={use_active}, schemes='{animation_schemes}', groups={len(group_choices)}")
             
             # Summary
-            print(f"\n🧪 TEST SUMMARY:")
+            print(f"\n[TEST] TEST SUMMARY:")
             print(f"  Total tested: {test_results['total_tested']}")
             print(f"  With active groups: {test_results['tasks_with_active_groups']}")
             print(f"  With animation schemes: {test_results['tasks_with_animation_schemes']}")
@@ -6801,14 +7048,14 @@ class Sequence(bonsai.core.tool.Sequence):
             
             if configured_tasks > 0:
                 success_rate = (configured_tasks / test_results['total_tested']) * 100
-                print(f"✅ COPY3D TEST RESULT: {success_rate:.1f}% tasks have ColorType configurations")
+                print(f"[OK] COPY3D TEST RESULT: {success_rate:.1f}% tasks have ColorType configurations")
                 return success_rate > 50  # At least half should be configured
             else:
-                print(f"❌ COPY3D TEST RESULT: NO tasks have ColorType configurations - Copy3D failed!")
+                print(f"[ERROR] COPY3D TEST RESULT: NO tasks have ColorType configurations - Copy3D failed!")
                 return False
                 
         except Exception as e:
-            print(f"❌ COPY3D TEST ERROR: {e}")
+            print(f"[ERROR] COPY3D TEST ERROR: {e}")
             return False
 
     @classmethod
@@ -6817,11 +7064,11 @@ class Sequence(bonsai.core.tool.Sequence):
         Copy configuration from source schedule to all other schedules with matching task indicators.
         Returns a dict with success status and copy statistics.
         """
-        print(f"\n🚀 COPY3D TEST: Starting comprehensive Copy3D testing")
+        print(f"\n[OPTIMIZED] COPY3D TEST: Starting comprehensive Copy3D testing")
         cls._debug_copy3d_state("BEFORE_COPY3D_START", source_schedule.Name if source_schedule else "?", 0)
         
         try:
-            print(f"🚀 Copy3D: Starting copy from schedule '{source_schedule.Name}' (ID: {source_schedule.id()})")
+            print(f"[OPTIMIZED] Copy3D: Starting copy from schedule '{source_schedule.Name}' (ID: {source_schedule.id()})")
             
             ifc_file = tool.Ifc.get()
             if not ifc_file:
@@ -6848,12 +7095,12 @@ class Sequence(bonsai.core.tool.Sequence):
             
             try:
                 config_data = cls.export_schedule_configuration(source_schedule)
-                print(f"📊 COPY3D TEST: Exported config has {len(config_data.get('task_configurations', []))} task configurations")
+                print(f"[STATS] COPY3D TEST: Exported config has {len(config_data.get('task_configurations', []))} task configurations")
             finally:
                 restore_all_ui_state(bpy.context)
                 cls._debug_copy3d_state("AFTER_RESTORE_UI", source_schedule.Name, 0)
             
-            print(f"📊 Copy3D: Exported {len(config_data.get('task_configurations', []))} task configurations")
+            print(f"[STATS] Copy3D: Exported {len(config_data.get('task_configurations', []))} task configurations")
 
             if not config_data or not config_data.get("task_configurations"):
                 return {"success": False, "error": "No configuration data to copy"}
@@ -6905,7 +7152,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 print(f"📋 Copy3D: Target schedule has {len(target_task_map)} tasks with identifications")
                 
                 if not target_task_map:
-                    print("⚠️ Copy3D: No tasks with identifications in target schedule, skipping")
+                    print("[WARNING]️ Copy3D: No tasks with identifications in target schedule, skipping")
                     continue
 
                 # Copy matching configurations
@@ -6922,7 +7169,7 @@ class Sequence(bonsai.core.tool.Sequence):
                         continue
                     
                     matched_identifications.append(task_identification)
-                    print(f"✅ Copy3D: Found matching task '{task_identification}' -> ID {target_task.id()}")
+                    print(f"[OK] Copy3D: Found matching task '{task_identification}' -> ID {target_task.id()}")
 
                     # Copy PredefinedType
                     predefined_type = task_config.get("predefined_type")
@@ -6964,7 +7211,7 @@ class Sequence(bonsai.core.tool.Sequence):
 
                     schedule_matches += 1
 
-                print(f"📊 Copy3D: Completed target schedule - {schedule_matches} task matches")
+                print(f"[STATS] Copy3D: Completed target schedule - {schedule_matches} task matches")
                 print(f"  Matched tasks: {', '.join(matched_identifications) if matched_identifications else 'None'}")
                 
                 if schedule_matches > 0:
@@ -7148,7 +7395,7 @@ class Sequence(bonsai.core.tool.Sequence):
                                 }
                                 
                                 # DEBUG: Show exactly what data is being stored
-                                print(f"🔍 Copy3D DEBUG: Task '{task_identification}' (ID: {target_task.id()})")
+                                print(f"[CHECK] Copy3D DEBUG: Task '{task_identification}' (ID: {target_task.id()})")
                                 print(f"    Active: {ColorType_data.get('active', False)}")
                                 print(f"    Selected Active ColorType: '{selected_active_ColorType}'")
                                 print(f"    Animation Color Schemes: '{ColorType_data.get('animation_color_schemes', '')}'")
@@ -7188,15 +7435,15 @@ class Sequence(bonsai.core.tool.Sequence):
                             if verification_data:
                                 try:
                                     parsed_data = json.loads(verification_data)
-                                    print(f"✅ Copy3D: VERIFICACIÓN - {len(parsed_data)} asignaciones guardadas correctamente en {target_snap_key}")
+                                    print(f"[OK] Copy3D: VERIFICACIÓN - {len(parsed_data)} asignaciones guardadas correctamente en {target_snap_key}")
                                 except Exception as e:
-                                    print(f"❌ Copy3D: VERIFICACIÓN ERROR - No se pudo parsear datos guardados: {e}")
+                                    print(f"[ERROR] Copy3D: VERIFICACIÓN ERROR - No se pudo parsear datos guardados: {e}")
                             else:
-                                print(f"❌ Copy3D: VERIFICACIÓN ERROR - No se encontraron datos en {target_snap_key}")
+                                print(f"[ERROR] Copy3D: VERIFICACIÓN ERROR - No se encontraron datos en {target_snap_key}")
                             
                             
                             # Extra debug: Show what task IDs we're storing vs task names
-                            print(f"🔍 Copy3D: ColorType snapshot keys being stored:")
+                            print(f"[CHECK] Copy3D: ColorType snapshot keys being stored:")
                             try:
                                 for task_identification, target_task in target_task_map.items():
                                     if task_identification in ColorType_assignments_data:
@@ -7205,7 +7452,7 @@ class Sequence(bonsai.core.tool.Sequence):
                                 print(f"  Error in debug mapping: {e}")
 
             # FINAL VERIFICATION TEST: Check current UI state after Copy3D
-            print(f"\n🔍 COPY3D FINAL VERIFICATION TEST")
+            print(f"\n[CHECK] COPY3D FINAL VERIFICATION TEST")
             
             # CRÍTICO: Forzar reload completo de la UI desde el cronograma destino
             # para verificar que los datos se copiaron correctamente
@@ -7218,14 +7465,14 @@ class Sequence(bonsai.core.tool.Sequence):
                 area.tag_redraw()
             
             # CRÍTICO: Verificar estado de task_colortype_group_selector después de Copy3D
-            print("🔍 Copy3D: Checking task_colortype_group_selector state...")
+            print("[CHECK] Copy3D: Checking task_colortype_group_selector state...")
             try:
                 anim_props = tool.Sequence.get_animation_props()
                 current_group = getattr(anim_props, "task_colortype_group_selector", "")
-                print(f"🔍 Current task_colortype_group_selector: '{current_group}'")
+                print(f"[CHECK] Current task_colortype_group_selector: '{current_group}'")
                 
                 if not current_group or current_group == "DEFAULT":
-                    print("⚠️ PROBLEM: task_colortype_group_selector is empty or DEFAULT - dropdown will be empty!")
+                    print("[WARNING]️ PROBLEM: task_colortype_group_selector is empty or DEFAULT - dropdown will be empty!")
                     
                     # Try to find and set a valid group from copied data
                     from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
@@ -7236,7 +7483,7 @@ class Sequence(bonsai.core.tool.Sequence):
                         anim_props.task_colortype_group_selector = first_group
                         print(f"🔄 Auto-set task_colortype_group_selector to: '{first_group}'")
                 else:
-                    print(f"✅ task_colortype_group_selector is set to valid group: '{current_group}'")
+                    print(f"[OK] task_colortype_group_selector is set to valid group: '{current_group}'")
                     
                 # Verify ColorType data exists for the selected group
                 from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
@@ -7245,15 +7492,15 @@ class Sequence(bonsai.core.tool.Sequence):
                     group_data = all_sets[current_group]
                     colortypes_list = group_data.get("ColorTypes", [])
                     colortype_names = [ct.get("name", "") for ct in colortypes_list if isinstance(ct, dict)]
-                    print(f"🔍 Available ColorTypes in '{current_group}': {colortype_names}")
+                    print(f"[CHECK] Available ColorTypes in '{current_group}': {colortype_names}")
                     
                     if not colortype_names:
-                        print("⚠️ PROBLEM: No ColorTypes found in selected group - data may not have been copied properly!")
+                        print("[WARNING]️ PROBLEM: No ColorTypes found in selected group - data may not have been copied properly!")
                 else:
-                    print(f"⚠️ PROBLEM: Group '{current_group}' not found in ColorType data!")
+                    print(f"[WARNING]️ PROBLEM: Group '{current_group}' not found in ColorType data!")
                     
             except Exception as e:
-                print(f"⚠️ Error checking task_colortype_group_selector: {e}")
+                print(f"[WARNING]️ Error checking task_colortype_group_selector: {e}")
             
             # CRÍTICO: Forzar refresh de EnumProperty items functions después de Copy3D
             print("🔄 Copy3D: Forcing EnumProperty items refresh...")
@@ -7269,7 +7516,7 @@ class Sequence(bonsai.core.tool.Sequence):
                             task.selected_colortype_in_active_group = current_val
                             print(f"🔄 Refreshed dropdown items for task {getattr(task, 'ifc_definition_id', 'unknown')}")
             except Exception as e:
-                print(f"⚠️ Error refreshing EnumProperty items: {e}")
+                print(f"[WARNING]️ Error refreshing EnumProperty items: {e}")
             
             # Forzar snapshot fresco después de la restauración para asegurar consistencia
             snapshot_all_ui_state(bpy.context)
@@ -7335,7 +7582,7 @@ class Sequence(bonsai.core.tool.Sequence):
             elements_checked = 0
             elements_with_pset = 0
 
-            print(f"🔍 Sync3D: Buscando property set '{property_set_name}' en elementos IFC...")
+            print(f"[CHECK] Sync3D: Buscando property set '{property_set_name}' en elementos IFC...")
 
             for element in ifc_file.by_type("IfcProduct"):
                 if not hasattr(element, 'GlobalId'):
@@ -7354,7 +7601,7 @@ class Sequence(bonsai.core.tool.Sequence):
                                 elements_with_pset += 1
                                 if elements_with_pset <= 3:  # Log first 3
                                     element_type = getattr(element, 'is_a', lambda: 'Unknown')()
-                                    print(f"  ✅ Sync3D: Elemento {element_type} (ID: {element.id()}) tiene property set '{property_set_name}'")
+                                    print(f"  [OK] Sync3D: Elemento {element_type} (ID: {element.id()}) tiene property set '{property_set_name}'")
                                 break
 
                 if not property_set:
@@ -7374,7 +7621,7 @@ class Sequence(bonsai.core.tool.Sequence):
                             matching_task = task_indicators.get(prop_value)
                             if matching_task:
                                 element_type = getattr(element, 'is_a', lambda: 'Unknown')()
-                                print(f"  ✅ Sync3D: MATCH! Asignando {element_type} (ID: {element.id()}) → Task '{prop_value}' (ID: {matching_task.id()})")
+                                print(f"  [OK] Sync3D: MATCH! Asignando {element_type} (ID: {element.id()}) → Task '{prop_value}' (ID: {matching_task.id()})")
                                 
                                 # Assign element to task as output
                                 try:
@@ -7384,11 +7631,11 @@ class Sequence(bonsai.core.tool.Sequence):
                                     matched_elements += 1
                                     print(f"  🎯 Sync3D: Asignación exitosa #{matched_elements}")
                                 except Exception as e:
-                                    print(f"  ❌ Sync3D: Error asignando elemento: {e}")
+                                    print(f"  [ERROR] Sync3D: Error asignando elemento: {e}")
                                 break
                             else:
                                 if matched_elements < 5:  # Log first few no-matches
-                                    print(f"  ⚠️ Sync3D: No se encontró tarea para valor '{prop_value}'")
+                                    print(f"  [WARNING]️ Sync3D: No se encontró tarea para valor '{prop_value}'")
 
             # Count processed tasks
             for task in task_indicators.values():
@@ -7396,7 +7643,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 if outputs:
                     processed_tasks += 1
 
-            print(f"📊 Sync3D: RESUMEN:")
+            print(f"[STATS] Sync3D: RESUMEN:")
             print(f"  - Elementos revisados: {elements_checked}")
             print(f"  - Elementos con property set '{property_set_name}': {elements_with_pset}")
             print(f"  - Elementos asignados a tareas: {matched_elements}")
@@ -7405,7 +7652,7 @@ class Sequence(bonsai.core.tool.Sequence):
             # CRÍTICO: Limpiar datos de perfiles corruptos antes del retorno
             # Esto asegura que cuando restore_all_ui_state() se ejecute, 
             # no restaure valores '0' problemáticos
-            print(f"🧹 Sync3D: Limpiando datos de perfiles corruptos en cronograma")
+            print(f"[CLEAN] Sync3D: Limpiando datos de perfiles corruptos en cronograma")
             cls._clean_and_update_ColorType_snapshot_for_schedule(work_schedule)
             
             return {
@@ -7433,14 +7680,14 @@ class Sequence(bonsai.core.tool.Sequence):
             # Leer datos actuales del snapshot
             snapshot_raw = bpy.context.scene.get(snapshot_key_specific)
             if not snapshot_raw:
-                print(f"🧹 Sync3D: No hay snapshot para limpiar en cronograma {ws_id}")
+                print(f"[CLEAN] Sync3D: No hay snapshot para limpiar en cronograma {ws_id}")
                 return
             
             try:
                 snapshot_data = json.loads(snapshot_raw)
-                print(f"🧹 Sync3D: Limpiando {len(snapshot_data)} tareas en snapshot")
+                print(f"[CLEAN] Sync3D: Limpiando {len(snapshot_data)} tareas en snapshot")
             except Exception as e:
-                print(f"❌ Sync3D: Error parseando snapshot: {e}")
+                print(f"[ERROR] Sync3D: Error parseando snapshot: {e}")
                 return
             
             # Limpiar datos usando la función existente
@@ -7448,10 +7695,10 @@ class Sequence(bonsai.core.tool.Sequence):
             
             # Actualizar el snapshot con datos limpios
             bpy.context.scene[snapshot_key_specific] = json.dumps(cleaned_data)
-            print(f"✅ Sync3D: Datos de perfiles limpiados en cronograma {ws_id}")
+            print(f"[OK] Sync3D: Datos de perfiles limpiados en cronograma {ws_id}")
             
         except Exception as e:
-            print(f"❌ Sync3D: Error en limpieza de perfiles: {e}")
+            print(f"[ERROR] Sync3D: Error en limpieza de perfiles: {e}")
 
     @classmethod
     def _clean_ColorType_snapshot_data(cls, snapshot_data):
@@ -7630,11 +7877,11 @@ class Sequence(bonsai.core.tool.Sequence):
                 if variance_status and variance_status.strip():
                     variance_count += 1
             
-            print(f"🔍 Found {variance_count} tasks with variance calculation out of {len(tprops.tasks)} total tasks")
+            print(f"[CHECK] Found {variance_count} tasks with variance calculation out of {len(tprops.tasks)} total tasks")
             return variance_count > 0
             
         except Exception as e:
-            print(f"❌ Error checking variance calculation: {e}")
+            print(f"[ERROR] Error checking variance calculation: {e}")
             return False
     
     @classmethod
@@ -7644,7 +7891,7 @@ class Sequence(bonsai.core.tool.Sequence):
         Se usa cuando cambian filtros y no hay cálculo de varianza.
         """
         try:
-            print("🧹 Clearing variance 3D colors only (keeping checkboxes)...")
+            print("[CLEAN] Clearing variance 3D colors only (keeping checkboxes)...")
             
             # Restaurar colores originales si están guardados
             if hasattr(cls, '_original_colors') and cls._original_colors:
@@ -7658,9 +7905,9 @@ class Sequence(bonsai.core.tool.Sequence):
                                 restored_count += 1
                                 print(f"🔄 Restored color for {obj.name}")
                             except Exception as e:
-                                print(f"❌ Error restoring color for {obj.name}: {e}")
+                                print(f"[ERROR] Error restoring color for {obj.name}: {e}")
                 
-                print(f"✅ Restored {restored_count} objects to original colors")
+                print(f"[OK] Restored {restored_count} objects to original colors")
                 
                 # Forzar actualización del viewport
                 bpy.context.view_layer.update()
@@ -7668,7 +7915,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 print("ℹ️ No original colors to restore")
                 
         except Exception as e:
-            print(f"❌ Error clearing variance colors only: {e}")
+            print(f"[ERROR] Error clearing variance colors only: {e}")
             import traceback
             traceback.print_exc()
 
@@ -7679,24 +7926,24 @@ class Sequence(bonsai.core.tool.Sequence):
         Se llama cuando se limpia varianza o cambia tipo de cronograma.
         """
         try:
-            print("🧹 CLEAR_VARIANCE_COLOR_MODE: Starting cleanup process...")
+            print("[CLEAN] CLEAR_VARIANCE_COLOR_MODE: Starting cleanup process...")
             
             # Desactivar todos los checkboxes de varianza
             tprops = cls.get_task_tree_props()
             if tprops:
                 cleared_checkboxes = 0
                 total_tasks = len(tprops.tasks)
-                print(f"🔍 Found {total_tasks} total tasks")
+                print(f"[CHECK] Found {total_tasks} total tasks")
                 
                 for task in tprops.tasks:
                     if getattr(task, 'is_variance_color_selected', False):
                         task.is_variance_color_selected = False
                         cleared_checkboxes += 1
-                        print(f"✅ Cleared checkbox for task {task.ifc_definition_id}")
+                        print(f"[OK] Cleared checkbox for task {task.ifc_definition_id}")
                         
-                print(f"✅ Cleared {cleared_checkboxes} variance checkboxes out of {total_tasks} tasks")
+                print(f"[OK] Cleared {cleared_checkboxes} variance checkboxes out of {total_tasks} tasks")
             else:
-                print("❌ No task tree properties found")
+                print("[ERROR] No task tree properties found")
             
             # COMPREHENSIVE COLOR RESTORATION
             restored_count = 0
@@ -7711,13 +7958,13 @@ class Sequence(bonsai.core.tool.Sequence):
                                 original_color = cls._original_colors[obj.name]
                                 obj.color = original_color
                                 restored_count += 1
-                                print(f"✅ Restored cached color for {obj.name}")
+                                print(f"[OK] Restored cached color for {obj.name}")
                             except Exception as e:
-                                print(f"❌ Error restoring cached color for {obj.name}: {e}")
+                                print(f"[ERROR] Error restoring cached color for {obj.name}: {e}")
                 
                 # Limpiar cache de colores originales
                 cls._original_colors = {}
-                print("🧹 Cleared original colors cache")
+                print("[CLEAN] Cleared original colors cache")
             
             # Method 2: Try to restore from scene saved colors
             if restored_count == 0:
@@ -7732,7 +7979,7 @@ class Sequence(bonsai.core.tool.Sequence):
                                 obj.hide_render = False
                                 restored_count += 1
                             except Exception as e:
-                                print(f"❌ Error restoring scene color for {obj.name}: {e}")
+                                print(f"[ERROR] Error restoring scene color for {obj.name}: {e}")
 
             # Method 3: Try to get colors from material IFC if still no restoration
             if restored_count == 0:
@@ -7762,9 +8009,9 @@ class Sequence(bonsai.core.tool.Sequence):
                             obj.hide_render = False
                             restored_count += 1
                         except Exception as e:
-                            print(f"❌ Error resetting color for {obj.name}: {e}")
+                            print(f"[ERROR] Error resetting color for {obj.name}: {e}")
 
-            print(f"✅ Total objects restored/reset: {restored_count}")
+            print(f"[OK] Total objects restored/reset: {restored_count}")
             
             # Method 3: Force complete viewport refresh
             try:
@@ -7787,10 +8034,10 @@ class Sequence(bonsai.core.tool.Sequence):
                 print("🔄 Forced complete viewport refresh")
                 
             except Exception as e:
-                print(f"⚠️ Error during viewport refresh: {e}")
+                print(f"[WARNING]️ Error during viewport refresh: {e}")
                 
         except Exception as e:
-            print(f"❌ Error clearing variance color mode: {e}")
+            print(f"[ERROR] Error clearing variance color mode: {e}")
             import traceback
             traceback.print_exc()
     @classmethod 
@@ -7808,7 +8055,7 @@ class Sequence(bonsai.core.tool.Sequence):
             # Obtener tareas
             tprops = cls.get_task_tree_props()
             if not tprops:
-                print("❌ No task tree properties found")
+                print("[ERROR] No task tree properties found")
                 return
             
             # Guardar colores originales la primera vez (si no están guardados)
@@ -7835,12 +8082,12 @@ class Sequence(bonsai.core.tool.Sequence):
                                 original_color = tuple(obj.color)
 
                             cls._original_colors[obj.name] = original_color
-                print(f"💾 Saved original colors for {len(cls._original_colors)} objects (from materials where possible)")
+                print(f"[CACHE] Saved original colors for {len(cls._original_colors)} objects (from materials where possible)")
             
             # Identificar tareas con checkbox activo
             variance_selected_tasks = [t for t in tprops.tasks if getattr(t, 'is_variance_color_selected', False)]
             
-            print(f"🔍 Found {len(variance_selected_tasks)} tasks with active variance checkbox")
+            print(f"[CHECK] Found {len(variance_selected_tasks)} tasks with active variance checkbox")
             if variance_selected_tasks:
                 for task in variance_selected_tasks:
                     print(f"  📋 Task {task.ifc_definition_id}: {task.name} (Status: {getattr(task, 'variance_status', 'No status')})")
@@ -7866,9 +8113,9 @@ class Sequence(bonsai.core.tool.Sequence):
                             restored_count += 1
                             
                         except Exception as e:
-                            print(f"❌ Error restoring color for {obj.name}: {e}")
+                            print(f"[ERROR] Error restoring color for {obj.name}: {e}")
                 
-                print(f"✅ Restored {restored_count} objects to original colors")
+                print(f"[OK] Restored {restored_count} objects to original colors")
                 
                 # No limpiar cache aquí - mantener colores guardados para futuros usos
                 
@@ -7888,7 +8135,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 if element:
                     ifc_objects.append(obj)
             
-            print(f"🔍 Scene analysis: {len(mesh_objects)} mesh objects, {len(ifc_objects)} have IFC data, {len(object_to_task_map)} task mappings")
+            print(f"[CHECK] Scene analysis: {len(mesh_objects)} mesh objects, {len(ifc_objects)} have IFC data, {len(object_to_task_map)} task mappings")
             
             # Procesar cada objeto en la escena
             processed_count = 0
@@ -7897,7 +8144,7 @@ class Sequence(bonsai.core.tool.Sequence):
             for obj in mesh_objects:
                 element = tool.Ifc.get_entity(obj)
                 if not element:
-                    print(f"⚠️ {obj.name} → No IFC element → SKIP")
+                    print(f"[WARNING]️ {obj.name} → No IFC element → SKIP")
                     continue
                 
                 processed_count += 1
@@ -7913,7 +8160,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 cls._apply_color_to_object_simple(obj, color)
                 colored_count += 1
             
-            print(f"📊 SUMMARY: Processed {processed_count} objects, {colored_count} got variance colors")
+            print(f"[STATS] SUMMARY: Processed {processed_count} objects, {colored_count} got variance colors")
             
             # Forzar actualización del viewport
             bpy.context.view_layer.update()
@@ -7921,10 +8168,10 @@ class Sequence(bonsai.core.tool.Sequence):
                 if area.type == 'VIEW_3D':
                     area.tag_redraw()
             
-            print("✅ Individual variance colors updated successfully")
+            print("[OK] Individual variance colors updated successfully")
             
         except Exception as e:
-            print(f"❌ Error updating individual variance colors: {e}")
+            print(f"[ERROR] Error updating individual variance colors: {e}")
             import traceback
             traceback.print_exc()
 
@@ -7956,10 +8203,10 @@ class Sequence(bonsai.core.tool.Sequence):
             # Trigger immediate color update
             cls._trigger_variance_color_update()
             
-            print("✅ Variance color mode activated successfully")
+            print("[OK] Variance color mode activated successfully")
             
         except Exception as e:
-            print(f"❌ Error activating variance color mode: {e}")
+            print(f"[ERROR] Error activating variance color mode: {e}")
             import traceback
             traceback.print_exc()
     
@@ -7993,7 +8240,7 @@ class Sequence(bonsai.core.tool.Sequence):
             print(f"🔄 Saved original colors for {len(original_colors)} objects (from materials where possible)")
 
         except Exception as e:
-            print(f"❌ Error saving original object colors: {e}")
+            print(f"[ERROR] Error saving original object colors: {e}")
 
     @classmethod
     def _restore_original_object_colors(cls):
@@ -8011,10 +8258,10 @@ class Sequence(bonsai.core.tool.Sequence):
             if 'BIM_VarianceOriginalObjectColors' in bpy.context.scene:
                 del bpy.context.scene['BIM_VarianceOriginalObjectColors']
                 
-            print(f"✅ Restored original colors for {restored_count} objects")
+            print(f"[OK] Restored original colors for {restored_count} objects")
             
         except Exception as e:
-            print(f"❌ Error restoring original object colors: {e}")
+            print(f"[ERROR] Error restoring original object colors: {e}")
 
     @classmethod
     def deactivate_variance_color_mode(cls):
@@ -8041,10 +8288,10 @@ class Sequence(bonsai.core.tool.Sequence):
                 if area.type == 'VIEW_3D':
                     area.tag_redraw()
             
-            print("✅ Variance color mode deactivated successfully")
+            print("[OK] Variance color mode deactivated successfully")
             
         except Exception as e:
-            print(f"❌ Error deactivating variance color mode: {e}")
+            print(f"[ERROR] Error deactivating variance color mode: {e}")
             import traceback
             traceback.print_exc()
 
@@ -8094,10 +8341,10 @@ class Sequence(bonsai.core.tool.Sequence):
             
             bpy.context.scene['BIM_VarianceColorTypes'] = serializable_colortypes
             
-            print("✅ Created variance ColorType group")
+            print("[OK] Created variance ColorType group")
             
         except Exception as e:
-            print(f"❌ Error creating variance ColorType group: {e}")
+            print(f"[ERROR] Error creating variance ColorType group: {e}")
 
     @classmethod  
     def _trigger_variance_color_update(cls):
@@ -8107,7 +8354,7 @@ class Sequence(bonsai.core.tool.Sequence):
             cls._variance_aware_color_update()
             
         except Exception as e:
-            print(f"❌ Error triggering variance color update: {e}")
+            print(f"[ERROR] Error triggering variance color update: {e}")
 
     @classmethod
     def _variance_aware_color_update(cls):
@@ -8163,7 +8410,7 @@ class Sequence(bonsai.core.tool.Sequence):
                     area.tag_redraw()
             
         except Exception as e:
-            print(f"❌ Error in variance aware color update: {e}")
+            print(f"[ERROR] Error in variance aware color update: {e}")
             
     @classmethod
     def _ensure_viewport_shading(cls):
@@ -8174,7 +8421,7 @@ class Sequence(bonsai.core.tool.Sequence):
                     for space in area.spaces:
                         if space.type == 'VIEW_3D':
                             current_shading = space.shading.type
-                            print(f"🔍 Current viewport shading: {current_shading}")
+                            print(f"[CHECK] Current viewport shading: {current_shading}")
                             
                             # Asegurar modo Solid con colores de objeto
                             if current_shading != 'SOLID':
@@ -8186,19 +8433,19 @@ class Sequence(bonsai.core.tool.Sequence):
                                 print("🎨 Set solid shading to OBJECT color mode")
                             break
         except Exception as e:
-            print(f"⚠️ Could not ensure viewport shading: {e}")
+            print(f"[WARNING]️ Could not ensure viewport shading: {e}")
 
     @classmethod
     def _build_object_task_mapping(cls, all_tasks):
         """Construye mapeo usando el sistema correcto de Bonsai"""
         object_task_map = {}
         
-        print(f"🔍 Building object-task mapping for {len(all_tasks)} tasks using Bonsai system...")
+        print(f"[CHECK] Building object-task mapping for {len(all_tasks)} tasks using Bonsai system...")
         
         # Usar el método correcto de Bonsai para obtener outputs
         ifc_file = tool.Ifc.get()
         if not ifc_file:
-            print("❌ No IFC file available")
+            print("[ERROR] No IFC file available")
             return object_task_map
         
         for task_pg in all_tasks:
@@ -8216,13 +8463,13 @@ class Sequence(bonsai.core.tool.Sequence):
                         object_task_map[output.id()] = task_pg
                         print(f"  → Output {output.id()} ({output.Name}) assigned to task")
                 else:
-                    print(f"❌ Task {task_pg.ifc_definition_id} ({task_pg.name}) has no outputs")
+                    print(f"[ERROR] Task {task_pg.ifc_definition_id} ({task_pg.name}) has no outputs")
                         
             except Exception as e:
-                print(f"❌ Error mapping task {task_pg.ifc_definition_id}: {e}")
+                print(f"[ERROR] Error mapping task {task_pg.ifc_definition_id}: {e}")
                 continue
         
-        print(f"✅ Built mapping: {len(object_task_map)} object-task relationships")
+        print(f"[OK] Built mapping: {len(object_task_map)} object-task relationships")
         return object_task_map
 
     @classmethod
@@ -8254,7 +8501,7 @@ class Sequence(bonsai.core.tool.Sequence):
                 return (0.8, 0.8, 0.8, 0.3)
                 
         except Exception as e:
-            print(f"❌ Error getting color for object {obj.name}: {e}")
+            print(f"[ERROR] Error getting color for object {obj.name}: {e}")
             return (0.8, 0.8, 0.8, 0.3)
 
 
@@ -8267,12 +8514,12 @@ class Sequence(bonsai.core.tool.Sequence):
             # SOLO aplicar color del objeto (para modo Solid > Object)
             if hasattr(obj, 'color'):
                 obj.color = color[:4] if len(color) >= 4 else color[:3] + (1.0,)
-                print(f"✅ Set object color for {obj.name}: {obj.color}")
+                print(f"[OK] Set object color for {obj.name}: {obj.color}")
             else:
-                print(f"⚠️ Object {obj.name} does not have color property")
+                print(f"[WARNING]️ Object {obj.name} does not have color property")
                         
         except Exception as e:
-            print(f"❌ Error applying simple color to {obj.name}: {e}")
+            print(f"[ERROR] Error applying simple color to {obj.name}: {e}")
             import traceback
             traceback.print_exc()
 
@@ -8282,21 +8529,27 @@ class Sequence(bonsai.core.tool.Sequence):
         try:
             anim_props = tool.Sequence.get_animation_props()
             if not hasattr(anim_props, 'animation_group_stack'):
-                print("❌ animation_group_stack not found in animation properties")
+                print("[ERROR] animation_group_stack not found in animation properties")
                 return
-            
+
+            # Check if DEFAULT group already exists
+            for existing_item in anim_props.animation_group_stack:
+                if existing_item.group == "DEFAULT":
+                    print("[WARNING] DEFAULT group already exists in animation stack. Cannot create multiple DEFAULT groups.")
+                    return
+
             # Add new item to stack
             item = anim_props.animation_group_stack.add()
             item.group = "DEFAULT"  # Default group name
             item.enabled = True
-            
+
             # Set as active item
             anim_props.animation_group_stack_index = len(anim_props.animation_group_stack) - 1
-            
-            print(f"✅ Added group '{item.group}' to animation stack")
-            
+
+            print(f"[OK] Added group '{item.group}' to animation stack")
+
         except Exception as e:
-            print(f"❌ Error adding group to animation stack: {e}")
+            print(f"[ERROR] Error adding group to animation stack: {e}")
             import traceback
             traceback.print_exc()
 
@@ -8306,7 +8559,7 @@ class Sequence(bonsai.core.tool.Sequence):
         try:
             anim_props = tool.Sequence.get_animation_props()
             if not hasattr(anim_props, 'animation_group_stack'):
-                print("❌ animation_group_stack not found in animation properties")
+                print("[ERROR] animation_group_stack not found in animation properties")
                 return
             
             idx = anim_props.animation_group_stack_index
@@ -8318,12 +8571,12 @@ class Sequence(bonsai.core.tool.Sequence):
                 if anim_props.animation_group_stack_index >= len(anim_props.animation_group_stack):
                     anim_props.animation_group_stack_index = len(anim_props.animation_group_stack) - 1
                     
-                print(f"✅ Removed group '{removed_group}' from animation stack")
+                print(f"[OK] Removed group '{removed_group}' from animation stack")
             else:
-                print("❌ No valid group selected to remove")
+                print("[ERROR] No valid group selected to remove")
                 
         except Exception as e:
-            print(f"❌ Error removing group from animation stack: {e}")
+            print(f"[ERROR] Error removing group from animation stack: {e}")
             import traceback
             traceback.print_exc()
 
@@ -8333,14 +8586,14 @@ class Sequence(bonsai.core.tool.Sequence):
         try:
             anim_props = tool.Sequence.get_animation_props()
             if not hasattr(anim_props, 'animation_group_stack'):
-                print("❌ animation_group_stack not found in animation properties")
+                print("[ERROR] animation_group_stack not found in animation properties")
                 return
             
             idx = anim_props.animation_group_stack_index
             stack_len = len(anim_props.animation_group_stack)
             
             if not (0 <= idx < stack_len):
-                print("❌ No valid group selected to move")
+                print("[ERROR] No valid group selected to move")
                 return
                 
             new_idx = idx
@@ -8349,7 +8602,7 @@ class Sequence(bonsai.core.tool.Sequence):
             elif direction == "DOWN" and idx < stack_len - 1:
                 new_idx = idx + 1
             else:
-                print(f"❌ Cannot move {direction} from position {idx}")
+                print(f"[ERROR] Cannot move {direction} from position {idx}")
                 return
                 
             # Move the item by removing and re-inserting
@@ -8371,10 +8624,10 @@ class Sequence(bonsai.core.tool.Sequence):
             # Update index
             anim_props.animation_group_stack_index = new_idx
             
-            print(f"✅ Moved group '{group_name}' {direction} to position {new_idx}")
+            print(f"[OK] Moved group '{group_name}' {direction} to position {new_idx}")
             
         except Exception as e:
-            print(f"❌ Error moving group in animation stack: {e}")
+            print(f"[ERROR] Error moving group in animation stack: {e}")
             import traceback
             traceback.print_exc()
 
@@ -8385,13 +8638,13 @@ class Sequence(bonsai.core.tool.Sequence):
         Called when clearing variance or switching schedule types.
         """
         try:
-            print("🧹 CLEAR_SCHEDULE_VARIANCE: Starting comprehensive cleanup process...")
+            print("[CLEAN] CLEAR_SCHEDULE_VARIANCE: Starting comprehensive cleanup process...")
             
             # STEP 1: Clear variance DATA from all tasks (this was missing!)
             tprops = cls.get_task_tree_props()
             if tprops and tprops.tasks:
                 cleared_tasks = 0
-                print(f"🧹 CLEAR_SCHEDULE_VARIANCE: Found {len(tprops.tasks)} tasks to clean")
+                print(f"[CLEAN] CLEAR_SCHEDULE_VARIANCE: Found {len(tprops.tasks)} tasks to clean")
                 
                 for task in tprops.tasks:
                     # CRITICAL: Clear the variance data properties set by CalculateScheduleVariance
@@ -8406,12 +8659,12 @@ class Sequence(bonsai.core.tool.Sequence):
                     if hasattr(task, 'is_variance_color_selected'):
                         task.is_variance_color_selected = False
                         
-                print(f"✅ CLEAR_SCHEDULE_VARIANCE: Cleared variance data from {cleared_tasks} tasks")
+                print(f"[OK] CLEAR_SCHEDULE_VARIANCE: Cleared variance data from {cleared_tasks} tasks")
             else:
-                print("⚠️ CLEAR_SCHEDULE_VARIANCE: No task properties found")
+                print("[WARNING]️ CLEAR_SCHEDULE_VARIANCE: No task properties found")
             
             # STEP 2: Clear variance color mode and restore original colors
-            print("🧹 CLEAR_SCHEDULE_VARIANCE: Clearing variance color mode...")
+            print("[CLEAN] CLEAR_SCHEDULE_VARIANCE: Clearing variance color mode...")
             # Suponiendo que cls.clear_variance_color_mode() existe y funciona correctamente.
             # Si el problema persiste, el error podría estar también dentro de esa función.
             # cls.clear_variance_color_mode() # Esta línea puede ser redundante si reseteamos manualmente abajo
@@ -8421,7 +8674,7 @@ class Sequence(bonsai.core.tool.Sequence):
             if hasattr(bpy.context.scene, 'BIM_VarianceColorModeActive'):
                 del bpy.context.scene['BIM_VarianceColorModeActive']
                 scene_flags_cleared += 1
-                print("🧹 Removed BIM_VarianceColorModeActive flag from scene")
+                print("[CLEAN] Removed BIM_VarianceColorModeActive flag from scene")
                 
             # Clear any other variance-related scene properties
             variance_keys = [key for key in bpy.context.scene.keys() if 'variance' in key.lower()]
@@ -8429,14 +8682,14 @@ class Sequence(bonsai.core.tool.Sequence):
                 try:
                     del bpy.context.scene[key]
                     scene_flags_cleared += 1
-                    print(f"🧹 Removed scene property: {key}")
+                    print(f"[CLEAN] Removed scene property: {key}")
                 except Exception as e:
-                    print(f"⚠️ Could not remove scene property {key}: {e}")
+                    print(f"[WARNING]️ Could not remove scene property {key}: {e}")
             
-            print(f"✅ CLEAR_SCHEDULE_VARIANCE: Cleared {scene_flags_cleared} scene flags")
+            print(f"[OK] CLEAR_SCHEDULE_VARIANCE: Cleared {scene_flags_cleared} scene flags")
             
             # STEP 4: Reset ALL IFC objects to default appearance (comprehensive reset)
-            print("🧹 CLEAR_SCHEDULE_VARIANCE: Resetting all IFC objects to default state...")
+            print("[CLEAN] CLEAR_SCHEDULE_VARIANCE: Resetting all IFC objects to default state...")
             reset_objects = 0
             
             for obj in bpy.context.scene.objects:
@@ -8466,12 +8719,12 @@ class Sequence(bonsai.core.tool.Sequence):
                         reset_objects += 1
                         
                     except Exception as e:
-                        print(f"⚠️ Error resetting object {obj.name}: {e}")
+                        print(f"[WARNING]️ Error resetting object {obj.name}: {e}")
             
-            print(f"✅ CLEAR_SCHEDULE_VARIANCE: Reset {reset_objects} objects to default state")
+            print(f"[OK] CLEAR_SCHEDULE_VARIANCE: Reset {reset_objects} objects to default state")
             
             # STEP 5: Force complete viewport refresh
-            print("🧹 CLEAR_SCHEDULE_VARIANCE: Forcing viewport refresh...")
+            print("[CLEAN] CLEAR_SCHEDULE_VARIANCE: Forcing viewport refresh...")
             try:
                 # Update view layer
                 bpy.context.view_layer.update()
@@ -8481,265 +8734,360 @@ class Sequence(bonsai.core.tool.Sequence):
                     if area.type == 'VIEW_3D':
                         area.tag_redraw()
                 
-                print("✅ CLEAR_SCHEDULE_VARIANCE: Viewport refresh completed")
+                print("[OK] CLEAR_SCHEDULE_VARIANCE: Viewport refresh completed")
                 
             except Exception as e:
-                print(f"⚠️ Error during viewport refresh: {e}")
+                print(f"[WARNING]️ Error during viewport refresh: {e}")
             
-            print("✅ CLEAR_SCHEDULE_VARIANCE: Comprehensive cleanup completed successfully")
+            print("[OK] CLEAR_SCHEDULE_VARIANCE: Comprehensive cleanup completed successfully")
             
         except Exception as e:
-            print(f"❌ Error in clear_schedule_variance: {e}")
+            print(f"[ERROR] Error in clear_schedule_variance: {e}")
             import traceback
             traceback.print_exc()
 
 
 
-class SearchCustomColorTypeGroup(bpy.types.Operator):
-    bl_idname = "bim.search_custom_ColorType_group"
-    bl_label = "Search Custom ColorType Group"
-    bl_description = "Search and filter custom ColorType groups"
-    bl_options = {"REGISTER", "UNDO"}
+    def get_animation_product_frames_enhanced_optimized(cls, work_schedule, settings, lookup_optimizer, date_cache):
+        """ULTRA-OPTIMIZED version using pre-computed lookup tables and cache"""
+        import time
+        start_time = time.time()
 
-    search_term: bpy.props.StringProperty(name="Search", default="")
+        animation_start = int(settings["start_frame"])
+        animation_end = int(settings["start_frame"] + settings["total_frames"])
+        viz_start = settings["start"]
+        viz_finish = settings["finish"]
+        viz_duration = settings["duration"]
+        product_frames = {}
 
-    def execute(self, context):
-        props = tool.Sequence.get_animation_props()
-        if not self.search_term:
-            self.report({'INFO'}, "Enter search term")
-            return {'CANCELLED'}
+        # Get date source from properties
+        props = cls.get_work_schedule_props()
+        date_source = getattr(props, "date_source_type", "SCHEDULE")
+        start_date_type = f"{date_source.capitalize()}Start"
+        finish_date_type = f"{date_source.capitalize()}Finish"
 
-        # Buscar en grupos disponibles
-        from bonsai.bim.module.sequence.prop import get_user_created_groups_enum
-        items = get_user_created_groups_enum(None, context)
+        print(f"[OPTIMIZED] OPTIMIZED FRAMES: Processing {len(lookup_optimizer.get_all_tasks())} tasks")
 
-        matches = [item for item in items if self.search_term.lower() in item[1].lower()]
+        # Process all tasks using pre-computed lookup
+        tasks_processed = 0
+        for task in lookup_optimizer.get_all_tasks():
+            try:
+                # Use date cache for instant access
+                task_start = date_cache.get_date(task, start_date_type, is_earliest=True)
+                task_finish = date_cache.get_date(task, finish_date_type, is_latest=True)
 
-        if matches:
-            # Seleccionar el primer match
-            props.task_ColorType_group_selector = matches[0][0]
-            self.report({'INFO'}, f"Found and selected: {matches[0][1]}")
-        else:
-            self.report({'WARNING'}, f"No groups found matching: {self.search_term}")
+                if not task_start or not task_finish or task_start > viz_finish:
+                    continue
 
-        return {'FINISHED'}
+                # Calculate frame positions
+                if viz_duration.total_seconds() > 0:
+                    start_progress = (task_start - viz_start).total_seconds() / viz_duration.total_seconds()
+                    finish_progress = (task_finish - viz_start).total_seconds() / viz_duration.total_seconds()
+                else:
+                    start_progress, finish_progress = 0.0, 1.0
 
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
+                sf = int(round(settings["start_frame"] + (start_progress * settings["total_frames"])))
+                ff = int(round(settings["start_frame"] + (finish_progress * settings["total_frames"])))
 
-    def draw(self, context):
-        layout = self.layout
-        layout.prop(self, "search_term")
+                # Use lookup for instant access to outputs and inputs
+                for output in lookup_optimizer.get_outputs_for_task(task.id()):
+                    cls._add_optimized_product_frame(
+                        product_frames, output.id(), task, task_start, task_finish,
+                        sf, ff, "output", animation_start, animation_end, viz_start, viz_finish
+                    )
 
-class CopyCustomColorTypeGroup(bpy.types.Operator):
-    bl_idname = "bim.copy_custom_ColorType_group"
-    bl_label = "Copy Custom ColorType Group"
-    bl_description = "Copy current custom ColorType group to clipboard"
-    bl_options = {"REGISTER", "UNDO"}
+                for input_prod in lookup_optimizer.get_inputs_for_task(task.id()):
+                    cls._add_optimized_product_frame(
+                        product_frames, input_prod.id(), task, task_start, task_finish,
+                        sf, ff, "input", animation_start, animation_end, viz_start, viz_finish
+                    )
 
-    def execute(self, context):
-        props = tool.Sequence.get_animation_props()
-        current_value = getattr(props, "task_ColorType_group_selector", "")
+                tasks_processed += 1
 
-        if current_value:
-            context.window_manager.clipboard = current_value
-            self.report({'INFO'}, f"Copied to clipboard: {current_value}")
-        else:
-            self.report({'WARNING'}, "No custom ColorType group selected to copy")
+            except Exception as e:
+                print(f"[WARNING]️ Error processing task {task.id()}: {e}")
+                continue
 
-        return {'FINISHED'}
-
-class PasteCustomColorTypeGroup(bpy.types.Operator):
-    bl_idname = "bim.paste_custom_ColorType_group"
-    bl_label = "Paste Custom ColorType Group"
-    bl_description = "Paste custom ColorType group from clipboard"
-    bl_options = {"REGISTER", "UNDO"}
-
-    def execute(self, context):
-        props = tool.Sequence.get_animation_props()
-        clipboard_value = context.window_manager.clipboard.strip()
-
-        if not clipboard_value:
-            self.report({'WARNING'}, "Clipboard is empty")
-            return {'CANCELLED'}
-
-        # Verificar que el valor existe en los grupos disponibles
-        from bonsai.bim.module.sequence.prop import get_user_created_groups_enum
-        items = get_user_created_groups_enum(None, context)
-        valid_values = [item[0] for item in items]
-
-        if clipboard_value in valid_values:
-            props.task_ColorType_group_selector = clipboard_value
-            self.report({'INFO'}, f"Pasted from clipboard: {clipboard_value}")
-        else:
-            self.report({'WARNING'}, f"Invalid group in clipboard: {clipboard_value}")
-
-        return {'FINISHED'}
-
-class SetCustomColorTypeGroupNull(bpy.types.Operator):
-    bl_idname = "bim.set_custom_ColorType_group_null"
-    bl_label = "Set Custom ColorType Group to Null"
-    bl_description = "Clear custom ColorType group selection (set to null)"
-    bl_options = {"REGISTER", "UNDO"}
-
-    def execute(self, context):
-        props = tool.Sequence.get_animation_props()
-
-        # Limpiar la selección
-        props.task_ColorType_group_selector = ""
-
-        # También limpiar el perfil seleccionado en la tarea activa si existe
-        try:
-            tprops = tool.Sequence.get_task_tree_props()
-            wprops = tool.Sequence.get_work_schedule_props()
-            if tprops.tasks and wprops.active_task_index < len(tprops.tasks):
-                task = tprops.tasks[wprops.active_task_index]
-                task.selected_ColorType_in_active_group = ""
-                task.use_active_ColorType_group = False
-        except Exception:
-            pass
-
-        self.report({'INFO'}, "Custom ColorType group cleared (set to null)")
-        return {'FINISHED'}
-
-class ShowCustomColorTypeGroupInfo(bpy.types.Operator):
-    bl_idname = "bim.show_custom_ColorType_group_info"
-    bl_label = "Custom ColorType Group Info"
-    bl_description = "Show information about the current custom ColorType group"
-    bl_options = {"REGISTER", "UNDO"}
-
-    def execute(self, context):
-        props = tool.Sequence.get_animation_props()
-        current_value = getattr(props, "task_ColorType_group_selector", "")
-
-        if current_value:
-            # Obtener información del grupo
-            from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
-            ColorTypes = UnifiedColorTypeManager.get_group_ColorTypes(context, current_value)
-
-            info_text = f"Group: {current_value}\n"
-            info_text += f"ColorTypes: {len(ColorTypes)}\n"
-            if ColorTypes:
-                info_text += f"Available: {', '.join(ColorTypes.keys())}"
-
-            self.report({'INFO'}, info_text)
-        else:
-            self.report({'INFO'}, "No custom ColorType group selected")
-
-        return {'FINISHED'}
-    
-def get_unified_date_range(self, work_schedule):
-    """
-    Calcula el rango de fechas unificado analizando TODOS los 4 tipos de cronograma.
-    Devuelve el inicio más temprano y el fin más tardío de todos ellos.
-    """
-    if not work_schedule:
-        return None, None
-
-    all_starts = []
-    all_finishes = []
-
-    for schedule_type in ["SCHEDULE", "ACTUAL", "EARLY", "LATE"]:
-        start_attr = f"{schedule_type.capitalize()}Start"
-        finish_attr = f"{schedule_type.capitalize()}Finish"
-
-        root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
-
-        def get_all_tasks_recursive(tasks):
-            result = []
-            for task in tasks:
-                result.append(task)
-                nested = ifcopenshell.util.sequence.get_nested_tasks(task)
-                if nested:
-                    result.extend(get_all_tasks_recursive(nested))
-            return result
-
-        all_tasks = get_all_tasks_recursive(root_tasks)
-
-        for task in all_tasks:
-            start_date = ifcopenshell.util.sequence.derive_date(task, start_attr, is_earliest=True)
-            if start_date:
-                all_starts.append(start_date)
-
-            finish_date = ifcopenshell.util.sequence.derive_date(task, finish_attr, is_latest=True)
-            if finish_date:
-                all_finishes.append(finish_date)
-
-    if not all_starts or not all_finishes:
-        return None, None
-
-    unified_start = min(all_starts)
-    unified_finish = max(all_finishes)
-
-    return unified_start, unified_finish
+        elapsed = time.time() - start_time
+        print(f"[OK] OPTIMIZED FRAMES: {len(product_frames)} products, {tasks_processed} tasks in {elapsed:.2f}s")
+        return product_frames
 
     @classmethod
-    def copy_task_colortype_config(cls):
-        """
-        Copy ColorType configuration from the active task to selected tasks.
-        """
+
+    def _add_optimized_product_frame(cls, product_frames, product_id, task, start_date, finish_date,
+                                   start_frame, finish_frame, relationship, animation_start, animation_end,
+                                   viz_start, viz_finish):
+        """Optimized version of add_product_frame_enhanced"""
+        # Fast state calculation
+        if finish_date < viz_start:
+            states = {
+                "before_start": (animation_start, animation_start - 1),
+                "active": (animation_start, animation_start - 1),
+                "after_end": (animation_start, animation_end),
+            }
+        elif start_date > viz_finish:
+            return
+        else:
+            s_vis = max(animation_start, int(start_frame))
+            f_vis = min(animation_end, int(finish_frame))
+            if f_vis < s_vis:
+                s_vis = max(animation_start, min(animation_end, s_vis))
+                f_vis = s_vis
+            before_end = s_vis - 1
+            after_start = f_vis + 1
+            states = {
+                "before_start": (animation_start, before_end) if before_end >= animation_start else (animation_start, animation_start - 1),
+                "active": (s_vis, f_vis),
+                "after_end": (after_start if after_start <= animation_end else animation_end + 1, animation_end),
+            }
+
+        # Create optimized frame data
+        frame_data = {
+            "task": task,
+            "task_id": task.id(),
+            "type": getattr(task, "PredefinedType", "NOTDEFINED"),
+            "relationship": relationship,
+            "start_date": start_date,
+            "finish_date": finish_date,
+            "STARTED": int(start_frame),
+            "COMPLETED": int(finish_frame),
+            "start_frame": max(animation_start, int(start_frame)),
+            "finish_frame": min(animation_end, int(finish_frame)),
+            "states": states,
+        }
+
+        product_frames.setdefault(product_id, []).append(frame_data)
+
+    @classmethod
+
+    def animate_objects_with_ColorTypes_optimized(cls, settings, product_frames, cache, batch_processor_instance):
+        """ULTRA-OPTIMIZED version using cache and batch processing"""
+        import time
+        start_time = time.time()
+
+        print(f"[OPTIMIZED] OPTIMIZED ANIMATION: Starting for {len(product_frames)} products")
+
+        # Get properties once
+        animation_props = cls.get_animation_props()
+        active_group_name = cls._get_active_group_optimized(animation_props)
+
+        # Save original colors if not already saved
+        if not bpy.context.scene.get('BIM_VarianceOriginalObjectColors'):
+            cls._save_original_colors_optimized(cache)
+
+        # Process objects using cache (avoids massive bpy.data.objects iteration)
+        objects_to_hide = []
+        objects_to_show = []
+        objects_with_colors = []
+        total_objects_processed = 0
+
+        # Use cache for direct product->objects mapping
+        for product_id, frame_data_list in product_frames.items():
+            objects = cache.get_objects_for_product(product_id)
+            if not objects:
+                continue
+
+            for obj in objects:
+                total_objects_processed += 1
+
+                # Process frame data for this object
+                for frame_data in frame_data_list:
+                    task = frame_data.get("task")
+                    if not task:
+                        continue
+
+                    # Get ColorType with caching
+                    colortype = cls._get_colortype_optimized(task, animation_props, active_group_name)
+
+                    # Apply optimized animation
+                    cls._apply_object_animation_optimized(
+                        obj, frame_data, colortype, settings,
+                        batch_processor_instance, objects_to_hide, objects_to_show, objects_with_colors
+                    )
+
+        # Execute batch operations for maximum performance
+        print(f"📦 Executing batch: {len(objects_to_hide)} hide, {len(objects_to_show)} show, {len(objects_with_colors)} color")
+
+        # Import batch processor for visibility operations
+        from . import batch_processor
+        batch_processor.VisibilityBatchOptimizer.batch_hide_objects(objects_to_hide, objects_to_show)
+        batch_processor.VisibilityBatchOptimizer.batch_set_colors(objects_with_colors)
+
+        # Configure scene and viewport
+        bpy.context.scene.frame_start = settings["start_frame"]
+        bpy.context.scene.frame_end = int(settings["start_frame"] + settings["total_frames"] + 1)
+        cls._setup_viewport_shading_optimized()
+
+        elapsed = time.time() - start_time
+        print(f"[OK] OPTIMIZED ANIMATION: {total_objects_processed} objects in {elapsed:.2f}s")
+
+    @classmethod
+
+    def _get_active_group_optimized(cls, animation_props):
+        """Get active group efficiently"""
         try:
-            # Get task tree properties
-            tprops = cls.get_task_tree_props()
-            if not tprops or not tprops.tasks:
-                print("Warning: No task tree properties found")
-                return
+            for item in getattr(animation_props, "animation_group_stack", []):
+                if getattr(item, "enabled", False) and getattr(item, "group", None):
+                    return item.group
+            return "DEFAULT"
+        except:
+            return "DEFAULT"
 
-            # Get work schedule properties to find active task
-            ws_props = cls.get_work_schedule_props()
-            if not ws_props or ws_props.active_task_index < 0 or ws_props.active_task_index >= len(tprops.tasks):
-                print("Warning: No active task found")
-                return
+    @classmethod
 
-            # Get the source task (active task)
-            source_task = tprops.tasks[ws_props.active_task_index]
-            print(f"Source task: {getattr(source_task, 'name', 'Unknown')} (ID: {source_task.ifc_definition_id})")
+    def _save_original_colors_optimized(cls, cache):
+        """Save original colors using cache"""
+        import json
+        original_colors = {}
 
-            # Get selected tasks (tasks with is_selected = True)
-            selected_tasks = [task for task in tprops.tasks if getattr(task, 'is_selected', False)]
-            if not selected_tasks:
-                print("Warning: No tasks selected to copy to")
-                return
-
-            print(f"Found {len(selected_tasks)} selected tasks to copy to")
-
-            # Copy configuration from source to selected tasks
-            copied_count = 0
-            for target_task in selected_tasks:
-                if target_task.ifc_definition_id == source_task.ifc_definition_id:
-                    continue  # Skip copying to self
-
+        for obj in cache.scene_objects_cache:
+            if obj.type == 'MESH':
+                # Get original color from material or viewport
+                original_color = list(obj.color)
                 try:
-                    # Copy main colortype settings
-                    target_task.use_active_colortype_group = getattr(source_task, 'use_active_colortype_group', False)
-                    target_task.selected_colortype_in_active_group = getattr(source_task, 'selected_colortype_in_active_group', "")
-                    
-                    # Copy animation_color_schemes if it exists
-                    if hasattr(target_task, 'animation_color_schemes') and hasattr(source_task, 'animation_color_schemes'):
-                        target_task.animation_color_schemes = source_task.animation_color_schemes
+                    if obj.material_slots and obj.material_slots[0].material:
+                        material = obj.material_slots[0].material
+                        if material.use_nodes:
+                            principled = tool.Blender.get_material_node(material, "BSDF_PRINCIPLED")
+                            if principled and principled.inputs.get("Base Color"):
+                                base_color = principled.inputs["Base Color"].default_value
+                                original_color = [base_color[0], base_color[1], base_color[2], base_color[3]]
+                except:
+                    pass
+                original_colors[obj.name] = original_color
 
-                    # Copy colortype group choices
-                    target_task.colortype_group_choices.clear()
-                    for source_group in source_task.colortype_group_choices:
-                        target_group = target_task.colortype_group_choices.add()
-                        target_group.group_name = source_group.group_name
-                        target_group.enabled = source_group.enabled
-                        
-                        # Copy the selected value using the appropriate attribute
-                        for attr_candidate in ("selected_colortype", "selected", "active_colortype", "colortype"):
-                            if hasattr(source_group, attr_candidate) and hasattr(target_group, attr_candidate):
-                                setattr(target_group, attr_candidate, getattr(source_group, attr_candidate))
-                                break
+        # Save to scene
+        try:
+            bpy.context.scene['bonsai_animation_original_colors'] = json.dumps(original_colors)
+            bpy.context.scene['BIM_VarianceOriginalObjectColors'] = True
+        except Exception as e:
+            print(f"[WARNING]️ Error saving colors: {e}")
 
-                    copied_count += 1
-                    print(f"Copied configuration to task: {getattr(target_task, 'name', 'Unknown')} (ID: {target_task.ifc_definition_id})")
+    @classmethod
 
-                except Exception as e:
-                    print(f"Error copying to task {target_task.ifc_definition_id}: {e}")
+    def _get_colortype_optimized(cls, task, animation_props, active_group_name):
+        """ULTRA-OPTIMIZED ColorType retrieval using pre-built cache - SOLVES PROBLEM #1"""
+        try:
+            # Use our ultra-fast ColorType cache
+            try:
+                from .. import colortype_cache
+            except ImportError:
+                # Fallback for direct import
+                import sys, os
+                sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+                import colortype_cache
+            cache_instance = colortype_cache.get_colortype_cache()
 
-            print(f"Successfully copied ColorType configuration to {copied_count} tasks")
+            task_id = getattr(task, 'ifc_definition_id', 0)
+            if task_id == 0:
+                # Fallback for invalid tasks
+                return {
+                    'consider_start': True,
+                    'consider_active': True,
+                    'consider_end': True,
+                    'hide_at_end': False,
+                    'start_color': [0.5,0.5,0.5,1],
+                    'in_progress_color': [0.5,0.5,0.5,1],
+                    'end_color': [0.3,0.3,0.3,1]
+                }
+
+            # Get cached profile (O(1) lookup!)
+            color_profile = cache_instance.get_task_color_profile(task_id)
+
+            if color_profile:
+                # Convert cached profile to animation format
+                color = color_profile['color']
+                return {
+                    'consider_start': True,
+                    'consider_active': True,
+                    'consider_end': True,
+                    'hide_at_end': False,
+                    'start_color': list(color),
+                    'in_progress_color': list(color),
+                    'end_color': [c * 0.7 for c in color[:3]] + [color[3]]  # Darker end color
+                }
+            else:
+                # Fallback if not in cache
+                colortype = cls.get_assigned_ColorType_for_task(task, animation_props, active_group_name)
+                return {
+                    'consider_start': getattr(colortype, 'consider_start', True),
+                    'consider_active': getattr(colortype, 'consider_active', True),
+                    'consider_end': getattr(colortype, 'consider_end', True),
+                    'hide_at_end': getattr(colortype, 'hide_at_end', False),
+                    'start_color': getattr(colortype, 'start_color', [0.5,0.5,0.5,1]),
+                    'in_progress_color': getattr(colortype, 'in_progress_color', [0.5,0.5,0.5,1]),
+                    'end_color': getattr(colortype, 'end_color', [0.3,0.3,0.3,1])
+                }
 
         except Exception as e:
-            print(f"Error in copy_task_colortype_config: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"⚠️ ColorType cache lookup failed for task {getattr(task, 'ifc_definition_id', 0)}: {e}")
+            # Ultimate fallback
+            return {
+                'consider_start': True,
+                'consider_active': True,
+                'consider_end': True,
+                'hide_at_end': False,
+                'start_color': [0.5,0.5,0.5,1],
+                'in_progress_color': [0.5,0.5,0.5,1],
+                'end_color': [0.3,0.3,0.3,1]
+            }
+
+    @classmethod
+
+    def _apply_object_animation_optimized(cls, obj, frame_data, colortype, settings,
+                                        batch_processor_instance, objects_to_hide, objects_to_show, objects_with_colors):
+        """Apply animation to object efficiently"""
+        states = frame_data.get("states", {})
+        active_state = states.get("active", (0, 0))
+
+        if active_state[1] >= active_state[0]:  # Valid state
+            objects_to_show.append(obj)
+            color = colortype.get('in_progress_color', [0.5, 0.5, 0.5, 1])
+            objects_with_colors.append((obj, tuple(color)))
+
+            # Add keyframe operations to batch
+            batch_processor_instance.add_visibility_operation(obj, active_state[0], False, False)
+            if colortype.get('hide_at_end', False):
+                batch_processor_instance.add_visibility_operation(obj, active_state[1] + 1, True, True)
+        else:
+            objects_to_hide.append(obj)
+
+    @classmethod
+
+    def _setup_viewport_shading_optimized(cls):
+        """Setup viewport shading for colors"""
+        try:
+            area = tool.Blender.get_view3d_area()
+            area.spaces[0].shading.color_type = "OBJECT"
+        except:
+            pass
+
+    @classmethod
+
+    def clear_objects_animation_optimized(cls, include_blender_objects=True):
+        """Optimized animation cleanup"""
+        import time
+        start_time = time.time()
+
+        # Use cache to avoid massive iteration
+        from . import performance_cache
+        cache = performance_cache.get_performance_cache()
+        if not cache.cache_valid:
+            cache.build_scene_cache()
+
+        # Clean only relevant IFC objects
+        cleaned_objects = []
+        for obj in cache.scene_objects_cache:
+            if obj.type == 'MESH':
+                entity = cache.get_ifc_entity(obj)
+                if entity and not entity.is_a("IfcSpace"):
+                    if obj.animation_data:
+                        obj.animation_data_clear()
+                    obj.hide_viewport = False
+                    obj.hide_render = False
+                    obj.color = (1.0, 1.0, 1.0, 1.0)
+                    cleaned_objects.append(obj)
+
+        elapsed = time.time() - start_time
+        print(f"[CLEAN] OPTIMIZED CLEANUP: {len(cleaned_objects)} objects in {elapsed:.2f}s")
+

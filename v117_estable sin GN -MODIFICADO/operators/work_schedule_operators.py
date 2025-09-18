@@ -18,6 +18,7 @@
 
 import bpy
 import json
+import time
 import bonsai.tool as tool
 import bonsai.core.sequence as core
 
@@ -56,7 +57,7 @@ except Exception:
     UnifiedColorTypeManager = None  # optional
 
 try:
-    from bonsai.bim.module.sequence.prop import TaskcolortypeGroupChoice
+    from ..prop import TaskcolortypeGroupChoice
 except Exception:
     TaskcolortypeGroupChoice = None  # optional
 
@@ -938,12 +939,65 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
 
             _clear_previous_animation(context)
 
-            product_frames = tool.Sequence.get_animation_product_frames_enhanced(work_schedule, settings)
+            
+            # FORCE OPTIMIZED FRAME COMPUTATION - SOLVE PROBLEM #2
+            frames_start = time.time()
+            try:
+                # Always try optimized method first
+                from bonsai.bim.module.sequence import ifc_lookup
+                lookup = ifc_lookup.get_ifc_lookup()
+                date_cache = ifc_lookup.get_date_cache()
+                if not lookup.lookup_built:
+                    print("[OPTIMIZED] Building lookup tables...")
+                    lookup.build_lookup_tables(work_schedule)
+                print("[OPTIMIZED] Using enhanced optimized frame computation...")
+                product_frames = tool.Sequence.get_animation_product_frames_enhanced_optimized(
+                    work_schedule, settings, lookup, date_cache
+                )
+                frames_time = time.time() - frames_start
+                print(f"📊 FRAMES COMPUTED: {len(product_frames)} products in {frames_time:.2f}s")
+            except Exception as e:
+                print(f"[WARNING] Optimized frames method not available, using fallback: {e}")
+                product_frames = tool.Sequence.get_animation_product_frames_enhanced(work_schedule, settings)
             if not product_frames:
                 self.report({'WARNING'}, "No products found to animate.")
 
-            # REFACTORED: Use new batch processing approach for better performance
-            tool.Sequence.animate_objects_with_ColorTypes_new(settings, product_frames)
+            # FORCE OPTIMIZED ANIMATION APPLICATION - SOLVE PROBLEMS #1 & #2
+            anim_start = time.time()
+
+            # BUILD COLORTYPE CACHE - SOLVE PROBLEM #1
+            try:
+                try:
+                    from . import colortype_cache
+                except ImportError:
+                    import sys, os
+                    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+                    import colortype_cache
+                cache_instance = colortype_cache.get_colortype_cache()
+                colortype_build_time = cache_instance.build_cache(bpy.context)
+                print(f"🎨 COLORTYPE CACHE: Built in {colortype_build_time:.3f}s")
+            except Exception as e:
+                print(f"[WARNING] ColorType cache failed to build: {e}")
+
+            try:
+                # FORCE OPTIMIZED PATH - SOLVE PROBLEM #2
+                from bonsai.bim.module.sequence import performance_cache, batch_processor
+                cache = performance_cache.get_performance_cache()
+                batch = batch_processor.BlenderBatchProcessor()
+                if not cache.cache_valid:
+                    print("[OPTIMIZED] Building performance cache...")
+                    cache.build_scene_cache()
+                print("[OPTIMIZED] Using FULL optimization stack (IFC + Performance + Batch + ColorType)...")
+                tool.Sequence.animate_objects_with_ColorTypes_optimized(
+                    settings, product_frames, cache, batch
+                )
+                anim_time = time.time() - anim_start
+                print(f"🎬 ANIMATION APPLIED: Completed in {anim_time:.2f}s")
+            except Exception as e:
+                print(f"[WARNING] Batch processor not available, using ultra-optimized fallback: {e}")
+                print(f"[ULTRA-OPTIMIZED] Using our integrated optimization system...")
+                # Use our ultra-optimized version with ALL built-in optimizations
+                tool.Sequence.animate_objects_with_ColorTypes(settings, product_frames)
             tool.Sequence.add_text_animation_handler(settings)
             
             # --- ADD SCHEDULE NAME TEXT ---

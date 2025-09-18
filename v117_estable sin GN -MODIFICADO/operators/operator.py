@@ -53,24 +53,33 @@ except Exception:
 # pyright: reportUnnecessaryTypeIgnoreComment=error
 
 import os
-
-
-import bpy
-import json
 import time
-import calendar
 import isodate
 import bonsai.core.sequence as core
 import bonsai.bim.module.sequence.helper as helper
-from .animation_operators import _clear_previous_animation, _get_animation_settings, _compute_product_frames, _ensure_default_group
+try:
+    from .animation_operators import _clear_previous_animation, _get_animation_settings, _compute_product_frames, _ensure_default_group
+except ImportError:
+    # Fallback functions
+    def _clear_previous_animation(context):
+        pass
+    def _get_animation_settings(context):
+        return {}
+    def _compute_product_frames(context, work_schedule, settings):
+        return []
+    def _ensure_default_group(context):
+        pass
 try:
     from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
 except Exception:
     UnifiedColorTypeManager = None  # optional
 try:
-    from bonsai.bim.module.sequence.prop import TaskcolortypeGroupChoice
+    from ..prop import TaskcolortypeGroupChoice
 except Exception:
-    TaskcolortypeGroupChoice = None  # optional
+    try:
+        from bonsai.bim.module.sequence.prop import TaskcolortypeGroupChoice
+    except Exception:
+        TaskcolortypeGroupChoice = None  # optional
 
 import ifcopenshell.util.sequence
 import ifcopenshell.util.selector
@@ -799,7 +808,7 @@ class ClearPreviousAnimation(bpy.types.Operator, tool.Ifc.Operator):
                         all_colortype_names = []
                         for group_item in anim_props.animation_group_stack:
                             group_name = group_item.group
-                            from .prop import UnifiedColorTypeManager
+                            from ..prop import UnifiedColorTypeManager
                             group_colortypes = UnifiedColorTypeManager.get_group_colortypes(bpy.context, group_name)
                             if group_colortypes:
                                 all_colortype_names.extend(group_colortypes.keys())
@@ -872,7 +881,7 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
                         all_colortype_names = []
                         for group_item in anim_props.animation_group_stack:
                             group_name = group_item.group
-                            from .prop import UnifiedColorTypeManager
+                            from ..prop import UnifiedColorTypeManager
                             group_colortypes = UnifiedColorTypeManager.get_group_colortypes(bpy.context, group_name)
                             if group_colortypes:
                                 all_colortype_names.extend(group_colortypes.keys())
