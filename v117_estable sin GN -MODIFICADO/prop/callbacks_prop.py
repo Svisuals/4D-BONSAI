@@ -1195,6 +1195,29 @@ def update_task_colortype_group_selector(self, context):
             except Exception as e:
                 print(f"⚠ Error syncing task colortypes: {e}")
 
+        # ============================================================================
+        # NUEVA FUNCIONALIDAD: Disparar Live Color Update cuando cambia el grupo selector
+        # ============================================================================
+        print(f"🔍 GROUP SELECTOR CHANGE: Group changed to: '{self.task_colortype_group_selector}'")
+
+        try:
+            if hasattr(self, 'enable_live_color_updates') and self.enable_live_color_updates:
+                print(f"🔍 Live Color Updates enabled: {self.enable_live_color_updates}")
+
+                # Trigger Live Color Update for the new group
+                if hasattr(tool.Sequence, 'live_color_update_handler'):
+                    print(f"🎨 GROUP SELECTOR CHANGE: Triggering Live Color Update for group '{self.task_colortype_group_selector}'...")
+
+                    # Trigger the live color update handler
+                    tool.Sequence.live_color_update_handler(context.scene)
+                    print("✅ Live Color Update triggered for group selector change")
+                else:
+                    print("❌ Live Color Update handler not found")
+            else:
+                print("🔍 Live Color Updates not enabled, skipping color update")
+        except Exception as live_e:
+            print(f"❌ Error triggering Live Color Update: {live_e}")
+
     except Exception as e:
         print(f"❌ Error in update_task_colortype_group_selector: {e}")
 
@@ -1487,10 +1510,12 @@ def cleanup_all_tasks_colortype_mappings(context):
 # === HUD CALLBACKS (GPU-based) ====================================
 def update_gpu_hud_visibility(self, context):
     """
-    Smart callback to register/unregister the main GPU HUD handler.
+    SAFE callback to register/unregister the main GPU HUD handler.
     The handler is active if ANY of the HUD components are enabled.
+    CRASH-PROTECTED VERSION.
     """
     try:
+        print("🔧 3D HUD checkbox toggled - SAFE MODE")
         is_any_hud_enabled = (
             getattr(self, "enable_text_hud", False) or
             getattr(self, "enable_timeline_hud", False) or
@@ -1502,15 +1527,20 @@ def update_gpu_hud_visibility(self, context):
 
         def deferred_update():
             try:
+                # SAFE HUD handler management
                 if is_any_hud_enabled:
                     if not hud_overlay.is_hud_enabled():
                         hud_overlay.register_hud_handler()
+                        print("✅ GPU HUD handler registered")
                 else:
                     if hud_overlay.is_hud_enabled():
                         hud_overlay.unregister_hud_handler()
-                
-                # Handle 3D Legend HUD toggle specifically
+                        print("❌ GPU HUD handler unregistered")
+
+                # Handle 3D Legend HUD toggle specifically (RESTORED FROM v117_P)
                 enable_3d_legend = getattr(self, "enable_3d_legend_hud", False)
+                print(f"📋 3D Legend HUD checkbox: {enable_3d_legend}")
+
                 if enable_3d_legend:
                     # Check if 3D Legend HUD exists, if not create it
                     hud_exists = any(obj.get("is_3d_legend_hud", False) for obj in bpy.data.objects)
@@ -1520,6 +1550,17 @@ def update_gpu_hud_visibility(self, context):
                             print("🟢 3D Legend HUD auto-created on enable")
                         except Exception as e:
                             print(f"⚠️ Failed to auto-create 3D Legend HUD: {e}")
+                    else:
+                        # Just show existing HUD
+                        legend_collection = bpy.data.collections.get("Schedule_Display_3D_Legend")
+                        if legend_collection:
+                            legend_collection.hide_viewport = False
+                            legend_collection.hide_render = False
+                        for obj in bpy.data.objects:
+                            if obj.get("is_3d_legend_hud", False):
+                                obj.hide_viewport = False
+                                obj.hide_render = False
+                        print("👁️ 3D Legend HUD made visible")
                 else:
                     # Clear 3D Legend HUD if it exists
                     hud_exists = any(obj.get("is_3d_legend_hud", False) for obj in bpy.data.objects)
@@ -1529,15 +1570,40 @@ def update_gpu_hud_visibility(self, context):
                             print("🔴 3D Legend HUD auto-cleared on disable")
                         except Exception as e:
                             print(f"⚠️ Failed to auto-clear 3D Legend HUD: {e}")
-                
-                force_hud_refresh(self, context)
+                            # Fallback: just hide
+                            legend_collection = bpy.data.collections.get("Schedule_Display_3D_Legend")
+                            if legend_collection:
+                                legend_collection.hide_viewport = True
+                                legend_collection.hide_render = True
+                            for obj in bpy.data.objects:
+                                if obj.get("is_3d_legend_hud", False):
+                                    obj.hide_viewport = True
+                                    obj.hide_render = True
+                            print("👁️‍🗨️ 3D Legend HUD hidden as fallback")
+
+                # Safe HUD refresh
+                try:
+                    force_hud_refresh(self, context)
+                except Exception as refresh_e:
+                    print(f"⚠️ HUD refresh failed: {refresh_e}")
+
             except Exception as e:
-                print(f"Deferred HUD update failed: {e}")
+                print(f"❌ Deferred HUD update failed: {e}")
+                import traceback
+                traceback.print_exc()
             return None
+
+        # Register timer with error protection
         if not bpy.app.timers.is_registered(deferred_update):
             bpy.app.timers.register(deferred_update, first_interval=0.05)
-    except Exception as e:
-        print(f"HUD visibility callback error: {e}")
+            print("⏱️ Safe HUD update timer scheduled")
+
+    except Exception as main_e:
+        print(f"❌ CRITICAL: HUD callback failed: {main_e}")
+        import traceback
+        traceback.print_exc()
+        # Ensure we don't crash Blender
+        return
 
 
 def update_hud_gpu(self, context):
@@ -1890,11 +1956,108 @@ def update_colortype_considerations(self, context):
 def toggle_live_color_updates(self, context):
     """Callback to enable/disable the live color update handler."""
     print(f"[DEBUG] toggle_live_color_updates called, enable_live_color_updates = {self.enable_live_color_updates}")
+
+    # Force immediate cache check
+    print("[DEBUG] Starting cache check...")
+
     try:
         if self.enable_live_color_updates:
+            print("[DEBUG] Live Color Updates being enabled...")
+
+            # Check if live update cache exists
+            try:
+                cache_exists = context.scene.get('BIM_LiveUpdateProductFrames')
+                print(f"[DEBUG] BIM_LiveUpdateProductFrames cache exists: {cache_exists is not None}")
+                print(f"[DEBUG] Cache type: {type(cache_exists)}")
+                print(f"[DEBUG] Cache content preview: {str(cache_exists)[:200] if cache_exists else 'None'}")
+            except Exception as cache_check_e:
+                print(f"[ERROR] Failed to check cache: {cache_check_e}")
+                cache_exists = None
+
+            if not cache_exists:
+                print("⚠️ Live update cache missing - attempting to create from existing animation...")
+                try:
+                    print("🔧 Creating live update cache inline...")
+
+                    # Check if we have objects with animation data (using your keyframe system)
+                    animated_objects = []
+                    print("[DEBUG] Checking for animated objects...")
+
+                    for obj in bpy.data.objects:
+                        if obj.type == 'MESH':
+                            element = tool.Ifc.get_entity(obj)
+                            if element:
+                                # Check for keyframes on hide_viewport (your animation system)
+                                has_keyframes = False
+                                if obj.animation_data and obj.animation_data.action:
+                                    for fcurve in obj.animation_data.action.fcurves:
+                                        if fcurve.data_path in ["hide_viewport", "hide_render"]:
+                                            has_keyframes = True
+                                            break
+
+                                if has_keyframes:
+                                    animated_objects.append((obj, element))
+
+                    print(f"[DEBUG] Found {len(animated_objects)} objects with keyframe animation")
+
+                    # If no keyframe animation found, look for ANY mesh objects with IFC data
+                    if not animated_objects:
+                        print("[DEBUG] No keyframe animation found, using all IFC mesh objects...")
+                        for obj in bpy.data.objects:
+                            if obj.type == 'MESH':
+                                element = tool.Ifc.get_entity(obj)
+                                if element and not element.is_a("IfcSpace"):
+                                    animated_objects.append((obj, element))
+                        print(f"[DEBUG] Using {len(animated_objects)} IFC mesh objects for cache")
+
+                    if not animated_objects:
+                        print("❌ No animated objects found - cannot create live update cache")
+                        print("   Please create an animation first, then enable Live Color Updates")
+                    else:
+                        print(f"📋 Found {len(animated_objects)} animated objects")
+
+                        # Create basic cache structure
+                        live_update_props = {"product_frames": {}, "original_colors": {}}
+
+                        # For each animated object, create basic frame data
+                        for obj, element in animated_objects:
+                            pid_str = str(element.id())
+
+                            # Store original color
+                            live_update_props["original_colors"][pid_str] = list(obj.color)
+
+                            # Create basic frame data (simplified)
+                            frame_data = {
+                                "states": {
+                                    "before_start": (0, 1),
+                                    "active": (1, 100),
+                                    "after_end": (100, 200)
+                                },
+                                "task_id": None,  # Will be resolved in live handler
+                                "task": None,
+                                "element_id": element.id()
+                            }
+
+                            live_update_props["product_frames"][pid_str] = [frame_data]
+
+                        # Store in scene
+                        context.scene['BIM_LiveUpdateProductFrames'] = live_update_props
+                        print(f"✅ Live update cache created with {len(animated_objects)} objects")
+
+                except Exception as cache_e:
+                    print(f"❌ Failed to create live update cache: {cache_e}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                print("✅ Live update cache already exists")
+                if isinstance(cache_exists, dict):
+                    product_count = len(cache_exists.get("product_frames", {}))
+                    print(f"   Cache contains {product_count} products")
+
             tool.Sequence.register_live_color_update_handler()
             print("Live color updates enabled.")
         else:
+            print("[DEBUG] Live Color Updates being disabled...")
             tool.Sequence.unregister_live_color_update_handler()
             print("Live color updates disabled.")
     except Exception as e:
@@ -1930,6 +2093,52 @@ def update_legend_hud_on_group_change(self, context):
         refresh_hud()
 
         print("🔄 Legend HUD cache invalidated and viewport refreshed")
+
+        # ============================================================================
+        # NUEVA FUNCIONALIDAD: Disparar Live Color Update cuando cambia grupo
+        # ============================================================================
+        print("🚀 NUEVO CÓDIGO: Starting Live Color Update logic...")
+        try:
+            import bonsai.tool as tool
+            print(f"🔍 DEBUG GROUP CHANGE: Group '{self.group}' enabled changed to: {self.enabled}")
+
+            anim_props = tool.Sequence.get_animation_props()
+            if anim_props and hasattr(anim_props, 'enable_live_color_updates'):
+                print(f"🔍 Live Color Updates enabled: {anim_props.enable_live_color_updates}")
+
+                if anim_props.enable_live_color_updates:
+                    # DEBUG: Verificar estado actual de grupos
+                    print("🔍 Current animation group stack:")
+                    for i, item in enumerate(anim_props.animation_group_stack):
+                        print(f"  [{i}] Group: {item.group}, Enabled: {item.enabled}")
+
+                    # Solo disparar si el usuario tiene Live Color Updates habilitado
+                    if hasattr(tool.Sequence, 'live_color_update_handler'):
+                        print("🎨 GROUP CHANGE: Triggering Live Color Update...")
+
+                        # DEBUG: Verificar qué grupo activo detecta el handler
+                        # Duplicar la lógica del handler para debug
+                        active_group_name = "DEFAULT"
+                        for item in getattr(anim_props, "animation_group_stack", []):
+                            if getattr(item, "enabled", False) and getattr(item, "group", None):
+                                active_group_name = item.group
+                                break
+                        print(f"🔍 Active group detected by handler logic: '{active_group_name}'")
+
+                        # Disparar manualmente el live color update handler
+                        tool.Sequence.live_color_update_handler(context.scene)
+                        print("✅ Live Color Update triggered for group change")
+                    else:
+                        print("❌ Live Color Update handler not found")
+                else:
+                    print("🔍 Live Color Updates not enabled, skipping color update")
+            else:
+                print("❌ Animation properties not found or no live color updates property")
+        except Exception as live_e:
+            print(f"❌ Error triggering Live Color Update: {live_e}")
+            import traceback
+            traceback.print_exc()
+
     except Exception as e:
         import traceback
         print(f"⚠️ Could not auto-update Legend HUD: {e}")

@@ -384,10 +384,34 @@ class Setup3DLegendHUD(bpy.types.Operator):
     
     def _get_active_colortype_data(self):
         try:
-            hud_instance = hud_overlay.schedule_hud if hasattr(hud_overlay, 'schedule_hud') and hud_overlay.schedule_hud else hud_overlay.ScheduleHUD()
-            return hud_instance.get_active_colortype_legend_data(include_hidden=False)
+            print(f"🔍 DEBUG: Getting ColorType data for 3D Legend HUD...")
+
+            # Check if we're in snapshot mode
+            is_snapshot = bpy.context.scene.get("is_snapshot_mode", False)
+            print(f"🔍 DEBUG: Is snapshot mode: {is_snapshot}")
+
+            # Check HUD overlay availability
+            has_schedule_hud = hasattr(hud_overlay, 'schedule_hud') and hud_overlay.schedule_hud
+            print(f"🔍 DEBUG: Has schedule_hud: {has_schedule_hud}")
+
+            if has_schedule_hud:
+                hud_instance = hud_overlay.schedule_hud
+                print(f"🔍 DEBUG: Using existing schedule_hud instance")
+            else:
+                hud_instance = hud_overlay.ScheduleHUD()
+                print(f"🔍 DEBUG: Created new ScheduleHUD instance")
+
+            legend_data = hud_instance.get_active_colortype_legend_data(include_hidden=False)
+            print(f"🔍 DEBUG: Retrieved {len(legend_data)} ColorType items")
+
+            for i, item in enumerate(legend_data[:3]):  # Show first 3 items
+                print(f"🔍 DEBUG: Item {i}: {item.get('name', 'NO_NAME')} - colors: {list(item.keys())}")
+
+            return legend_data
         except Exception as e:
-            print(f"Exception in _get_active_colortype_data: {e}")
+            print(f"❌ Exception in _get_active_colortype_data: {e}")
+            import traceback
+            traceback.print_exc()
             return []
     
     def _get_synchronized_settings(self, camera_props):
@@ -433,6 +457,124 @@ class Setup3DLegendHUD(bpy.types.Operator):
         return settings
     
     def _create_3d_legend_hud(self, camera, legend_data):
+        """
+        RESTORED from v117_P: Full 3D Legend HUD creation with panels and color dots
+        """
+        print("✅ Creating FULL 3D Legend HUD (restored from v117_P)")
+        try:
+            self._create_3d_legend_hud_full(camera, legend_data)
+        except Exception as e:
+            print(f"❌ Full 3D Legend creation failed: {e}")
+            # Fallback: create safe version
+            self._create_3d_legend_hud_safe(camera, legend_data)
+
+    def _create_3d_legend_hud_safe(self, camera, legend_data):
+        """
+        CRASH-SAFE implementation: Creates only simple Empty objects to avoid mesh creation crashes.
+        This provides a basic 3D legend placeholder without complex geometry.
+        """
+        anim_props = tool.Sequence.get_animation_props()
+        camera_props = anim_props.camera_orbit
+
+        # Create basic collection for 3D legend
+        collection_name = "Schedule_Display_3D_Legend"
+        collection = bpy.data.collections.get(collection_name)
+        if not collection:
+            collection = bpy.data.collections.new(collection_name)
+            bpy.context.scene.collection.children.link(collection)
+
+        # Clear any existing legend objects to avoid duplicates
+        for obj in list(collection.objects):
+            if obj.get("is_3d_legend_hud", False):
+                bpy.data.objects.remove(obj, do_unlink=True)
+
+        # Control visibility based on checkbox
+        should_hide = not getattr(camera_props, "show_3d_schedule_texts", False)
+        collection.hide_viewport = should_hide
+        collection.hide_render = should_hide
+
+        # Create simple parent empty (SAFE - no mesh creation)
+        parent_name = "HUD_3D_Legend_Parent"
+        parent_empty = bpy.data.objects.get(parent_name)
+        if not parent_empty:
+            parent_empty = bpy.data.objects.new(parent_name, None)
+            collection.objects.link(parent_empty)
+            parent_empty.empty_display_type = 'PLAIN_AXES'
+            parent_empty.empty_display_size = 0.5
+            parent_empty["is_3d_legend_hud"] = True
+
+        # Position the legend near the camera
+        if camera:
+            parent_empty.location = (camera.location.x + 2, camera.location.y + 2, camera.location.z)
+        else:
+            parent_empty.location = (2, 2, 0)
+
+        # Create text objects for each legend item (SAFER approach)
+        for i, item_data in enumerate(legend_data):
+            item_name = item_data.get('name', 'Unknown')
+
+            # Create text object for the legend item name
+            text_obj_name = f"Legend_Text_{i:02d}_{item_name}"
+            text_obj = self._create_text_object(
+                text_obj_name,
+                item_name,
+                0.3,  # size
+                (1, 1, 1, 1),  # white color
+                1.0,  # strength
+                collection
+            )
+
+            if text_obj:
+                text_obj.parent = parent_empty
+                text_obj.location = (0, -i * 0.5, 0)  # Stack vertically with more spacing
+                text_obj["is_3d_legend_hud"] = True
+                text_obj["legend_item_data"] = str(item_data)
+
+            # Create simple colored empty as color indicator
+            color_indicator_name = f"Legend_Color_{i:02d}_{item_name}"
+            color_empty = bpy.data.objects.new(color_indicator_name, None)
+            collection.objects.link(color_empty)
+            color_empty.parent = parent_empty
+            color_empty.location = (-1.0, -i * 0.5, 0)  # To the left of text
+            color_empty.empty_display_type = 'SPHERE'
+            color_empty.empty_display_size = 0.1
+            color_empty["is_3d_legend_hud"] = True
+
+            # Set color if available
+            if 'active_color' in item_data and hasattr(color_empty, 'color'):
+                active_color = item_data['active_color']
+                color_empty.color = (*active_color[:3], 1.0) if len(active_color) >= 3 else (1, 1, 1, 1)
+
+        print(f"✅ Enhanced 3D Legend HUD created with {len(legend_data)} text items")
+        print(f"   Visibility: {'Hidden' if should_hide else 'Visible'}")
+
+    def _create_minimal_3d_placeholder(self):
+        """
+        Ultra-minimal fallback: Creates just one empty object as placeholder.
+        """
+        try:
+            collection_name = "Schedule_Display_3D_Legend"
+            collection = bpy.data.collections.get(collection_name)
+            if not collection:
+                collection = bpy.data.collections.new(collection_name)
+                bpy.context.scene.collection.children.link(collection)
+
+            placeholder_name = "HUD_3D_Legend_Placeholder"
+            if not bpy.data.objects.get(placeholder_name):
+                placeholder = bpy.data.objects.new(placeholder_name, None)
+                collection.objects.link(placeholder)
+                placeholder.empty_display_type = 'CUBE'
+                placeholder.empty_display_size = 1.0
+                placeholder["is_3d_legend_hud"] = True
+                placeholder.location = (0, 0, 0)
+                print("✅ Minimal 3D Legend placeholder created")
+        except Exception as e:
+            print(f"❌ Even minimal placeholder failed: {e}")
+
+    def _create_3d_legend_hud_full(self, camera, legend_data):
+        """
+        EXACT COPY from v117_P working version
+        """
         anim_props = tool.Sequence.get_animation_props()
         camera_props = anim_props.camera_orbit
         settings = self._get_synchronized_settings(camera_props)
@@ -510,6 +652,36 @@ class Setup3DLegendHUD(bpy.types.Operator):
             obj["is_3d_legend_hud"] = True
 
     def _create_rounded_panel(self, name, width, height, radius, alpha, color, collection):
+        """
+        RESTORED from v117_P working version
+        """
+        import bmesh
+        bm = bmesh.new()
+        max_radius = min(width, height) * 0.4
+        actual_radius = min(radius, max_radius)
+        if actual_radius > 0.005:
+            bmesh.ops.create_grid(bm, x_segments=4, y_segments=4, size=1.0)
+            bmesh.ops.scale(bm, vec=(width, height, 1.0), verts=bm.verts)
+            try:
+                bmesh.ops.inset_individual(bm, faces=bm.faces[:], thickness=actual_radius * 0.5, depth=0.0, use_boundary=True)
+            except Exception: pass
+        else:
+            bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=1.0)
+            bmesh.ops.scale(bm, vec=(width, height, 1.0), verts=bm.verts)
+        mesh = bpy.data.meshes.new(name)
+        bm.to_mesh(mesh)
+        bm.free()
+        obj = bpy.data.objects.new(name, mesh)
+        collection.objects.link(obj)
+        try:
+            bpy.context.view_layer.objects.active = obj
+            bpy.ops.object.shade_smooth()
+        except Exception: pass
+        mat = self._create_emission_material(f"{name}_Mat", color, 1.2, alpha)
+        obj.data.materials.append(mat)
+        return obj
+
+    def _create_rounded_panel_DISABLED(self, name, width, height, radius, alpha, color, collection):
         import bmesh
         bm = bmesh.new()
         max_radius = min(width, height) * 0.4
@@ -537,6 +709,21 @@ class Setup3DLegendHUD(bpy.types.Operator):
         return obj
 
     def _create_color_dot(self, name, diameter, color, collection):
+        """
+        RESTORED from v117_P working version
+        """
+        bpy.ops.mesh.primitive_circle_add(vertices=24, radius=diameter * 0.5, fill_type='NGON')
+        obj = bpy.context.active_object
+        obj.name = name
+        if obj.name in bpy.context.scene.collection.objects:
+            bpy.context.scene.collection.objects.unlink(obj)
+        if obj.name not in collection.objects:
+            collection.objects.link(obj)
+        mat = self._create_emission_material(f"{name}_Mat", color, 6.0, 1.0)
+        obj.data.materials.append(mat)
+        return obj
+
+    def _create_color_dot_DISABLED(self, name, diameter, color, collection):
         bpy.ops.mesh.primitive_circle_add(vertices=24, radius=diameter * 0.5, fill_type='NGON')
         obj = bpy.context.active_object
         obj.name = name
@@ -549,6 +736,21 @@ class Setup3DLegendHUD(bpy.types.Operator):
         return obj
 
     def _create_text_object(self, name, text, size, color, strength, collection):
+        """
+        RESTORED from v117_P working version
+        """
+        curve = bpy.data.curves.new(name, 'FONT')
+        curve.body = text
+        curve.size = size
+        curve.align_x = 'LEFT'
+        curve.align_y = 'CENTER'
+        obj = bpy.data.objects.new(name, curve)
+        collection.objects.link(obj)
+        mat = self._create_emission_material(f"{name}_Mat", color, strength, 1.0)
+        obj.data.materials.append(mat)
+        return obj
+
+    def _create_text_object_DISABLED(self, name, text, size, color, strength, collection):
         curve = bpy.data.curves.new(name, 'FONT')
         curve.body = text
         curve.size = size
@@ -798,3 +1000,61 @@ class LegendHudTogglecolortypeVisibility(bpy.types.Operator):
             hidden_list.append(self.colortype_name)
         camera_props.legend_hud_visible_colortypes = ', '.join(hidden_list)
         return {'FINISHED'}
+
+    # ==============================
+    # WORKING 3D LEGEND HUD METHODS (copied from v117_P)
+    # ==============================
+
+    def _create_rounded_panel_working(self, name, width, height, radius, alpha, color, collection):
+        """WORKING VERSION from v117_P"""
+        import bmesh
+        bm = bmesh.new()
+        max_radius = min(width, height) * 0.4
+        actual_radius = min(radius, max_radius)
+        if actual_radius > 0.005:
+            bmesh.ops.create_grid(bm, x_segments=4, y_segments=4, size=1.0)
+            bmesh.ops.scale(bm, vec=(width, height, 1.0), verts=bm.verts)
+            try:
+                bmesh.ops.inset_individual(bm, faces=bm.faces[:], thickness=actual_radius * 0.5, depth=0.0, use_boundary=True)
+            except Exception: pass
+        else:
+            bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=1.0)
+            bmesh.ops.scale(bm, vec=(width, height, 1.0), verts=bm.verts)
+        mesh = bpy.data.meshes.new(name)
+        bm.to_mesh(mesh)
+        bm.free()
+        obj = bpy.data.objects.new(name, mesh)
+        collection.objects.link(obj)
+        try:
+            bpy.context.view_layer.objects.active = obj
+            bpy.ops.object.shade_smooth()
+        except Exception: pass
+        mat = self._create_emission_material(f"{name}_Mat", color, 1.2, alpha)
+        obj.data.materials.append(mat)
+        return obj
+
+    def _create_color_dot_working(self, name, diameter, color, collection):
+        """WORKING VERSION from v117_P"""
+        bpy.ops.mesh.primitive_circle_add(vertices=24, radius=diameter * 0.5, fill_type='NGON')
+        obj = bpy.context.active_object
+        obj.name = name
+        if obj.name in bpy.context.scene.collection.objects:
+            bpy.context.scene.collection.objects.unlink(obj)
+        if obj.name not in collection.objects:
+            collection.objects.link(obj)
+        mat = self._create_emission_material(f"{name}_Mat", color, 6.0, 1.0)
+        obj.data.materials.append(mat)
+        return obj
+
+    def _create_text_object_working(self, name, text, size, color, strength, collection):
+        """WORKING VERSION from v117_P"""
+        curve = bpy.data.curves.new(name, 'FONT')
+        curve.body = text
+        curve.size = size
+        curve.align_x = 'LEFT'
+        curve.align_y = 'CENTER'
+        obj = bpy.data.objects.new(name, curve)
+        collection.objects.link(obj)
+        mat = self._create_emission_material(f"{name}_Mat", color, strength, 1.0)
+        obj.data.materials.append(mat)
+        return obj

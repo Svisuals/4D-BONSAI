@@ -993,7 +993,49 @@ def update_legend_hud_on_group_change(self, context):
         from ..hud import invalidate_legend_hud_cache, refresh_hud
         invalidate_legend_hud_cache()
 
-        # Forzar un redibujado del viewport. Esto es crucial para que el 
+        # NUEVA FUNCIONALIDAD: Disparar Live Color Update cuando cambia grupo
+        try:
+            import bonsai.tool as tool
+            print(f"🔍 DEBUG GROUP CHANGE: Group '{self.group}' enabled changed to: {self.enabled}")
+
+            anim_props = tool.Sequence.get_animation_props()
+            if anim_props and hasattr(anim_props, 'enable_live_color_updates'):
+                print(f"🔍 Live Color Updates enabled: {anim_props.enable_live_color_updates}")
+
+                if anim_props.enable_live_color_updates:
+                    # DEBUG: Verificar estado actual de grupos
+                    print("🔍 Current animation group stack:")
+                    for i, item in enumerate(anim_props.animation_group_stack):
+                        print(f"  [{i}] Group: {item.group}, Enabled: {item.enabled}")
+
+                    # Solo disparar si el usuario tiene Live Color Updates habilitado
+                    if hasattr(tool.Sequence, 'live_color_update_handler'):
+                        print("🎨 GROUP CHANGE: Triggering Live Color Update...")
+
+                        # DEBUG: Verificar qué grupo activo detecta el handler
+                        # Duplicar la lógica del handler para debug
+                        active_group_name = "DEFAULT"
+                        for item in getattr(anim_props, "animation_group_stack", []):
+                            if getattr(item, "enabled", False) and getattr(item, "group", None):
+                                active_group_name = item.group
+                                break
+                        print(f"🔍 Active group detected by handler logic: '{active_group_name}'")
+
+                        # Disparar manualmente el live color update handler
+                        tool.Sequence.live_color_update_handler(context.scene)
+                        print("✅ Live Color Update triggered for group change")
+                    else:
+                        print("⚠️ Live Color Update handler not available")
+                else:
+                    print("📋 Live Color Updates disabled by user, skipping color refresh")
+            else:
+                print("⚠️ Animation props or live_color_updates property not available")
+        except Exception as live_e:
+            print(f"❌ Could not trigger Live Color Update: {live_e}")
+            import traceback
+            traceback.print_exc()
+
+        # Forzar un redibujado del viewport. Esto es crucial para que el
         # live_color_update_handler se ejecute y aplique los colores del nuevo grupo.
         refresh_hud()
 
@@ -1081,13 +1123,65 @@ def update_colortype_considerations(self, context):
 def toggle_live_color_updates(self, context):
     """Callback to enable/disable the live color update handler."""
     print(f"[DEBUG] toggle_live_color_updates called, enable_live_color_updates = {self.enable_live_color_updates}")
+
+    # Force immediate cache check
+    print("[DEBUG] Starting cache check...")
+
     try:
         if self.enable_live_color_updates:
-            tool.Sequence.register_live_color_update_handler()
-            print("Live color updates enabled.")
+            print("[DEBUG] Live Color Updates being enabled...")
+
+            # Check if live update cache exists
+            try:
+                cache_exists = context.scene.get('BIM_LiveUpdateProductFrames')
+                print(f"[DEBUG] BIM_LiveUpdateProductFrames cache exists: {cache_exists is not None}")
+                print(f"[DEBUG] Cache type: {type(cache_exists)}")
+                print(f"[DEBUG] Cache content preview: {str(cache_exists)[:200] if cache_exists else 'None'}")
+            except Exception as cache_check_e:
+                print(f"[ERROR] Failed to check cache: {cache_check_e}")
+                cache_exists = None
+
+            if not cache_exists:
+                print("⚠️ Live update cache missing - attempting to create from existing animation...")
+                try:
+                    import bonsai.tool as tool
+                    print("[DEBUG] Tool module imported successfully")
+
+                    if hasattr(tool.Sequence, 'create_live_update_cache_from_existing'):
+                        print("[DEBUG] Cache creation method found - calling...")
+                        success = tool.Sequence.create_live_update_cache_from_existing(context)
+                        print(f"[DEBUG] Cache creation result: {success}")
+                        if success:
+                            print("✅ Live update cache created from existing animation")
+                        else:
+                            print("❌ Failed to create cache from existing animation")
+                    else:
+                        print("❌ Cannot create cache - method not found")
+                        print("   Please create an animation first, then enable Live Color Updates")
+                except Exception as cache_e:
+                    print(f"❌ Failed to create live update cache: {cache_e}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                print("✅ Live update cache already exists")
+                if isinstance(cache_exists, dict):
+                    product_count = len(cache_exists.get("product_frames", {}))
+                    print(f"   Cache contains {product_count} products")
+
+            try:
+                import bonsai.tool as tool
+                tool.Sequence.register_live_color_update_handler()
+                print("Live color updates enabled.")
+            except Exception as reg_e:
+                print(f"[ERROR] Failed to register handler: {reg_e}")
         else:
-            tool.Sequence.unregister_live_color_update_handler()
-            print("Live color updates disabled.")
+            print("[DEBUG] Live Color Updates being disabled...")
+            try:
+                import bonsai.tool as tool
+                tool.Sequence.unregister_live_color_update_handler()
+                print("Live color updates disabled.")
+            except Exception as unreg_e:
+                print(f"[ERROR] Failed to unregister handler: {unreg_e}")
     except Exception as e:
         print(f"Error toggling live color updates: {e}")
         import traceback

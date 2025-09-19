@@ -319,7 +319,7 @@ class ScheduleHUD:
                 # Fallback final si todo falla
                 full_schedule_start, full_schedule_end = viz_start, viz_finish
           
-            # --- IMPROVED MODE DETECTION LOGIC ---
+           
             # Usar múltiples fuentes para determinar el modo snapshot de forma fiable
             snapshot_date = getattr(work_props, 'visualisation_start', None)
             is_snapshot_ui_active = getattr(work_props, 'should_show_snapshot_ui', False)
@@ -442,7 +442,7 @@ class ScheduleHUD:
                 current_date = datetime.now()
                 print("⚠️ Sin fechas de visualización configuradas, usando fecha actual")
 
-            # --- LÓGICA CORREGIDA PARA CONTADORES CON REFERENCIA ABSOLUTA ---
+            
             day_from_schedule = 0
             week_number = 0
             progress_pct = 0
@@ -680,7 +680,7 @@ class ScheduleHUD:
         return lines
 
     def draw_background_with_effects(self, x, y, width, height, align_x, align_y, settings):
-        """Dibuja fondo con efectos mejorados y coordenadas corregidas.
+        """Dibuja fondo con efectos mejorados y coordenadas.
         `width` y `height` deben ser SOLO del bloque de texto (sin padding)."""
         """Draws background with enhanced effects and corrected coordinates. `width` and `height` should be ONLY for the text block (without padding)."""
         padding_h = settings.get('padding_h', 10.0)
