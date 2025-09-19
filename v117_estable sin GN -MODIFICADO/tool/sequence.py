@@ -4027,7 +4027,12 @@ class Sequence(bonsai.core.tool.Sequence):
             })
 
         def add_product_frame_full_range(product_id, task, relationship):
-            states = { "active": (animation_start, animation_end) }
+            # V110 LOGIC: Create all states for priority mode, but mark with consider_start_active
+            states = {
+                "before_start": (animation_start, animation_start - 1),
+                "active": (animation_start, animation_end),
+                "after_end": (animation_end + 1, animation_end),
+            }
             product_frames.setdefault(product_id, []).append({
                 "task": task, "task_id": task.id(),
                 "type": getattr(task, "PredefinedType", "NOTDEFINED"),
@@ -4695,17 +4700,24 @@ class Sequence(bonsai.core.tool.Sequence):
         # END state con ColorType REAL
         after_end = states.get("after_end", (0, -1))
         if after_end[1] >= after_end[0] and getattr(ColorType, 'consider_end', True):
-            visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': False})
-
-            # COLOR END usando ColorType REAL
-            use_original = getattr(ColorType, 'use_end_original_color', False)
-            if use_original:
-                color = original_color
+            # FIXED: Verificar hide_at_end como en v110
+            should_hide_at_end = getattr(ColorType, 'hide_at_end', False)
+            if should_hide_at_end:
+                # Ocultar objeto al final (ej: demoliciones)
+                visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': True})
             else:
-                end_color = getattr(ColorType, 'end_color', [0.7, 0.7, 0.7, 1.0])
-                transparency = getattr(ColorType, 'end_transparency', 0.0)
-                color = [end_color[0], end_color[1], end_color[2], 1.0 - transparency]
-            color_ops.append({'obj': obj, 'frame': after_end[0], 'color': color})
+                # Mostrar objeto al final con color END
+                visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': False})
+
+                # COLOR END usando ColorType REAL - solo si no se oculta
+                use_original = getattr(ColorType, 'use_end_original_color', False)
+                if use_original:
+                    color = original_color
+                else:
+                    end_color = getattr(ColorType, 'end_color', [0.7, 0.7, 0.7, 1.0])
+                    transparency = getattr(ColorType, 'end_transparency', 0.0)
+                    color = [end_color[0], end_color[1], end_color[2], 1.0 - transparency]
+                color_ops.append({'obj': obj, 'frame': after_end[0], 'color': color})
 
     @classmethod
     def _setup_live_updates(cls, product_frames, animation_props):
@@ -5094,119 +5106,138 @@ class Sequence(bonsai.core.tool.Sequence):
     # ==================================================================
     @classmethod
     def apply_ColorType_animation(cls, obj, frame_data, ColorType, original_color, settings):
-        """Aplica la animación a un objeto basándose en su perfil de apariencia,con una lógica corregida y robusta para todos los estados."""
+        """
+        Aplica la animación a un objeto basándose en su perfil de apariencia.
+        RESTAURADO: Lógica exacta de v110 para manejo de consider flags.
+        """
         # Limpiar cualquier animación previa en este objeto para empezar de cero.
         if obj.animation_data:
             obj.animation_data_clear()
 
-        # --- LÓGICA DE ESTADO "START" (ANTES DE QUE LA TAREA EMPIECE) ---
-        start_state_frames = frame_data["states"]["before_start"]
-        start_f, end_f = start_state_frames
+        # V110 LOGIC: Verificar consider_start_active (priority mode)
+        if frame_data.get("consider_start_active", False):
+            print(f"🔒 {obj.name}: Aplicando perfil de rango completo (Start prioritario).")
+            start_f, end_f = frame_data["states"]["active"]
+            cls.apply_state_appearance(obj, ColorType, "start", start_f, end_f, original_color, frame_data)
+            return
 
-        # Determinar si el objeto debe estar oculto o visible en la fase inicial.
-        is_construction = frame_data.get("relationship") == "output"
-        should_be_hidden_at_start = is_construction and not getattr(ColorType, 'consider_start', False)
+        # V110 LOGIC: Verificar flags una sola vez al inicio
+        has_consider_start = getattr(ColorType, 'consider_start', True)
+        is_active_considered = getattr(ColorType, 'consider_active', True)
+        is_end_considered = getattr(ColorType, 'consider_end', True)
 
-        # CORRECCIÓN: NO cambiar la visibilidad del objeto inmediatamente.
-        # El objeto ya está oculto desde animate_objects_with_ColorTypes.
-        # Solo preparar los valores para los keyframes.
-        
-        start_visibility = not should_be_hidden_at_start
-        
-        # Preparar color para keyframes (solo si será visible)
-        if not should_be_hidden_at_start:
+        # V110 LOGIC: Procesar cada estado por separado con lógica original
+        for state_name, (start_f, end_f) in frame_data["states"].items():
+            if end_f < start_f:
+                continue
+
+            state_map = {"before_start": "start", "active": "in_progress", "after_end": "end"}
+            state = state_map.get(state_name)
+            if not state:
+                continue
+
+            # === V110 LOGIC RESTORATION ===
+            # La lógica "start" está separada para manejar ocultación explícita.
+            if state == "start":
+                if not has_consider_start:
+                    # Si 'Start' NO se considera y es un objeto de construcción ('output'),
+                    # debe estar OCULTO hasta que empiece su fase 'Active'.
+                    if frame_data.get("relationship") == "output":
+                        obj.hide_viewport = True
+                        obj.hide_render = True
+                        obj.keyframe_insert(data_path="hide_viewport", frame=start_f)
+                        obj.keyframe_insert(data_path="hide_render", frame=start_f)
+                        if end_f > start_f:
+                            obj.keyframe_insert(data_path="hide_viewport", frame=end_f)
+                            obj.keyframe_insert(data_path="hide_render", frame=end_f)
+                    # Para inputs (demolición), no hacer nada los mantiene visibles, lo cual es correcto.
+                    continue  # Continuar al siguiente estado.
+                # Si 'Start' SÍ se considera, aplicar su apariencia.
+                cls.apply_state_appearance(obj, ColorType, "start", start_f, end_f, original_color, frame_data)
+
+            elif state == "in_progress":
+                if not is_active_considered:
+                    continue
+                cls.apply_state_appearance(obj, ColorType, "in_progress", start_f, end_f, original_color, frame_data)
+
+            elif state == "end":
+                if not is_end_considered:
+                    continue
+                cls.apply_state_appearance(obj, ColorType, "end", start_f, end_f, original_color, frame_data)
+
+    @classmethod
+    def apply_state_appearance(cls, obj, ColorType, state, start_frame, end_frame, original_color, frame_data=None):
+        """V110 LOGIC: Aplicar apariencia para un estado específico"""
+        if state == "start":
+            # V110: Cuando consider_start=True, el objeto debe ser siempre visible
+            obj.hide_viewport = False
+            obj.hide_render = False
+            obj.keyframe_insert(data_path="hide_viewport", frame=start_frame)
+            obj.keyframe_insert(data_path="hide_render", frame=start_frame)
+
             use_original = getattr(ColorType, 'use_start_original_color', False)
             color = original_color if use_original else list(ColorType.start_color)
-            alpha = 1.0 - getattr(ColorType, 'start_transparency', 0.0)
-            start_color = (color[0], color[1], color[2], alpha)
+            transparency = getattr(ColorType, 'start_transparency', 0.0)
+            alpha = 1.0 - transparency
+            obj.color = (color[0], color[1], color[2], alpha)
+            obj.keyframe_insert(data_path="color", frame=start_frame)
 
-        # Insertar keyframes para el estado inicial completo.
-        if end_f >= start_f:
-            # Establecer visibilidad para keyframes sin cambiar el estado actual
-            current_hide_state = obj.hide_viewport
-            obj.hide_viewport = not start_visibility
-            obj.hide_render = not start_visibility
-            obj.keyframe_insert(data_path="hide_viewport", frame=start_f)
-            obj.keyframe_insert(data_path="hide_render", frame=start_f)
-            
-            if not should_be_hidden_at_start:
-                obj.color = start_color
-                obj.keyframe_insert(data_path="color", frame=start_f)
+            if end_frame > start_frame:
+                obj.keyframe_insert(data_path="hide_viewport", frame=end_frame)
+                obj.keyframe_insert(data_path="hide_render", frame=end_frame)
+                obj.keyframe_insert(data_path="color", frame=end_frame)
 
-            # Keyframe al final de la fase para mantener el estado.
-            obj.keyframe_insert(data_path="hide_viewport", frame=end_f)
-            obj.keyframe_insert(data_path="hide_render", frame=end_f)
-            if not should_be_hidden_at_start:
-                obj.keyframe_insert(data_path="color", frame=end_f)
-                
-            # CRÍTICO: Restaurar el estado oculto para que no sea visible antes de la animación
-            obj.hide_viewport = True
-            obj.hide_render = True
+        elif state == "in_progress":
+            obj.hide_viewport = False
+            obj.hide_render = False
+            obj.keyframe_insert(data_path="hide_viewport", frame=start_frame)
+            obj.keyframe_insert(data_path="hide_render", frame=start_frame)
 
-        # --- LÓGICA DE ESTADO "ACTIVE" (DURANTE LA TAREA) ---
-        active_state_frames = frame_data["states"]["active"]
-        start_f, end_f = active_state_frames
-
-        if end_f >= start_f and getattr(ColorType, 'consider_active', True):
-            # CORRECCIÓN: Preparar keyframes sin cambiar estado actual
-            # Aplicar color y transparencia del estado "active".
             use_original = getattr(ColorType, 'use_active_original_color', False)
             color = original_color if use_original else list(ColorType.in_progress_color)
 
-            # Interpolar transparencia
-            alpha_start = 1.0 - getattr(ColorType, 'active_start_transparency', 0.0)
-            alpha_end = 1.0 - getattr(ColorType, 'active_finish_transparency', 0.0)
+            start_transparency = getattr(ColorType, 'active_start_transparency', 0.0)
+            end_transparency = getattr(ColorType, 'active_finish_transparency', 0.0)
+            start_alpha = 1.0 - start_transparency
+            end_alpha = 1.0 - end_transparency
 
-            # Establecer keyframes de visibilidad (visible durante fase activa)
-            obj.hide_viewport = False
-            obj.hide_render = False
-            obj.keyframe_insert(data_path="hide_viewport", frame=start_f)
-            obj.keyframe_insert(data_path="hide_render", frame=start_f)
+            obj.color = (color[0], color[1], color[2], start_alpha)
+            obj.keyframe_insert(data_path="color", frame=start_frame)
 
-            # Keyframe inicial del estado activo
-            obj.color = (color[0], color[1], color[2], alpha_start)
-            obj.keyframe_insert(data_path="color", frame=start_f)
+            if end_frame > start_frame:
+                obj.color = (color[0], color[1], color[2], end_alpha)
+                obj.keyframe_insert(data_path="color", frame=end_frame)
 
-            # Keyframe final del estado activo (si hay duración)
-            if end_f > start_f:
-                obj.color = (color[0], color[1], color[2], alpha_end)
-                obj.keyframe_insert(data_path="color", frame=end_f)
-                
-            # CRÍTICO: Restaurar el estado oculto para que no sea visible antes de la animación
-            obj.hide_viewport = True
-            obj.hide_render = True
-
-        # --- LÓGICA DE ESTADO "END" (DESPUÉS DE QUE LA TAREA TERMINA) ---
-        end_state_frames = frame_data["states"]["after_end"]
-        start_f, end_f = end_state_frames
-
-        if end_f >= start_f and getattr(ColorType, 'consider_end', True):
-            # Determinar si el objeto debe ocultarse al final.
+        elif state == "end":
             should_hide_at_end = getattr(ColorType, 'hide_at_end', False)
 
-            # CORRECCIÓN: Preparar keyframes sin cambiar estado actual
-            end_visibility = not should_hide_at_end
-            
-            # Preparar color para keyframes (solo si será visible)
-            if not should_hide_at_end:
+            if should_hide_at_end:
+                obj.hide_viewport = True
+                obj.hide_render = True
+                obj.keyframe_insert(data_path="hide_viewport", frame=start_frame)
+                obj.keyframe_insert(data_path="hide_render", frame=start_frame)
+            else:
+                obj.hide_viewport = False
+                obj.hide_render = False
+                obj.keyframe_insert(data_path="hide_viewport", frame=start_frame)
+                obj.keyframe_insert(data_path="hide_render", frame=start_frame)
+
                 use_original = getattr(ColorType, 'use_end_original_color', True)
                 color = original_color if use_original else list(ColorType.end_color)
-                alpha = 1.0 - getattr(ColorType, 'end_transparency', 0.0)
-                end_color = (color[0], color[1], color[2], alpha)
+                transparency = getattr(ColorType, 'end_transparency', 0.0)
+                alpha = 1.0 - transparency
+                obj.color = (color[0], color[1], color[2], alpha)
+                obj.keyframe_insert(data_path="color", frame=start_frame)
 
-            # Establecer keyframes de visibilidad
-            obj.hide_viewport = not end_visibility
-            obj.hide_render = not end_visibility
-            obj.keyframe_insert(data_path="hide_viewport", frame=start_f)
-            obj.keyframe_insert(data_path="hide_render", frame=start_f)
-            
-            if not should_hide_at_end:
-                obj.color = end_color
-                obj.keyframe_insert(data_path="color", frame=start_f)
-                
-            # CRÍTICO: Restaurar el estado oculto para que no sea visible antes de la animación
-            obj.hide_viewport = True
-            obj.hide_render = True
+                if end_frame > start_frame:
+                    obj.keyframe_insert(data_path="hide_viewport", frame=end_frame)
+                    obj.keyframe_insert(data_path="hide_render", frame=end_frame)
+                    obj.keyframe_insert(data_path="color", frame=end_frame)
+
+        # CRÍTICO: Restaurar el estado oculto después de establecer keyframes
+        obj.hide_viewport = True
+        obj.hide_render = True
+
 
     @classmethod
     def get_product_frames_with_ColorTypes(cls, work_schedule, settings):
@@ -9225,21 +9256,67 @@ class Sequence(bonsai.core.tool.Sequence):
 
     def _apply_object_animation_optimized(cls, obj, frame_data, colortype, settings,
                                         batch_processor_instance, objects_to_hide, objects_to_show, objects_with_colors):
-        """Apply animation to object efficiently"""
+        """
+        Apply animation to object efficiently WITH CONSIDER FLAGS SUPPORT
+        RESTAURADO: Lógica de v110 para consider flags pero con optimizaciones batch
+        """
         states = frame_data.get("states", {})
-        active_state = states.get("active", (0, 0))
 
-        if active_state[1] >= active_state[0]:  # Valid state
-            objects_to_show.append(obj)
-            color = colortype.get('in_progress_color', [0.5, 0.5, 0.5, 1])
-            objects_with_colors.append((obj, tuple(color)))
+        # V110 LOGIC: Verificar consider flags exactamente como en v110
+        has_consider_start = colortype.get('consider_start', True)
+        is_active_considered = colortype.get('consider_active', True)
+        is_end_considered = colortype.get('consider_end', True)
 
-            # Add keyframe operations to batch
-            batch_processor_instance.add_visibility_operation(obj, active_state[0], False, False)
-            if colortype.get('hide_at_end', False):
-                batch_processor_instance.add_visibility_operation(obj, active_state[1] + 1, True, True)
-        else:
-            objects_to_hide.append(obj)
+        # V110 LOGIC: Procesar cada estado con consider flags
+        for state_name, (start_f, end_f) in states.items():
+            if end_f < start_f:
+                continue
+
+            state_map = {"before_start": "start", "active": "in_progress", "after_end": "end"}
+            state = state_map.get(state_name)
+            if not state:
+                continue
+
+            # === V110 LOGIC WITH BATCH OPTIMIZATION ===
+            if state == "start":
+                if not has_consider_start:
+                    # Si 'Start' NO se considera y es un objeto de construcción ('output'),
+                    # debe estar OCULTO durante toda la fase start
+                    if frame_data.get("relationship") == "output":
+                        batch_processor_instance.add_visibility_operation(obj, start_f, True, True)
+                        if end_f > start_f:
+                            batch_processor_instance.add_visibility_operation(obj, end_f, True, True)
+                    continue  # Saltar al siguiente estado
+
+                # Si 'Start' SÍ se considera, aplicar apariencia start
+                batch_processor_instance.add_visibility_operation(obj, start_f, False, False)
+                if not colortype.get('use_start_original_color', False):
+                    color = colortype.get('start_color', [1,1,1,1])
+                    objects_with_colors.append((obj, tuple(color)))
+
+            elif state == "in_progress":
+                if not is_active_considered:
+                    continue  # Saltar fase active
+
+                # Aplicar apariencia active (optimizada)
+                batch_processor_instance.add_visibility_operation(obj, start_f, False, False)
+                if not colortype.get('use_active_original_color', False):
+                    color = colortype.get('in_progress_color', [0.5, 0.5, 0.5, 1])
+                    objects_with_colors.append((obj, tuple(color)))
+
+            elif state == "end":
+                if not is_end_considered:
+                    continue  # Saltar fase end
+
+                # Aplicar apariencia end
+                should_hide_at_end = colortype.get('hide_at_end', False)
+                if should_hide_at_end:
+                    batch_processor_instance.add_visibility_operation(obj, start_f, True, True)
+                else:
+                    batch_processor_instance.add_visibility_operation(obj, start_f, False, False)
+                    if not colortype.get('use_end_original_color', True):
+                        color = colortype.get('end_color', [0.3, 0.3, 0.3, 1])
+                        objects_with_colors.append((obj, tuple(color)))
 
     @classmethod
 

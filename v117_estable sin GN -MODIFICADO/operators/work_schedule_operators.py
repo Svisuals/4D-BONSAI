@@ -1135,17 +1135,24 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                         # END state con ColorType REAL
                         after_end = states.get("after_end", (0, -1))
                         if after_end[1] >= after_end[0] and getattr(ColorType, 'consider_end', True):
-                            visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': False})
-
-                            # COLOR END usando ColorType REAL
-                            use_original = getattr(ColorType, 'use_end_original_color', False)
-                            if use_original:
-                                color = original_color
+                            # FIXED: Verificar hide_at_end como en v110
+                            should_hide_at_end = getattr(ColorType, 'hide_at_end', False)
+                            if should_hide_at_end:
+                                # Ocultar objeto al final (ej: demoliciones)
+                                visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': True})
                             else:
-                                end_color = getattr(ColorType, 'end_color', [0.7, 0.7, 0.7, 1.0])
-                                transparency = getattr(ColorType, 'end_transparency', 0.0)
-                                color = [end_color[0], end_color[1], end_color[2], 1.0 - transparency]
-                            color_ops.append({'obj': obj, 'frame': after_end[0], 'color': color})
+                                # Mostrar objeto al final con color END
+                                visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': False})
+
+                                # COLOR END usando ColorType REAL - solo si no se oculta
+                                use_original = getattr(ColorType, 'use_end_original_color', False)
+                                if use_original:
+                                    color = original_color
+                                else:
+                                    end_color = getattr(ColorType, 'end_color', [0.7, 0.7, 0.7, 1.0])
+                                    transparency = getattr(ColorType, 'end_transparency', 0.0)
+                                    color = [end_color[0], end_color[1], end_color[2], 1.0 - transparency]
+                                color_ops.append({'obj': obj, 'frame': after_end[0], 'color': color})
 
                         processed_count += 1
 
@@ -1490,8 +1497,7 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
             bpy.context.scene.frame_start = settings["start_frame"]
             bpy.context.scene.frame_end = int(settings["start_frame"] + settings["total_frames"])
 
-            # --- 2. LÓGICA DE CÁMARA CORREGIDA ---
-            # --- 2. LÓGICA DE CÁMARA CORREGIDA ---
+        
             if self.camera_action != 'NONE':
                 existing_cam = next((obj for obj in bpy.data.objects if "4D_Animation_Camera" in obj.name), None)
 
@@ -1524,8 +1530,6 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                     bpy.ops.bim.enable_schedule_hud()
                 except Exception:
                     pass
-            
-            # <-- INICIO DE LA CORRECCIÓN DE VISIBILIDAD DE TEXTOS 3D -->
             try:
                 anim_props = tool.Sequence.get_animation_props()
                 camera_props = anim_props.camera_orbit
@@ -1574,11 +1578,13 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
             except Exception as legend_e:
                 print(f"⚠️ Could not restore colortype group visibility: {legend_e}")
 
-            """
-            # FIN TEMPORAL: Funcionalidades comentadas para evitar crash
-            """
+             
 
             self.report({'INFO'}, f"Animation created successfully for {len(product_frames)} products.")
+            
+            anim_props = tool.Sequence.get_animation_props()
+            anim_props.is_animation_created = True
+
             return {'FINISHED'}
 
         except Exception as e:

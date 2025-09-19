@@ -512,12 +512,19 @@ def _plan_animation_operations(obj, states, ColorType, original_color, frame_dat
 
     after_end = states.get("after_end", (0, -1))
     if after_end[1] >= after_end[0] and getattr(ColorType, 'consider_end', True):
-        visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': False})
-        color = original_color if getattr(ColorType, 'use_end_original_color', False) else [
-            *getattr(ColorType, 'end_color', [0.7, 0.7, 0.7])[:3],
-            1.0 - getattr(ColorType, 'end_transparency', 0.0)
-        ]
-        color_ops.append({'obj': obj, 'frame': after_end[0], 'color': color})
+        # FIXED: Verificar hide_at_end como en v110
+        should_hide_at_end = getattr(ColorType, 'hide_at_end', False)
+        if should_hide_at_end:
+            # Ocultar objeto al final (ej: demoliciones)
+            visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': True})
+        else:
+            # Mostrar objeto al final con color END
+            visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': False})
+            color = original_color if getattr(ColorType, 'use_end_original_color', False) else [
+                *getattr(ColorType, 'end_color', [0.7, 0.7, 0.7])[:3],
+                1.0 - getattr(ColorType, 'end_transparency', 0.0)
+            ]
+            color_ops.append({'obj': obj, 'frame': after_end[0], 'color': color})
 
 
 def _compute_product_frames(context, work_schedule, settings):
@@ -554,12 +561,19 @@ def _plan_animation_operations(obj, frame_data, ColorType, original_color, visib
     # Estado DESPUÉS DE FINALIZAR
     after_end = states.get("after_end")
     if after_end and getattr(ColorType, 'consider_end', True):
-        visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': False})
-        color = original_color if getattr(ColorType, 'use_end_original_color', False) else [
-            *getattr(ColorType, 'end_color', [0.7, 0.7, 0.7])[:3],
-            1.0 - getattr(ColorType, 'end_transparency', 0.0)
-        ]
-        color_ops.append({'obj': obj, 'frame': after_end[0], 'color': color})
+        # FIXED: Verificar hide_at_end como en v110
+        should_hide_at_end = getattr(ColorType, 'hide_at_end', False)
+        if should_hide_at_end:
+            # Ocultar objeto al final (ej: demoliciones)
+            visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': True})
+        else:
+            # Mostrar objeto al final con color END
+            visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': False})
+            color = original_color if getattr(ColorType, 'use_end_original_color', False) else [
+                *getattr(ColorType, 'end_color', [0.7, 0.7, 0.7])[:3],
+                1.0 - getattr(ColorType, 'end_transparency', 0.0)
+            ]
+            color_ops.append({'obj': obj, 'frame': after_end[0], 'color': color})
 
 
 def _safe_set(obj, name, value):
