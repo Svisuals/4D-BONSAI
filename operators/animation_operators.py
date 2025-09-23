@@ -1,12 +1,27 @@
-# File: animation_operators.py
-# Description: Animation-related operators for the 4D add-on.
+# Bonsai - OpenBIM Blender Add-on
+# Copyright (C) 2021, 2022 Dion Moult <dion@thinkmoult.com>, Yassine Oualid <yassine@sigmadimensions.com>, Federico Eraso <feraso@svisuals.net
+#
+# This file is part of Bonsai.
+#
+# Bonsai is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Bonsai is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Bonsai.  If not, see <http://www.gnu.org/licenses/>.
 
 import bpy
 import bonsai.tool as tool
 import ifcopenshell.util.sequence
 from .. import hud as hud_overlay
 from datetime import datetime, timedelta
-from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state
+from .operator import snapshot_all_ui_state, restore_all_ui_state
 
 # === Animation operators ===
 
@@ -18,102 +33,110 @@ class CreateAnimation(bpy.types.Operator, tool.Ifc.Operator):
     preserve_current_frame: bpy.props.BoolProperty(default=False)
 
     def _execute(self, context):
+        import time
+        total_start_time = time.time()
+
         stored_frame = context.scene.frame_current
-        frames = {}
-        props = tool.Sequence.get_work_schedule_props()
+        work_schedule = tool.Sequence.get_active_work_schedule()
         anim_props = tool.Sequence.get_animation_props()
 
-        # Check animation mode and delegate to appropriate system
-        animation_engine = getattr(anim_props, 'animation_engine', 'KEYFRAME')
+        if not work_schedule:
+            self.report({'ERROR'}, "No active work schedule found.")
+            return {'CANCELLED'}
 
-        if animation_engine == 'GEOMETRY_NODES':
-            print("🚀 Using Geometry Nodes animation system")
-            return self._execute_gn_animation(context, stored_frame)
-        else:
-            print("🎬 Using traditional Keyframes animation system")
-            return self._execute_keyframes_animation(context, stored_frame)
+        settings = _get_animation_settings(context)
+        print("🚀 STARTING CORRECTED 4D ANIMATION CREATION") # This seems to be a debug print, I'll leave it as is but it could be translated to "STARTING CORRECTED 4D ANIMATION CREATION"
 
-    def _execute_gn_animation(self, context, stored_frame):
-        """Execute animation creation using Geometry Nodes system"""
         try:
-            # Import GN system components
+            # --- STAGE 1: FRAME COMPUTATION ---
+            frames_start = time.time()
+            frames = {}
             try:
-                from bonsai.tool import gn_system, gn_integration
-            except ImportError as e:
-                self.report({'ERROR'}, f"Geometry Nodes system not available: {e}")
-                print(f"❌ GN modules import failed: {e}")
-                return self._execute_keyframes_animation(context, stored_frame)
+                print("[OPTIMIZED] Attempting to use FULL optimization path for frames...")
+                from . import ifc_lookup
+                lookup = ifc_lookup.get_ifc_lookup()
+                date_cache = ifc_lookup.get_date_cache()
 
-            # Get active work schedule and animation settings
-            work_schedule = tool.Sequence.get_active_work_schedule()
-            if not work_schedule:
-                self.report({'ERROR'}, "No active work schedule found")
-                return {'CANCELLED'}
+                if not lookup.lookup_built:
+                    print("[OPTIMIZED] Building lookup tables...")
+                    lookup.build_lookup_tables(work_schedule)
 
-            settings = tool.Sequence.get_animation_settings()
-            if not settings:
-                self.report({'ERROR'}, "Could not get animation settings")
-                return {'CANCELLED'}
+                print("[OPTIMIZED] Using enhanced optimized frame computation...")
+                frames = tool.Sequence.get_animation_product_frames_enhanced_optimized(
+                    work_schedule, settings, lookup, date_cache
+                )
+                print("[SUCCESS] Optimized frame computation was successful.")
 
-            print("🎯 Starting GN animation creation...")
+            except Exception as e:
+                print(f"[CRITICAL WARNING] Optimized frames method failed, falling back to slow method: {e}")
+                frames = _compute_product_frames(context, work_schedule, settings)
 
-            # Run the V113 enhanced GN integration
-            print("🚀 Running V113 enhanced GN system...")
-            gn_integration.setup_gn_task_integration()
+            frames_time = time.time() - frames_start
+            print(f"📊 FRAMES COMPUTED: {len(frames)} products in {frames_time:.3f}s")
 
-            # Set animation as created
-            anim_props = tool.Sequence.get_animation_props()
-            anim_props.is_animation_created = True
+            if not frames:
+                 self.report({'INFO'}, "No frames found to animate.")
+                 return {'CANCELLED'}
 
-            # Preserve frame if requested
-            if self.preserve_current_frame:
-                context.scene.frame_set(stored_frame)
+            # --- STAGE 2: ANIMATION APPLICATION (OPTIMIZED) ---
+            anim_start = time.time()
+            print("🔥🔥🔥 [OPERATOR] STAGE 2 - ANIMATION APPLICATION STARTED!")
 
-            self.report({'INFO'}, "Geometry Nodes animation created successfully")
-            return {'FINISHED'}
+            try:
+                print("🔥 [OPERATOR DEBUG] Using OPTIMIZED animation!")
 
-        except Exception as e:
-            self.report({'ERROR'}, f"Geometry Nodes animation failed: {e}. Falling back to keyframes.")
-            print(f"❌ GN Animation failed: {e}. Falling back to keyframes.")
-            return self._execute_keyframes_animation(context, stored_frame)
+                # Build performance cache for optimization
+                print("🔥 [OPERATOR DEBUG] Importing performance_cache...")
+                from . import performance_cache
+                print("🔥 [OPERATOR DEBUG] Getting performance cache instance...")
+                cache = performance_cache.get_performance_cache()
 
-    def _execute_keyframes_animation(self, context, stored_frame):
-        """Execute animation creation using traditional keyframes system"""
-        try:
-            work_schedule = tool.Sequence.get_active_work_schedule()
-            if not work_schedule:
-                self.report({'ERROR'}, "No active work schedule found")
-                return {'CANCELLED'}
+                if not cache.cache_valid:
+                    print("[OPTIMIZED] Building performance cache...")
+                    cache.build_scene_cache()
+                    print("🔥 [OPERATOR DEBUG] Performance cache built!")
 
-            settings = tool.Sequence.get_animation_settings()
-            if not settings:
-                self.report({'ERROR'}, "Could not calculate animation settings")
-                return {'CANCELLED'}
+                # Call optimized function
+                print("🔥 [OPERATOR DEBUG] About to call animate_objects_with_ColorTypes_optimized!")
+                tool.Sequence.animate_objects_with_ColorTypes_optimized(settings, frames, cache)
+                print("🔥 [OPERATOR DEBUG] OPTIMIZED animation completed!")
 
-            frames = _compute_product_frames(context, work_schedule, settings)
-            _apply_colortype_animation(context, frames, settings)
+            except Exception as e:
+                print(f"🔥🔥🔥 [ERROR] Optimized method failed, falling back to standard method: {e}")
+                import traceback
+                traceback.print_exc()
+
+                # Fallback to standard method
+                print("🔥 [OPERATOR DEBUG] Using FALLBACK method...")
+                tool.Sequence.animate_objects_with_ColorTypes(settings, frames)
+                print("🔥 [OPERATOR DEBUG] FALLBACK method completed!")
+
+            anim_time = time.time() - anim_start
+            print(f"🎬 ANIMATION APPLIED: Completed in {anim_time:.3f}s")
+
         except Exception as e:
             self.report({'ERROR'}, f"Animation process failed: {e}")
+            import traceback
+            traceback.print_exc()
             return {'CANCELLED'}
 
         if self.preserve_current_frame:
             context.scene.frame_set(stored_frame)
-            
-        self.report({'INFO'}, f"Animation created for {len(frames)} elements.")
 
-        # --- INICIO DE LA MODIFICACIÓN ---
-        # Levanta la bandera para indicar que la animación ya existe y es válida.
+        total_time = time.time() - total_start_time
+        print("-" * 60)
+        print(f"✅ TOTAL TIME: {total_time:.2f}s")
+        print("-" * 60)
+        self.report({'INFO'}, f"Animation created for {len(frames)} elements in {total_time:.2f}s.")
+
         anim_props.is_animation_created = True
-        print("✅ Animation flag SET to TRUE.")
-        
+
         try:
             camera_props = tool.Sequence.get_animation_props().camera_orbit
             if camera_props.enable_3d_legend_hud:
-                print("✅ 3D Legend HUD is enabled, ensuring it is created...")
                 bpy.ops.bim.setup_3d_legend_hud()
         except Exception as e:
-            print(f"⚠️ Could not auto-create 3D Legend HUD during animation creation: {e}")
-
+            print(f"⚠️ Could not auto-create 3D Legend HUD: {e}")
 
         return {'FINISHED'}
 
@@ -124,65 +147,29 @@ class CreateAnimation(bpy.types.Operator, tool.Ifc.Operator):
             self.report({'ERROR'}, f"Unexpected error: {e}")
             return {'CANCELLED'}
 
-    def execute(self, context):
-        try:
-            return self._execute(context)
-        except Exception as e:
-            self.report({'ERROR'}, f"Unexpected error: {e}")
-            return {'CANCELLED'}
-    
     def _get_unified_date_range(self, work_schedule):
-        """
-        Calculate the unified date range by analyzing ALL 4 schedule types
-        Returns the earliest start and latest finish across all types
-        """
         from datetime import datetime
-        
-        if not work_schedule:
-            return None, None
-        
-        all_starts = []
-        all_finishes = []
-        
-        # Check all schedule types: SCHEDULE, ACTUAL, EARLY, LATE
+        if not work_schedule: return None, None
+        all_starts, all_finishes = [], []
         for schedule_type in ["SCHEDULE", "ACTUAL", "EARLY", "LATE"]:
             start_attr = f"{schedule_type.capitalize()}Start"
             finish_attr = f"{schedule_type.capitalize()}Finish"
-            
-            print(f"🔍 CREATE_ANIMATION: Analyzing {schedule_type} -> {start_attr}/{finish_attr}")
-            
-            # Get all tasks from schedule
             root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
-            
             def get_all_tasks_recursive(tasks):
                 result = []
                 for task in tasks:
                     result.append(task)
                     nested = ifcopenshell.util.sequence.get_nested_tasks(task)
-                    if nested:
-                        result.extend(get_all_tasks_recursive(nested))
+                    if nested: result.extend(get_all_tasks_recursive(nested))
                 return result
-            
             all_tasks = get_all_tasks_recursive(root_tasks)
-            
             for task in all_tasks:
                 start_date = ifcopenshell.util.sequence.derive_date(task, start_attr, is_earliest=True)
-                if start_date:
-                    all_starts.append(start_date)
-                
+                if start_date: all_starts.append(start_date)
                 finish_date = ifcopenshell.util.sequence.derive_date(task, finish_attr, is_latest=True)
-                if finish_date:
-                    all_finishes.append(finish_date)
-        
-        if not all_starts or not all_finishes:
-            print("❌ CREATE_ANIMATION: No valid dates found across all schedule types")
-            return None, None
-        
-        unified_start = min(all_starts)
-        unified_finish = max(all_finishes)
-        
-        print(f"✅ CREATE_ANIMATION: Unified range spans {unified_start.strftime('%Y-%m-%d')} to {unified_finish.strftime('%Y-%m-%d')}")
-        return unified_start, unified_finish
+                if finish_date: all_finishes.append(finish_date)
+        if not all_starts or not all_finishes: return None, None
+        return min(all_starts), max(all_finishes)
 
 class ClearAnimation(bpy.types.Operator, tool.Ifc.Operator):
     bl_idname = "bim.clear_animation"
@@ -190,84 +177,7 @@ class ClearAnimation(bpy.types.Operator, tool.Ifc.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def _execute(self, context):
-        anim_props = tool.Sequence.get_animation_props()
-        animation_engine = getattr(anim_props, 'animation_engine', 'KEYFRAME')
-
-        if animation_engine == 'GEOMETRY_NODES':
-            print("🧹 Clearing Geometry Nodes animation system")
-            return self._clear_gn_animation(context)
-        else:
-            print("🧹 Clearing traditional Keyframes animation system")
-            return self._clear_keyframes_animation(context)
-
-    def _clear_gn_animation(self, context):
-        """Clear animation using Geometry Nodes system"""
-        try:
-            # Import GN system components
-            try:
-                from bonsai.tool import gn_system
-            except ImportError as e:
-                self.report({'ERROR'}, f"Geometry Nodes system not available: {e}")
-                print(f"❌ GN system import failed: {e}")
-                return self._clear_keyframes_animation(context)
-
-            print("🧹 Starting GN animation cleanup...")
-
-            # Clean all objects with GN modifiers
-            cleaned_count = 0
-            all_objects = list(context.scene.objects)
-
-            for obj in all_objects:
-                if not obj or obj.type != 'MESH':
-                    continue
-
-                # Check if object has GN modifier
-                has_gn_modifier = False
-                for mod in obj.modifiers:
-                    if mod.name == gn_system.GN_MODIFIER_NAME and mod.type == 'NODES':
-                        obj.modifiers.remove(mod)
-                        print(f"✅ Removed GN modifier from {obj.name}")
-                        has_gn_modifier = True
-                        break
-
-                # Clean GN attributes if object had modifier
-                if has_gn_modifier:
-                    if gn_system.clean_gn_attributes_from_object(obj):
-                        cleaned_count += 1
-
-                    # Remove from GN management
-                    gn_system.remove_object_from_gn_references(obj)
-
-            # Clean up node tree and material
-            from ..tool.gn_sequence_core import GN_NODETREE_NAME, GN_SUPER_MATERIAL_NAME
-
-            if GN_NODETREE_NAME in bpy.data.node_groups:
-                bpy.data.node_groups.remove(bpy.data.node_groups[GN_NODETREE_NAME])
-                print("✅ Removed GN node tree")
-
-            if GN_SUPER_MATERIAL_NAME in bpy.data.materials:
-                bpy.data.materials.remove(bpy.data.materials[GN_SUPER_MATERIAL_NAME])
-                print("✅ Removed GN super material")
-
-            # Set animation as not created
-            anim_props = tool.Sequence.get_animation_props()
-            anim_props.is_animation_created = False
-
-            self.report({'INFO'}, f"Geometry Nodes animation cleared from {cleaned_count} objects")
-            return {'FINISHED'}
-
-        except Exception as e:
-            self.report({'ERROR'}, f"GN clear failed: {e}. Falling back to keyframes cleanup.")
-            print(f"❌ GN Clear failed: {e}. Falling back to keyframes cleanup.")
-            return self._clear_keyframes_animation(context)
-
-    def _clear_keyframes_animation(self, context):
-        """Clear animation using traditional keyframes system"""
         _clear_previous_animation(context)
-
-        anim_props = tool.Sequence.get_animation_props()
-        anim_props.is_animation_created = False
-
         self.report({'INFO'}, "Previous animation cleared")
         return {'FINISHED'}
 
@@ -371,6 +281,16 @@ class AddAnimationCamera(bpy.types.Operator):
                 # Set as active camera
                 context.scene.camera = cam_obj
             
+            # Validate that camera was created successfully
+            if not cam_obj:
+                self.report({'ERROR'}, "Failed to create animation camera: Camera object is None")
+                return {'CANCELLED'}
+
+            # Validate that camera object has required attributes
+            if not hasattr(cam_obj, 'select_set'):
+                self.report({'ERROR'}, f"Camera object is invalid: {type(cam_obj)}")
+                return {'CANCELLED'}
+
             # Select the camera
             bpy.ops.object.select_all(action='DESELECT')
             cam_obj.select_set(True)
@@ -392,51 +312,47 @@ def _sequence_has(attr: str) -> bool:
         return False
 
 def _clear_previous_animation(context) -> None:
-    """Función de limpieza unificada y robusta para toda la animación 4D."""
-    print("🧹 Iniciando limpieza completa de la animación...")
+    """Unified and robust cleanup function for all 4D animation."""
+    print("🧹 Starting complete and optimized animation cleanup...")
 
     try:
-        # --- 1. DETENER LA ANIMACIÓN Y DESREGISTRAR TODOS LOS HANDLERS ---
-        # Es crucial hacer esto primero para detener cualquier proceso en segundo plano.
+        # --- 1. STOP ANIMATION AND UNREGISTER ALL HANDLERS ---
+        # It's crucial to do this first to stop any background processes.
 
-        # Detener la reproducción si está activa
+        # Stop playback if active
         if bpy.context.screen.is_animation_playing:
             bpy.ops.screen.animation_cancel(restore_frame=False)
-            print("  - Animación detenida.")
+            print("  - Animation stopped.")
 
-        # Desregistrar el handler del HUD 2D (GPU Overlay)
+        # Unregister the 2D HUD handler (GPU Overlay)
         if hud_overlay.is_hud_enabled():
             hud_overlay.unregister_hud_handler()
-            print("  - Handler del HUD 2D desregistrado.")
+            print("  - 2D HUD handler unregistered.")
 
-        # Desregistrar el handler de Live Color Updates (la causa más probable del problema)
-        if hasattr(tool.Sequence, 'unregister_live_color_update_handler'):
-            tool.Sequence.unregister_live_color_update_handler()
-            print("  - Handler de Live Color Updates desregistrado.")
 
-        # Desregistrar el handler de textos 3D
+        # Unregister the 3D texts handler
         if hasattr(tool.Sequence, '_unregister_frame_change_handler'):
             tool.Sequence._unregister_frame_change_handler()
-            print("  - Handler de textos 3D desregistrado.")
+            print("  - 3D texts handler unregistered.")
 
-        # --- 2. LIMPIAR OBJETOS DE LA ESCENA ---
-        # Eliminar objetos generados por la animación (textos, barras, etc.)
+        # --- 2. CLEAN UP SCENE OBJECTS ---
+        # Delete objects generated by the animation (texts, bars, etc.)
         for coll_name in ["Schedule_Display_Texts", "Bar Visual", "Schedule_Display_3D_Legend"]:
             if coll_name in bpy.data.collections:
                 collection = bpy.data.collections[coll_name]
                 for obj in list(collection.objects):
                     bpy.data.objects.remove(obj, do_unlink=True)
                 bpy.data.collections.remove(collection)
-                print(f"  - Colección '{coll_name}' y sus objetos eliminados.")
+                print(f"  - Collection '{coll_name}' and its objects deleted.")
 
-        # Eliminar el objeto 'empty' padre
+        # Delete the parent 'empty' object
         parent_empty = bpy.data.objects.get("Schedule_Display_Parent")
         if parent_empty:
             bpy.data.objects.remove(parent_empty, do_unlink=True)
-            print("  - Objeto 'Schedule_Display_Parent' eliminado.")
+            print("  - 'Schedule_Display_Parent' object deleted.")
 
-        # --- 3. LIMPIAR DATOS DE ANIMACIÓN DE OBJETOS 3D (PRODUCTOS IFC) ---
-        print("  - Limpiando keyframes y restaurando visibilidad de objetos 3D...")
+        # --- 3. CLEAR ANIMATION DATA FROM 3D OBJECTS (IFC PRODUCTS) ---
+        print("  - Clearing keyframes and restoring visibility of 3D objects...")
         cleaned_count = 0
         for obj in bpy.data.objects:
             if obj.type == 'MESH' and tool.Ifc.get_entity(obj):
@@ -444,26 +360,26 @@ def _clear_previous_animation(context) -> None:
                     obj.animation_data_clear()
                     cleaned_count += 1
 
-                # Restaurar estado por defecto
+                # Restore default state
                 obj.hide_viewport = False
                 obj.hide_render = False
                 obj.color = (0.8, 0.8, 0.8, 1.0)
-        print(f"  - Keyframes eliminados de {cleaned_count} objetos.")
+        print(f"  - Keyframes removed from {cleaned_count} objects.")
 
-        # --- 4. RESTAURAR LA LÍNEA DE TIEMPO Y LA UI ---
+        # --- 4. RESTORE TIMELINE AND UI ---
         if "is_snapshot_mode" in context.scene:
             del context.scene["is_snapshot_mode"]
 
         restore_all_ui_state(context)
-        print("  - Estado de la UI restaurado.")
+        print("  - UI state restored.")
 
         context.scene.frame_set(context.scene.frame_start)
-        print(f"  - Línea de tiempo reseteada al fotograma {context.scene.frame_start}.")
+        print(f"  - Timeline reset to frame {context.scene.frame_start}.")
 
-        print("✅ Limpieza de animación completada.")
+        print("✅ Animation cleanup completed.")
 
     except Exception as e:
-        print(f"Bonsai WARNING: Ocurrió un error durante la limpieza de la animación: {e}")
+        print(f"Bonsai WARNING: An error occurred during animation cleanup: {e}")
         import traceback
         traceback.print_exc()
 
@@ -493,46 +409,198 @@ def _get_animation_settings(context):
     
     return fallback_settings
 
-def _compute_product_frames(context, work_schedule, settings):
-    """Compute product frames with enhanced error handling for snapshots"""
-    try:
-        # Ensure settings has minimum required values for snapshot
-        if not isinstance(settings, dict):
-            settings = {"start_frame": 1, "total_frames": 250}
-        
-        # Add fallback values if dates are None (snapshot independence)
-        if settings.get("start") is None and settings.get("finish") is None:
-            # For snapshots without Animation Settings, use current scene frame
-            current_frame = getattr(context.scene, "frame_current", 1)
-            settings = dict(settings)  # Copy to avoid modifying original
-            settings.update({
-                "start_frame": current_frame,
-                "total_frames": 1,  # Single frame for snapshot
-                "speed": 1.0
-            })
-        
-        if _sequence_has("get_product_frames_with_colortypes"):
-            return tool.Sequence.get_product_frames_with_colortypes(work_schedule, settings)
-        if _sequence_has("get_animation_product_frames_enhanced"):
-            return tool.Sequence.get_animation_product_frames_enhanced(work_schedule, settings)
-        if _sequence_has("get_animation_product_frames"):
-            return tool.Sequence.get_animation_product_frames(work_schedule, settings)
-        # As last resort, call core directly
-        import bonsai.core.sequence as _core
-        return _core.get_animation_product_frames(tool.Sequence, work_schedule, settings)
-    except Exception as e:
-        print(f"Warning: Product frames computation failed, using empty result: {e}")
-        return {}
+def _apply_final_optimized_animation(context, frames, settings):
+    """
+    FINAL IMPLEMENTATION: Direct replica of the ultra-fast script.
+    Minimizes external calls and uses the same batch processing logic.
+    """
+    print("🚀 APPLYING FINAL OPTIMIZED ANIMATION (Direct Script Logic)")
+    opt_start = time.time()
 
-def _apply_colortype_animation(context, product_frames, settings):
-    if _sequence_has("apply_colortype_animation"):
-        tool.Sequence.apply_colortype_animation(product_frames, settings); return
-    if _sequence_has("animate_objects_with_ColorTypes"):
-        tool.Sequence.animate_objects_with_ColorTypes(settings, product_frames); return
-    if _sequence_has("animate_objects"):
-        tool.Sequence.animate_objects(product_frames, settings); return
-    import bonsai.core.sequence as _core
-    _core.animate_objects(tool.Sequence, product_frames, settings)
+    # 1. FAST AND DIRECT MAPPING: IFC to Blender
+    map_start = time.time()
+    ifc_to_blender = {}
+    all_ifc_objects = []
+    for obj in bpy.data.objects:
+        if obj.type == 'MESH':
+            element = tool.Ifc.get_entity(obj)
+            if element and not element.is_a("IfcSpace"):
+                ifc_to_blender[element.id()] = obj
+                all_ifc_objects.append(obj)
+    print(f"   - Mapped {len(ifc_to_blender)} objects in {time.time() - map_start:.3f}s") # This seems to be a debug print, I'll leave it as is but it could be translated to "Mapped {len(ifc_to_blender)} objects in {time.time() - map_start:.3f}s"
+
+    # 2. EXACT VISIBILITY LOGIC FROM THE SCRIPT
+    hide_start = time.time()
+    for obj in all_ifc_objects:
+        if obj.animation_data:
+            obj.animation_data_clear()
+
+    assigned_objects = set()
+    for obj in all_ifc_objects:
+        element = tool.Ifc.get_entity(obj)
+        if not element or element.id() not in frames:
+            obj.hide_viewport = True
+            obj.hide_render = True
+        else:
+            obj.hide_viewport = True
+            obj.hide_render = True
+            obj.keyframe_insert(data_path="hide_viewport", frame=0)
+            obj.keyframe_insert(data_path="hide_render", frame=0)
+            assigned_objects.add(obj)
+    print(f"   - Visibility configured in {time.time() - hide_start:.3f}s for {len(assigned_objects)} assigned objects") # This seems to be a debug print, I'll leave it as is but it could be translated to "Visibility configured in {time.time() - hide_start:.3f}s for {len(assigned_objects)} assigned objects"
+
+    # 3. GET ORIGINAL COLORS (ASSIGNED OBJECTS ONLY)
+    colors_start = time.time()
+    original_colors = {obj.name: list(obj.color) for obj in assigned_objects}
+    print(f"   - Original colors stored in {time.time() - colors_start:.3f}s") # This seems to be a debug print, I'll leave it as is but it could be translated to "Original colors stored in {time.time() - colors_start:.3f}s"
+
+    # 4. OPERATION PLANNING (SCRIPT'S CORE LOGIC)
+    process_start = time.time()
+    visibility_ops = []
+    color_ops = []
+    
+    animation_props = tool.Sequence.get_animation_props()
+    active_group_name = "DEFAULT"
+    for item in getattr(animation_props, "animation_group_stack", []):
+        if getattr(item, "enabled", False) and getattr(item, "group", None):
+            active_group_name = item.group
+            break
+    
+    colortype_cache = {}
+    processed_count = 0
+
+    for product_id, frame_data_list in frames.items():
+        obj = ifc_to_blender.get(product_id)
+        if not obj or obj not in assigned_objects:
+            continue
+
+        original_color = original_colors.get(obj.name, [1.0, 1.0, 1.0, 1.0])
+
+        for frame_data in frame_data_list:
+            task = frame_data.get("task")
+            task_key = task.id() if task else "None"
+            
+            if task_key not in colortype_cache:
+                colortype_cache[task_key] = tool.Sequence.get_assigned_ColorType_for_task(
+                    task, animation_props, active_group_name
+                )
+            
+            ColorType = colortype_cache.get(task_key)
+            if not ColorType:
+                continue
+
+            states = frame_data.get("states", {})
+            if states:
+                _plan_animation_operations(obj, states, ColorType, original_color, frame_data, visibility_ops, color_ops)
+                processed_count += 1
+    
+    print(f"   - {processed_count} frames planned in {time.time() - process_start:.3f}s") # This seems to be a debug print, I'll leave it as is but it could be translated to "{processed_count} frames planned in {time.time() - process_start:.3f}s"
+
+    # 5. FINAL BATCH EXECUTION
+    exec_start = time.time()
+    for op in visibility_ops:
+        op['obj'].hide_viewport = op['hide']
+        op['obj'].hide_render = op['hide']
+        op['obj'].keyframe_insert(data_path="hide_viewport", frame=op['frame'])
+        op['obj'].keyframe_insert(data_path="hide_render", frame=op['frame'])
+
+    for op in color_ops:
+        op['obj'].color = op['color']
+        op['obj'].keyframe_insert(data_path="color", frame=op['frame'])
+    
+    print(f"   - {len(visibility_ops) + len(color_ops)} keyframes inserted in {time.time() - exec_start:.3f}s") # This seems to be a debug print, I'll leave it as is but it could be translated to "{len(visibility_ops) + len(color_ops)} keyframes inserted in {time.time() - exec_start:.3f}s"
+    print(f"   - Total optimization time: {time.time() - opt_start:.3f}s") # This seems to be a debug print, I'll leave it as is but it could be translated to "Total optimization time: {time.time() - opt_start:.3f}s"
+
+    return processed_count
+
+
+def _plan_animation_operations(obj, states, ColorType, original_color, frame_data, visibility_ops, color_ops):
+    is_construction = frame_data.get("relationship") == "output"
+
+    before_start = states.get("before_start", (0, -1))
+    if before_start[1] >= before_start[0]:
+        if not (is_construction and not getattr(ColorType, 'consider_start', False)):
+            visibility_ops.append({'obj': obj, 'frame': before_start[0], 'hide': False})
+            color = original_color if getattr(ColorType, 'use_start_original_color', False) else [
+                *getattr(ColorType, 'start_color', [0.8, 0.8, 0.8])[:3],
+                1.0 - getattr(ColorType, 'start_transparency', 0.0)
+            ]
+            color_ops.append({'obj': obj, 'frame': before_start[0], 'color': color})
+
+    active = states.get("active", (0, -1))
+    if active[1] >= active[0] and getattr(ColorType, 'consider_active', True):
+        visibility_ops.append({'obj': obj, 'frame': active[0], 'hide': False})
+        color = [
+            *getattr(ColorType, 'in_progress_color', [0.5, 0.9, 0.5])[:3],
+            1.0 - getattr(ColorType, 'in_progress_transparency', 0.0)
+        ]
+        color_ops.append({'obj': obj, 'frame': active[0], 'color': color})
+
+    after_end = states.get("after_end", (0, -1))
+    if after_end[1] >= after_end[0] and getattr(ColorType, 'consider_end', True):
+        # FIXED: Check hide_at_end as in v110
+        should_hide_at_end = getattr(ColorType, 'hide_at_end', False)
+        if should_hide_at_end:
+            # Hide object at the end (e.g., demolitions)
+            visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': True})
+        else:
+            # Show object at the end with END color
+            visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': False})
+            color = original_color if getattr(ColorType, 'use_end_original_color', False) else [
+                *getattr(ColorType, 'end_color', [0.7, 0.7, 0.7])[:3],
+                1.0 - getattr(ColorType, 'end_transparency', 0.0)
+            ]
+            color_ops.append({'obj': obj, 'frame': after_end[0], 'color': color})
+
+
+def _compute_product_frames(context, work_schedule, settings):
+    # This function now only calls the tool function, keeping the logic separate.
+    return tool.Sequence.get_animation_product_frames(work_schedule, settings)
+
+def _plan_animation_operations(obj, frame_data, ColorType, original_color, visibility_ops, color_ops):
+    """
+    Helper function to plan keyframe operations without inserting them.
+    """
+    states = frame_data.get("states", {})
+    is_construction = frame_data.get("relationship") == "output"
+
+    # State BEFORE START
+    before_start = states.get("before_start")
+    if before_start and not (is_construction and not getattr(ColorType, 'consider_start', False)):
+        visibility_ops.append({'obj': obj, 'frame': before_start[0], 'hide': False})
+        color = original_color if getattr(ColorType, 'use_start_original_color', False) else [
+            *getattr(ColorType, 'start_color', [0.8, 0.8, 0.8])[:3],
+            1.0 - getattr(ColorType, 'start_transparency', 0.0)
+        ]
+        color_ops.append({'obj': obj, 'frame': before_start[0], 'color': color})
+
+    # ACTIVE state
+    active = states.get("active")
+    if active and getattr(ColorType, 'consider_active', True):
+        visibility_ops.append({'obj': obj, 'frame': active[0], 'hide': False})
+        color = [
+            *getattr(ColorType, 'in_progress_color', [0.5, 0.9, 0.5])[:3],
+            1.0 - getattr(ColorType, 'in_progress_transparency', 0.0)
+        ]
+        color_ops.append({'obj': obj, 'frame': active[0], 'color': color})
+
+    # State AFTER FINISH
+    after_end = states.get("after_end")
+    if after_end and getattr(ColorType, 'consider_end', True):
+        # FIXED: Check hide_at_end as in v110
+        should_hide_at_end = getattr(ColorType, 'hide_at_end', False)
+        if should_hide_at_end:
+            # Hide object at the end (e.g., demolitions)
+            visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': True})
+        else:
+            # Show object at the end with END color
+            visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': False})
+            color = original_color if getattr(ColorType, 'use_end_original_color', False) else [
+                *getattr(ColorType, 'end_color', [0.7, 0.7, 0.7])[:3],
+                1.0 - getattr(ColorType, 'end_transparency', 0.0)
+            ]
+            color_ops.append({'obj': obj, 'frame': after_end[0], 'color': color})
+
 
 def _safe_set(obj, name, value):
     try:
@@ -576,15 +644,15 @@ class ClearPreviousAnimation(bpy.types.Operator, tool.Ifc.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def _execute(self, context):
-        # --- INICIO DE LA MODIFICACIÓN ---
-        # Baja la bandera ANTES de limpiar, para invalidar el estado.
+        # --- START OF MODIFICATION ---
+        # Lower the flag BEFORE cleaning, to invalidate the state.
         try:
             anim_props = tool.Sequence.get_animation_props()
             anim_props.is_animation_created = False
             print("❌ Animation flag SET to FALSE.")
         except Exception as e:
             print(f"Could not reset animation flag: {e}")
-        # --- FIN DE LA MODIFICACIÓN ---
+        # --- END OF MODIFICATION ---
             
         try:
             if bpy.context.screen.is_animation_playing:
@@ -592,11 +660,11 @@ class ClearPreviousAnimation(bpy.types.Operator, tool.Ifc.Operator):
         except Exception as e:
             print(f"Could not stop animation: {e}")
 
-        # ... (resto del código de la función sin cambios) ...
+        # ... (rest of the function code unchanged) ...
         
         try:
             _clear_previous_animation(context)
-            # ... (código de limpieza del HUD) ...
+            # ... (HUD cleanup code) ...
             self.report({'INFO'}, "Previous animation cleared.")
             context.scene.frame_set(context.scene.frame_start)
             return {'FINISHED'}
@@ -616,7 +684,7 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
     def _execute(self, context):
         print(f"🔄 Reset snapshot started")
         
-        # CORRECCIÓN: Detener la animación si se está reproduciendo
+        # CORRECTION: Stop the animation if it is playing
         try:
             if bpy.context.screen.is_animation_playing:
                 bpy.ops.screen.animation_cancel(restore_frame=False)
@@ -636,24 +704,24 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
         except Exception as e:
             print(f"❌ Could not restore UI state: {e}")
 
-        # CORRECCIÓN: Limpieza completa de snapshot previo
+        # CORRECTION: Complete cleanup of previous snapshot
         try:
-            # CRITICAL: Resetear todos los objetos a estado original (usar función existente)
+            # CRITICAL: Reset all objects to original state (use existing function)
             print(f"🔄 Clearing previous animation...")
             _clear_previous_animation(context)
             print(f"✅ Previous animation cleared")
             
-            # Limpiar datos temporales de snapshot
+            # Clear temporary snapshot data
             if hasattr(bpy.context.scene, 'snapshot_data'):
                 del bpy.context.scene.snapshot_data
             
-            # Limpiar el grupo de perfil activo en HUD Legend
+            # Clear the active profile group in HUD Legend
             try:
                 anim_props = tool.Sequence.get_animation_props()
                 if anim_props and hasattr(anim_props, 'camera_orbit'):
                     camera_props = anim_props.camera_orbit
-                    
-                    # Obtener todos los perfiles activos para ocultarlos
+
+                    # Get all active profiles to hide them
                     if hasattr(anim_props, 'animation_group_stack') and anim_props.animation_group_stack:
                         all_colortype_names = []
                         for group_item in anim_props.animation_group_stack:
@@ -663,17 +731,17 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
                             if group_colortypes:
                                 all_colortype_names.extend(group_colortypes.keys())
                         
-                        # Ocultar todos los perfiles poniendo sus nombres en legend_hud_visible_colortypes
+                        # Hide all profiles by putting their names in legend_hud_visible_colortypes
                         if all_colortype_names:
-                            hidden_colortypes_str = ','.join(set(all_colortype_names))  # usar set() para eliminar duplicados
+                            hidden_colortypes_str = ','.join(set(all_colortype_names))  # use set() to remove duplicates
                             camera_props.legend_hud_visible_colortypes = hidden_colortypes_str
                             print(f"🧹 Hidden colortypes in HUD Legend: {hidden_colortypes_str}")
                     
-                    # Limpiar selected_colortypes por si acaso
+                    # Clear selected_colortypes just in case
                     if hasattr(camera_props, 'legend_hud_selected_colortypes'):
                         camera_props.legend_hud_selected_colortypes = set()
                     
-                    # Invalidar caché del legend HUD
+                    # Invalidate legend HUD cache
                     from ..hud import invalidate_legend_hud_cache
                     invalidate_legend_hud_cache()
                     print("🧹 Active colortype group cleared from HUD Legend")
@@ -735,6 +803,72 @@ class SyncAnimationByDate(bpy.types.Operator):
         return {'FINISHED'}
 
 
+
+
+    def execute(self, context):
+        print("=" * 100)
+        print("🔬🔬🔬 MANUAL DIAGNOSIS OF LIVE COLOR UPDATE 🔬🔬🔬")
+        print("=" * 100)
+
+        try:
+            anim_props = tool.Sequence.get_animation_props()
+
+            # 1. Check if Live Color Updates is enabled
+            live_enabled = getattr(anim_props, 'enable_live_color_updates', False)
+            print(f"1. Live Color Updates enabled: {live_enabled}")
+
+            # 2. Check active group
+            active_group = "DEFAULT"
+            for item in getattr(anim_props, "animation_group_stack", []):
+                if getattr(item, "enabled", False) and getattr(item, "group", None):
+                    active_group = item.group
+                    break
+            print(f"2. Active group: '{active_group}'")
+
+            # 3. Check if the handler is registered
+            handler_registered = hasattr(tool.Sequence, 'live_color_update_handler')
+            print(f"3. Handler exists: {handler_registered}")
+
+            if handler_registered:
+                handler_in_post = tool.Sequence.live_color_update_handler in bpy.app.handlers.frame_change_post
+                handler_in_pre = tool.Sequence.live_color_update_handler in bpy.app.handlers.frame_change_pre
+                print(f"4. Handler in frame_change_post: {handler_in_post}")
+                print(f"5. Handler in frame_change_pre: {handler_in_pre}")
+
+            # 4. Check cache
+            cache_exists = context.scene.get('BIM_LiveUpdateProductFrames') is not None
+            print(f"6. Cache exists: {cache_exists}")
+
+            # 5. Manually trigger the handler
+            if handler_registered:
+                print("7. Triggering handler manually...")
+                tool.Sequence.live_color_update_handler(context.scene)
+                print("8. Handler executed")
+            else:
+                print("7. ❌ No se puede disparar handler (no existe)")
+
+            # 6. Check animated objects
+            animated_count = 0
+            for obj in bpy.data.objects:
+                if obj.type == 'MESH' and obj.animation_data and obj.animation_data.action:
+                    animated_count += 1
+            print(f"9. Objetos con animación: {animated_count}")
+
+            print("=" * 100)
+            print("🔬 DIAGNOSIS COMPLETE")
+            print("=" * 100)
+
+            self.report({'INFO'}, f"Diagnosis complete - Live enabled: {live_enabled}, Active group: {active_group}")
+
+        except Exception as e:
+            print(f"❌ Error in diagnosis: {e}")
+            import traceback
+            traceback.print_exc()
+            self.report({'ERROR'}, f"Error in diagnosis: {e}")
+
+        return {'FINISHED'}
+
+
 # Removed SyncAnimationDateSource - sync auto functionality eliminated
 
 def _restore_3d_texts_state():
@@ -746,8 +880,9 @@ def _restore_3d_texts_state():
         print(f"❌ Error restoring 3D texts state: {e}")
 
 def _clear_previous_animation(context) -> None:
-    print("🧹 Iniciando limpieza completa de la animación...")
+    print("🧹 Iniciando limpieza completa y optimizada de la animación...")
     try:
+        # --- 1. STOP ANIMATION AND HANDLERS (Same as before) ---
         if bpy.context.screen.is_animation_playing:
             bpy.ops.screen.animation_cancel(restore_frame=False)
         if hud_overlay.is_hud_enabled():
@@ -756,6 +891,8 @@ def _clear_previous_animation(context) -> None:
             tool.Sequence.unregister_live_color_update_handler()
         if hasattr(tool.Sequence, '_unregister_frame_change_handler'):
             tool.Sequence._unregister_frame_change_handler()
+
+        # --- 2. CLEAN COLLECTIONS AND ANIMATION OBJECTS (Same as before) ---
         for coll_name in ["Schedule_Display_Texts", "Bar Visual", "Schedule_Display_3D_Legend"]:
             if coll_name in bpy.data.collections:
                 collection = bpy.data.collections[coll_name]
@@ -765,156 +902,43 @@ def _clear_previous_animation(context) -> None:
         parent_empty = bpy.data.objects.get("Schedule_Display_Parent")
         if parent_empty:
             bpy.data.objects.remove(parent_empty, do_unlink=True)
+
+        # --- 3. OPTIMIZED RESET OF IFC OBJECTS ---
+        print("🧹 Efficiently resetting the state of IFC objects...")
         cleaned_count = 0
         reset_count = 0
-        
-        # CRITICAL FIX 2: More aggressive cleanup of ALL IFC objects
-        print("🧹 CLEARING: Resetting all IFC object states...")
         for obj in bpy.data.objects:
             if obj.type == 'MESH' and tool.Ifc.get_entity(obj):
-                # Clear animation data
+                # Clears all animation data from the object
                 if obj.animation_data:
                     obj.animation_data_clear()
                     cleaned_count += 1
 
-                # CRITICAL: Remove Geometry Nodes modifiers (Bonsai 4D)
-                gn_modifiers_removed = 0
-                for modifier in list(obj.modifiers):  # Use list() to avoid modification during iteration
-                    if modifier.type == 'NODES' and 'Bonsai' in modifier.name:
-                        print(f"  🗑️ Removing GN modifier '{modifier.name}' from '{obj.name}'")
-                        obj.modifiers.remove(modifier)
-                        gn_modifiers_removed += 1
-
-                if gn_modifiers_removed > 0:
-                    cleaned_count += gn_modifiers_removed
-
-                # FORCE reset visibility and colors - this is critical
+                # Restore default visibility
                 obj.hide_viewport = False
                 obj.hide_render = False
-                obj.color = (0.8, 0.8, 0.8, 1.0)  # Default gray color
 
-                # CRITICAL FIX: Also reset any material overrides that might exist
-                if obj.material_slots:
-                    for slot in obj.material_slots:
-                        if slot.material and hasattr(slot.material, 'node_tree'):
-                            # Reset any viewport display overrides
-                            slot.material.diffuse_color = (0.8, 0.8, 0.8, 1.0)
-
-                # Force update the object to ensure changes are applied
-                obj.update_tag()
+                # Resets the object's color to white (neutral value).
+                # This disables the override and allows the material color to be seen.
+                # It is a very fast operation.
+                obj.color = (1.0, 1.0, 1.0, 1.0)
+                
                 reset_count += 1
-        
-        # CRITICAL: Clean up GN system specific components
-        print("🧹 CLEARING: Cleaning up Geometry Nodes system components...")
 
-        # 1. Remove Super Material
-        super_material_name = "Bonsai_4D_Super_Material"
-        if super_material_name in bpy.data.materials:
-            super_material = bpy.data.materials[super_material_name]
-            print(f"  🗑️ Removing Super Material '{super_material_name}'")
-            bpy.data.materials.remove(super_material, do_unlink=True)
+        print(f"🧹 COMPLETE CLEANUP: {cleaned_count} animations cleared, {reset_count} objects reset.")
 
-        # 2. Remove GN node groups
-        gn_groups_removed = 0
-        for node_group in list(bpy.data.node_groups):
-            if 'Bonsai' in node_group.name and '4D' in node_group.name:
-                print(f"  🗑️ Removing GN node group '{node_group.name}'")
-                bpy.data.node_groups.remove(node_group, do_unlink=True)
-                gn_groups_removed += 1
-
-        # 3. Cleanup GN system handlers if available
-        try:
-            # Import GN system cleanup if available
-            from ..tool.gn_system import deactivate_gn_system, cleanup_complete_gn_system
-
-            # Deactivate and cleanup GN system
-            print("🧹 CLEARING: Deactivating GN animation system...")
-            deactivate_gn_system()
-
-            # Note: Don't call cleanup_complete_gn_system() as it would cleanup initialization
-            print("✅ GN system deactivated successfully")
-
-        except ImportError:
-            print("ℹ️  GN system not available for cleanup")
-        except Exception as gn_error:
-            print(f"⚠️ Error during GN system cleanup: {gn_error}")
-
-        # Force a viewport update to ensure all changes are visible
-        for area in bpy.context.screen.areas:
-            if area.type == 'VIEW_3D':
-                area.tag_redraw()
-
-        print(f"🧹 CLEARED: {cleaned_count} animations, {reset_count} objects reset, {gn_groups_removed} GN groups removed")
-
-        # 4. Reset animation system state
-        try:
-            anim_props = tool.Sequence.get_animation_props()
-            if anim_props:
-                # Reset animation creation flag
-                if hasattr(anim_props, 'is_animation_created'):
-                    anim_props.is_animation_created = False
-                    print("  ✅ Animation creation flag reset")
-
-                # Clear any active animation group stack
-                if hasattr(anim_props, 'animation_group_stack'):
-                    anim_props.animation_group_stack.clear()
-                    print("  ✅ Animation group stack cleared")
-
-                # Reset live color updates flag if needed
-                if hasattr(anim_props, 'enable_live_color_updates'):
-                    # Don't force disable this - let user control it
-                    print(f"  ℹ️  Live color updates: {anim_props.enable_live_color_updates}")
-
-        except Exception as props_error:
-            print(f"⚠️ Error resetting animation properties: {props_error}")
-
+        # --- 4. RESTORE UI AND TIMELINE (Same as before) ---
         if "is_snapshot_mode" in context.scene:
             del context.scene["is_snapshot_mode"]
         restore_all_ui_state(context)
         context.scene.frame_set(context.scene.frame_start)
+
+        # Force a single redraw at the end to ensure the view updates
+        for area in bpy.context.screen.areas:
+            if area.type == 'VIEW_3D':
+                area.tag_redraw()
+
     except Exception as e:
-        print(f"Bonsai WARNING: Ocurrió un error durante la limpieza de la animación: {e}")
+        print(f"Bonsai WARNING: An error occurred during animation cleanup: {e}")
         import traceback
         traceback.print_exc()
-
-
-class AddGNViewController(bpy.types.Operator):
-    bl_idname = "bim.add_gn_view_controller"
-    bl_label = "Add GN View Controller"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    def execute(self, context):
-        try:
-            # Use constant for controller collection
-            coll_name = "GN_CONTROLLERS"
-            if coll_name not in bpy.data.collections:
-                coll = bpy.data.collections.new(coll_name)
-                context.scene.collection.children.link(coll)
-            else:
-                coll = bpy.data.collections[coll_name]
-
-            # Create the controller object (Empty)
-            bpy.ops.object.empty_add(type='PLAIN_AXES')
-            controller = context.active_object
-            controller.name = "GN_4D_Controller"
-
-            # Move to the correct collection and unlink from others
-            for c in controller.users_collection:
-                c.objects.unlink(controller)
-            coll.objects.link(controller)
-
-            # Set default properties
-            if hasattr(controller, "BonsaiGNController"):
-                ctrl_props = controller.BonsaiGNController
-                ctrl_props.schedule_type_to_display = '0'  # Schedule by default
-                # The colortype_group_to_display will use the dynamic enum
-
-            self.report({'INFO'}, f"Controller '{controller.name}' created in collection '{coll_name}'.")
-            return {'FINISHED'}
-
-        except ImportError as e:
-            self.report({'ERROR'}, f"GN system not available: {e}")
-            return {'CANCELLED'}
-        except Exception as e:
-            self.report({'ERROR'}, f"Failed to create controller: {e}")
-            return {'CANCELLED'}

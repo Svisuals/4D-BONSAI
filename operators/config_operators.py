@@ -1,3 +1,22 @@
+# Bonsai - OpenBIM Blender Add-on
+# Copyright (C) 2021, 2022 Dion Moult <dion@thinkmoult.com>, Yassine Oualid <yassine@sigmadimensions.com>, Federico Eraso <feraso@svisuals.net
+#
+# This file is part of Bonsai.
+#
+# Bonsai is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Bonsai is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Bonsai.  If not, see <http://www.gnu.org/licenses/>.
+
+
 import bpy
 import json
 import calendar
@@ -202,22 +221,22 @@ class VisualiseWorkScheduleDate(bpy.types.Operator):
         return bool(props.visualisation_start)
 
     def execute(self, context):
-        # --- INICIO DE LA CORRECCIÓN ---
-        # 1. FORZAR LA SINCRONIZACIÓN: Al igual que con la animación, esto asegura
-        #    que el snapshot use los datos más actualizados del grupo que se está editando.
+        # 1. FORCE SYNCHRONIZATION: As with the animation, this ensures
+        #    that the snapshot uses the most up-to-date data from the group being edited.
         try:
-            tool.Sequence.sync_active_group_to_json()
+            from bonsai.tool.sequence.color_management_sequence import sync_active_group_to_json
+            sync_active_group_to_json()
         except Exception as e:
             print(f"Error syncing colortypes for snapshot: {e}")
-        # --- FIN DE LA CORRECCIÓN ---
+        # --- END OF CORRECTION ---
 
-        # Obtener el work schedule
+        # Get the work schedule
         work_schedule = tool.Ifc.get().by_id(self.work_schedule)
 
-        # NUEVA CORRECCIÓN: Obtener el rango de visualización configurado
+        # Get the configured visualization range
         viz_start, viz_finish = tool.Sequence.get_visualization_date_range()
 
-        # --- NUEVO: Obtener la fuente de fechas desde las propiedades ---
+        # Get the date source from properties ---
         props = tool.Sequence.get_work_schedule_props()
         date_source = getattr(props, "date_source_type", "SCHEDULE")
 
@@ -225,10 +244,10 @@ class VisualiseWorkScheduleDate(bpy.types.Operator):
             self.report({'ERROR'}, "No start date configured for visualization")
             return {'CANCELLED'}
 
-        # CORRECCIÓN: Usar la fecha de inicio de visualización como fecha del snapshot
+        # Use the visualization start date as the snapshot date
         snapshot_date = viz_start
         
-        # Ejecutar la lógica central de visualización CON el rango de visualización
+        # Execute the core visualization logic WITH the visualization range
         product_states = tool.Sequence.process_construction_state(
             work_schedule,
             snapshot_date,
@@ -237,10 +256,10 @@ class VisualiseWorkScheduleDate(bpy.types.Operator):
             date_source=date_source  # NUEVO: Pasar la fuente de fechas
         )
 
-        # Aplicar el snapshot con los estados corregidos
+        # Apply the snapshot with the corrected states
         tool.Sequence.show_snapshot(product_states)
         
-        # NUEVA FUNCIONALIDAD: Detener animación al crear snapshot para modo fijo
+        # NEW FEATURE: Stop animation when creating a snapshot for fixed mode
         try:
             if bpy.context.screen.is_animation_playing:
                 print(f"🎬 📸 SNAPSHOT: Stopping animation to enable fixed timeline mode")
@@ -248,7 +267,7 @@ class VisualiseWorkScheduleDate(bpy.types.Operator):
         except Exception as e:
             print(f"❌ Error stopping animation during snapshot creation: {e}")
 
-        # Dar feedback claro al usuario sobre qué grupo se usó
+        # Give clear feedback to the user about which group was used
         anim_props = tool.Sequence.get_animation_props()
         active_group = None
         for stack_item in anim_props.animation_group_stack:
@@ -258,7 +277,7 @@ class VisualiseWorkScheduleDate(bpy.types.Operator):
 
         group_used = active_group or "DEFAULT"
 
-        # NUEVO: Información adicional sobre el filtrado
+        # Additional information about filtering
         viz_end_str = viz_finish.strftime('%Y-%m-%d') if viz_finish else "No limit"
         self.report({'INFO'}, f"Snapshot at {snapshot_date.strftime('%Y-%m-%d')} using group '{group_used}' (range: {viz_start.strftime('%Y-%m-%d')} to {viz_end_str})")
 
@@ -276,15 +295,16 @@ class LoadAndActivatecolortypeGroup(bpy.types.Operator):
             self.report({'WARNING'}, "No group selected")
             return {'CANCELLED'}
 
-        # Primero cargar los perfiles
+        # First, load the profiles
         bpy.ops.bim.load_appearance_colortype_set_internal(set_name=self.set_name)
 
-        # Luego establecer como grupo activo
+        # Then set as the active group
         props = tool.Sequence.get_animation_props()
         props.ColorType_groups = self.set_name
 
-        # Sincronizar con JSON
-        tool.Sequence.sync_active_group_to_json()
+        # Synchronize with JSON
+        from bonsai.tool.sequence.color_management_sequence import sync_active_group_to_json
+        sync_active_group_to_json()
 
         self.report({'INFO'}, f"Loaded and activated group '{self.set_name}'")
         return {'FINISHED'}
@@ -346,9 +366,9 @@ class BIM_OT_fix_colortype_hide_at_end_immediate(bpy.types.Operator):
     bl_description = "Add 'hide_at_end' to stored appearance colortypes (True for DEMOLITION/REMOVAL/DISPOSAL/DISMANTLE), then rebuild animation"
     bl_options = {"REGISTER","UNDO"}
     def execute(self, context):
-        print("🚀 INICIANDO CORRECCIÓN INMEDIATA DE HIDE_AT_END")
+        print("🚀 STARTING IMMEDIATE FIX FOR HIDE_AT_END")
         print("="*60)
-        print("📝 PASO 1: Migrando perfiles existentes...")
+        print("📝 STEP 1: Migrating existing profiles...")
         data = _get_internal_colortype_sets(context) or {}
         total_colortypes = 0
         demo_types_found = set()
@@ -368,18 +388,18 @@ class BIM_OT_fix_colortype_hide_at_end_immediate(bpy.types.Operator):
             try:
                 context.scene["BIM_AnimationColorSchemesSets"] = json.dumps(data, ensure_ascii=False)
             except Exception as e:
-                print("⚠️ Failed to guardar JSON de perfiles:", e)
+                print("⚠️ Failed to save profiles JSON:", e)
         for nm in sorted(DEMO_KEYS):
-            print(f"  ✅ {nm}: {'OCULTARÁ' if nm in DEMO_KEYS else 'MOSTRARÁ'} objetos al final")
-        print("\n🔨 PASO 2: Configurando demolición...")
-        print("  ✅ DEMOLITION: Updated para ocultarse")
-        print("\n🔍 PASO 3: Verificando configuración...")
+            print(f"  ✅ {nm}: {'WILL HIDE' if nm in DEMO_KEYS else 'WILL SHOW'} objects at the end")
+        print("\n🔨 STEP 2: Configuring demolition...")
+        print("  ✅ DEMOLITION: Updated to hide")
+        print("\n🔍 STEP 3: Verifying configuration...")
         total, demo_count, missing = _verify_colortype_json_stats(context)
-        print("📊 RESUMEN:")
-        print(f"   Total de perfiles: {total}")
-        print(f"   Perfiles de demolición: {demo_count}")
-        print(f"   Faltan 'hide_at_end': {missing}")
-        print("\n🎬 PASO 4: Regenerando animación...")
+        print("📊 SUMMARY:")
+        print(f"   Total profiles: {total}")
+        print(f"   Demolition profiles: {demo_count}")
+        print(f"   Missing 'hide_at_end': {missing}")
+        print("\n🎬 STEP 4: Regenerating animation...")
         # Best-effort cleanup & regenerate with existing ops
         try:
             if hasattr(bpy.ops.bim, "clear_previous_animation"):
@@ -396,9 +416,9 @@ class BIM_OT_fix_colortype_hide_at_end_immediate(bpy.types.Operator):
                 bpy.ops.bim.create_animation()
         except Exception:
             pass
-        print("   ✅ Animación regenerada exitosamente (si la API lo permite)")
+        print("   ✅ Animation successfully regenerated (if the API allows it)")
         print("="*60)
-        self.report({'INFO'}, "✅ CORRECCIÓN APLICADA EXITOSAMENTE")
+        self.report({'INFO'}, "✅ FIX APPLIED SUCCESSFULLY")
         return {'FINISHED'}
 
 class RefreshSnapshotTexts(bpy.types.Operator):
@@ -450,7 +470,7 @@ class RefreshSnapshotTexts(bpy.types.Operator):
                 "total_frames": 1,
             }
 
-            # *** FIX: For snapshots, create static 3D texts WITHOUT animation handler ***
+            # *** For snapshots, create static 3D texts WITHOUT animation handler ***
             # This prevents the texts from animating when they should be fixed
             try:
                 print("📸 RefreshSnapshotTexts: Creating STATIC 3D texts for snapshot mode")

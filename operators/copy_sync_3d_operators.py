@@ -1,10 +1,27 @@
-# File: copy_sync_3d_operators.py
-# Description: Operators for copying 3D configurations, syncing elements, and creating snapshots.
+# Bonsai - OpenBIM Blender Add-on
+# Copyright (C) 2021, 2022 Dion Moult <dion@thinkmoult.com>, Yassine Oualid <yassine@sigmadimensions.com>, Federico Eraso <feraso@svisuals.net
+#
+# This file is part of Bonsai.
+#
+# Bonsai is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Bonsai is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Bonsai.  If not, see <http://www.gnu.org/licenses/>.
+
 
 import bpy
 import bonsai.tool as tool
 from .. import hud as hud_overlay
-from .schedule_task_operators import snapshot_all_ui_state, restore_all_ui_state, _save_3d_texts_state, _restore_3d_texts_state
+from .operator import snapshot_all_ui_state, restore_all_ui_state
+from .schedule_task_operators import _save_3d_texts_state, _restore_3d_texts_state
 from .animation_operators import _get_animation_settings, _compute_product_frames, _ensure_default_group
 
 # Helper function to get camera enums, now local to this file
@@ -227,7 +244,7 @@ class SnapshotWithcolortypes(tool.Ifc.Operator, bpy.types.Operator):
 class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
     bl_idname = "bim.snapshot_with_colortypes_fixed"
     bl_label = "Create Snapshot (Enhanced)"
-    bl_description = "Create snapshot with enhanced error handling and colortype management"
+    bl_description = "Create a snapshot of the current 4D state at a specific date with ColorType visualization. Shows objects as they appear at the selected date with proper colors and visibility."
     bl_options = {"REGISTER", "UNDO"}
 
     def _execute(self, context):
@@ -240,10 +257,11 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
         print("✅ DEBUG: is_snapshot_mode set to True")
         
         # NO registrar HUD handler en snapshots - debe ser estático
-        print("🎬 SNAPSHOT: No Timeline HUD registration (static mode)")
+        print("🎬 SNAPSHOT: No Timeline HUD registration (static mode)") # Do not register HUD handler in snapshots - it must be static
         
         try:
-            tool.Sequence.sync_active_group_to_json()
+            from bonsai.tool.sequence.color_management_sequence import sync_active_group_to_json
+            sync_active_group_to_json() # Sync colortypes for snapshot
         except Exception as e:
             print(f"Error syncing colortypes for snapshot: {e}")
 
@@ -276,15 +294,15 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
         tool.Sequence.show_snapshot(product_states)
         print("✅ DEBUG: show_snapshot completed")
         
-        # --- APLICAR VISIBILIDAD Y REFRESCAR TEXTOS 3D EXISTENTES ---
+        # --- APPLY VISIBILITY AND REFRESH EXISTING 3D TEXTS ---
         print("🔄 DEBUG: Updating 3D texts visibility and content...")
         try:
-            # Verificar el estado del checkbox y aplicar visibilidad
+            # Check the checkbox state and apply visibility
             anim_props = tool.Sequence.get_animation_props()
             camera_props = anim_props.camera_orbit
             should_hide = not getattr(camera_props, "show_3d_schedule_texts", False)
             
-            # Aplicar lógica de desactivación automática si 3D HUD Render está desactivado
+            # Apply auto-disable logic if 3D HUD Render is disabled
             if should_hide:
                 current_legend_enabled = getattr(camera_props, "enable_3d_legend_hud", False)
                 if current_legend_enabled:
@@ -297,7 +315,7 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
                 texts_collection.hide_render = should_hide
                 print(f"✅ DEBUG: 3D texts visibility updated (hidden: {should_hide})")
                 
-            # También aplicar a 3D Legend HUD collection
+            # Also apply to 3D Legend HUD collection
             legend_collection = bpy.data.collections.get("Schedule_Display_3D_Legend")
             if legend_collection:
                 legend_collection.hide_viewport = should_hide
@@ -338,4 +356,11 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
             bpy.ops.screen.animation_cancel(restore_frame=False)
 
         self.report({'INFO'}, f"Snapshot created for date {snapshot_date.strftime('%Y-%m-%d')}")
+
+        # Force UI redraw to update button states
+        for area in context.screen.areas:
+            if area.type in ['PROPERTIES', 'VIEW_3D']:
+                area.tag_redraw()
+
+        print("✅ DEBUG: UI redraw forced")
         return {'FINISHED'}

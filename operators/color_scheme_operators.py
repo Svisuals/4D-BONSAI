@@ -1,5 +1,21 @@
-# File: color_scheme_operators.py
-# Description: Operators for managing Animation Color Schemes (ColorTypes), groups, and task assignments.
+# Bonsai - OpenBIM Blender Add-on
+# Copyright (C) 2021, 2022 Dion Moult <dion@thinkmoult.com>, Yassine Oualid <yassine@sigmadimensions.com>, Federico Eraso <feraso@svisuals.net
+#
+# This file is part of Bonsai.
+#
+# Bonsai is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Bonsai is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Bonsai.  If not, see <http://www.gnu.org/licenses/>.
+
 
 import bpy
 import json
@@ -10,7 +26,7 @@ from bpy_extras.io_utils import ExportHelper, ImportHelper
 # Import helpers using absolute paths like v18
 from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager, safe_set_selected_colortype_in_active_group
 try:
-    from .schedule_task_operators import snapshot_all_ui_state
+    from .operator import snapshot_all_ui_state
 except ImportError:
     def snapshot_all_ui_state(*args, **kwargs): pass
 
@@ -87,20 +103,20 @@ class RemoveAnimationColorSchemes(bpy.types.Operator):
         if not (0 <= index < len(props.ColorTypes)):
             return {'CANCELLED'}
 
-        # Obtener el nombre del ColorType que se va a eliminar
+        # Get the name of the ColorType to be deleted
         removed_colortype_name = props.ColorTypes[index].name if hasattr(props.ColorTypes[index], 'name') else ""
         
         props.ColorTypes.remove(index)
         props.active_ColorType_index = max(0, index - 1)
         
-        # Auto-cleanup: limpiar referencias al ColorType eliminado
+        # Auto-cleanup: clear references to the removed ColorType
         if removed_colortype_name:
             try:
-                # Limpiar referencias en task selectors
+                # Clean up references in task selectors
                 tprops = tool.Sequence.get_task_tree_props()
                 cleaned = 0
                 for task in getattr(tprops, "tasks", []):
-                    # Limpiar enum property si apunta al colortype eliminado
+                    # Clear enum property if it points to the removed colortype
                     if hasattr(task, "selected_colortype_in_active_group"):
                         if getattr(task, "selected_colortype_in_active_group", "") == removed_colortype_name:
                             try:
@@ -109,7 +125,7 @@ class RemoveAnimationColorSchemes(bpy.types.Operator):
                             except Exception:
                                 pass
                     
-                    # Limpiar colortype_group_choices si tienen el colortype eliminado
+                    # Clear colortype_group_choices if they have the removed colortype
                     if hasattr(task, 'colortype_group_choices'):
                         for choice in task.colortype_group_choices:
                             if getattr(choice, 'selected_colortype', '') == removed_colortype_name:
@@ -130,6 +146,7 @@ class RemoveAnimationColorSchemes(bpy.types.Operator):
 class SaveAnimationColorSchemesSetInternal(bpy.types.Operator):
     bl_idname = "bim.save_animation_color_schemes_set_internal"
     bl_label = "Save Group (Internal)"
+    bl_description = "Save Group: Saves the current ColorType configuration as a new group that can be reused"
     bl_options = {"REGISTER", "UNDO"}
     name: bpy.props.StringProperty(name="Group Name", default="New Group")
 
@@ -160,20 +177,20 @@ class SaveAnimationColorSchemesSetInternal(bpy.types.Operator):
             
         props = tool.Sequence.get_animation_props()
         
-        # Serializar los ColorTypes actuales
+        # Serialize the current ColorTypes
         group_data = self._serialize(props)
         
-        # Guardar en el sistema interno
+        # Save to the internal system
         sets_dict = _get_internal_colortype_sets(context)
         sets_dict[self.name] = group_data
         _set_internal_colortype_sets(context, sets_dict)
         
-        # Sincronizar con UnifiedColorTypeManager
+        # Synchronize with UnifiedColorTypeManager
         try:
             upm_data = UnifiedColorTypeManager._read_sets_json(context)
             upm_data[self.name] = group_data
             UnifiedColorTypeManager._write_sets_json(context, upm_data)
-            print(f"🔄 Synchronized '{self.name}' with UnifiedColorTypeManager")
+            print(f"🔄 Synchronized '{self.name}' with UnifiedColorTypeManager") # Keep emoji for log consistency
         except Exception as e:
             print(f"⚠ Error synchronizing with UnifiedColorTypeManager: {e}")
         
@@ -197,6 +214,7 @@ class SaveAnimationColorSchemesSetInternal(bpy.types.Operator):
 class LoadAnimationColorSchemesSetInternal(bpy.types.Operator):
     bl_idname = "bim.load_animation_color_schemes_set_internal"
     bl_label = "Load Group (Internal)"
+    bl_description = "Load Group: Loads a previously saved ColorType group from the dropdown list"
     bl_options = {"REGISTER", "UNDO"}
     set_name: bpy.props.EnumProperty(name="Group", items=_colortype_set_items)
 
@@ -218,6 +236,7 @@ class LoadAnimationColorSchemesSetInternal(bpy.types.Operator):
 class RemoveAnimationColorSchemesSetInternal(bpy.types.Operator):
     bl_idname = "bim.remove_animation_color_schemes_set_internal"
     bl_label = "Remove Group (Internal)"
+    bl_description = "Remove Group: Deletes the currently selected ColorType group from the list"
     bl_options = {"REGISTER", "UNDO"}
     set_name: bpy.props.EnumProperty(name="Group", items=_removable_colortype_set_items)
 
@@ -228,11 +247,11 @@ class RemoveAnimationColorSchemesSetInternal(bpy.types.Operator):
         
         all_sets = _get_internal_colortype_sets(context)
         if self.set_name in all_sets:
-            # Eliminar el grupo
+            # Delete the group
             del all_sets[self.set_name]
             _set_internal_colortype_sets(context, all_sets)
-            
-            # Auto-cleanup: limpiar todas las referencias al grupo eliminado
+
+            # Auto-cleanup: clear all references to the deleted group
             cleaned_count = 0
             
             # 1. Limpiar BIMTasks colortype_mappings
@@ -247,7 +266,7 @@ class RemoveAnimationColorSchemesSetInternal(bpy.types.Operator):
                         cleaned_count += 1
                     i -= 1
             
-            # 2. Limpiar task colortype group selectors
+            # 2. Clean up task colortype group selectors
             try:
                 tprops = tool.Sequence.get_task_tree_props()
                 for task in getattr(tprops, "tasks", []):
@@ -264,7 +283,7 @@ class RemoveAnimationColorSchemesSetInternal(bpy.types.Operator):
             except Exception as e:
                 print(f"Warning: Task cleanup failed: {e}")
             
-            # 3. Limpiar animation group stack
+            # 3. Clean up animation group stack
             try:
                 anim_props = tool.Sequence.get_animation_props()
                 if hasattr(anim_props, 'animation_group_stack'):
@@ -282,7 +301,7 @@ class RemoveAnimationColorSchemesSetInternal(bpy.types.Operator):
                     if anim_props.animation_group_stack_index >= len(anim_props.animation_group_stack):
                         anim_props.animation_group_stack_index = max(0, len(anim_props.animation_group_stack) - 1)
                         
-                # If removed group was active, switch to DEFAULT
+                # If the removed group was active, switch to DEFAULT
                 if getattr(anim_props, "ColorType_groups", "") == self.set_name:
                     anim_props.ColorType_groups = "DEFAULT"
                     # Load DEFAULT group
@@ -307,6 +326,7 @@ class RemoveAnimationColorSchemesSetInternal(bpy.types.Operator):
 class ExportAnimationColorSchemesSetToFile(bpy.types.Operator, ExportHelper):
     bl_idname = "bim.export_animation_color_schemes_set_to_file"
     bl_label = "Export Color Scheme Group"
+    bl_description = "Export: Exports all ColorType groups to a .json file for backup or sharing"
     filename_ext = ".json"
     filter_glob: bpy.props.StringProperty(default="*.json", options={"HIDDEN"})
 
@@ -318,7 +338,7 @@ class ExportAnimationColorSchemesSetToFile(bpy.types.Operator, ExportHelper):
             if not active_group:
                 self.report({'ERROR'}, "No active group to export")
                 return {'CANCELLED'}
-            
+
             # Get group data
             sets_dict = _get_internal_colortype_sets(context)
             if active_group not in sets_dict:
@@ -326,7 +346,7 @@ class ExportAnimationColorSchemesSetToFile(bpy.types.Operator, ExportHelper):
                 return {'CANCELLED'}
             
             group_data = sets_dict[active_group]
-            
+
             # Export to file
             with open(self.filepath, 'w') as f:
                 json.dump({active_group: group_data}, f, indent=2)
@@ -341,12 +361,17 @@ class ExportAnimationColorSchemesSetToFile(bpy.types.Operator, ExportHelper):
 class ImportAnimationColorSchemesSetFromFile(bpy.types.Operator, ImportHelper):
     bl_idname = "bim.import_animation_color_schemes_set_from_file"
     bl_label = "Import Color Scheme Group"
+    bl_description = "Import: Imports ColorType groups from a .json file"
     filename_ext = ".json"
     filter_glob: bpy.props.StringProperty(default="*.json", options={"HIDDEN"})
     set_name: bpy.props.StringProperty(name="Group Name", default="Imported Group")
 
     def execute(self, context):
         try:
+            # Generate group name from filename
+            import os
+            self.set_name = os.path.splitext(os.path.basename(self.filepath))[0]
+
             # Load data from file
             with open(self.filepath, 'r') as f:
                 imported_data = json.load(f)
@@ -386,34 +411,34 @@ class ImportAnimationColorSchemesSetFromFile(bpy.types.Operator, ImportHelper):
             return {'CANCELLED'}
 
     def invoke(self, context, event):
-        import os
-        self.set_name = os.path.splitext(os.path.basename(self.filepath))[0]
-        return context.window_manager.invoke_props_dialog(self)
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 class CleanupTaskcolortypeMappings(bpy.types.Operator):
     bl_idname = "bim.cleanup_task_colortype_mappings"
     bl_label = "Cleanup Task Mappings"
+    bl_description = "Clean: Removes unused ColorType mappings and optimizes the configuration"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
         try:
-            # 1. Limpiar mapeos de tareas (función original)
+            # 1. Clean up task mappings (original function)
             from bonsai.bim.module.sequence.prop import cleanup_all_tasks_colortype_mappings
             cleanup_all_tasks_colortype_mappings(context)
 
-            # 2. NUEVO: Limpiar perfiles del canvas actual
+            # 2. NEW: Clean up profiles from the current canvas
             try:
                 anim_props = tool.Sequence.get_animation_props()
 
-                # Limpiar todos los perfiles de la colección actual
+                # Clear all profiles from the current collection
                 anim_props.ColorTypes.clear()
 
-                # Resetear el índice activo
+                # Reset the active index
                 anim_props.active_ColorType_index = 0
 
                 self.report({'INFO'}, "Task colortype mappings cleaned and colortype canvas cleared")
             except Exception as e:
-                # Si falla la limpieza del canvas, al menos reportar la limpieza de mapeos
+                # If canvas cleanup fails, at least report the mapping cleanup
                 self.report({'INFO'}, f"Task colortype mappings cleaned. Canvas clear failed: {e}")
 
             return {'FINISHED'}
@@ -425,7 +450,7 @@ class UpdateActivecolortypeGroup(bpy.types.Operator):
     """Saves any changes to the colortypes of the currently active group."""
     bl_idname = "bim.update_active_colortype_group"
     bl_label = "Update Active Group"
-    bl_description = "Saves any changes to the colortypes of the currently loaded group"
+    bl_description = "Update Group: Updates the currently selected group with the current ColorType configuration"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
@@ -436,13 +461,15 @@ class UpdateActivecolortypeGroup(bpy.types.Operator):
                 self.report({'WARNING'}, "No active colortype group to update.")
                 return {'CANCELLED'}
 
-            # Esta función ya existe y hace exactamente lo que necesitamos
-            tool.Sequence.sync_active_group_to_json()
+            # This function already exists and does exactly what we need
+            from bonsai.tool.sequence.color_management_sequence import sync_active_group_to_json
+            sync_active_group_to_json()
 
-            # NUEVO: Actualizar inmediatamente el dropdown de animation settings
+            # NEW: Immediately update the animation settings dropdown
             try:
                 if hasattr(anim_props, 'task_colortype_group_selector'):
                     # Forzar invalidación del enum cache
+                    # Force enum cache invalidation
                     from bpy.types import BIMAnimationProperties
                     if hasattr(BIMAnimationProperties, 'task_colortype_group_selector'):
                         prop_def = BIMAnimationProperties.task_colortype_group_selector[1]
@@ -493,17 +520,17 @@ class CopyTaskCustomcolortypeGroup(bpy.types.Operator, tool.Ifc.Operator):
 
     def _execute(self, context):
         # Verificar si la función existe, si no, implementar temporalmente
+        # Check if the function exists, if not, implement it temporarily
         if not hasattr(tool.Sequence, 'copy_task_colortype_config'):
-            # Implementación temporal directa en el operador
+            # Temporary implementation directly in the operator
             self._copy_task_colortype_config_temp(context)
             return
             
         tool.Sequence.copy_task_colortype_config()
         self.report({'INFO'}, "ColorType configuration copied to selected tasks.")
-    
     def _copy_task_colortype_config_temp(self, context):
         """
-        Implementación temporal de copia de ColorType hasta que se reinicie Blender.
+        Temporary implementation of ColorType copy until Blender is restarted.
         """
         try:
             # Get task tree properties
@@ -575,12 +602,12 @@ class DebugCopyFunction(bpy.types.Operator):
     def execute(self, context):
         import bonsai.tool as tool
         
-        # Verificar si la función existe
+        # Check if the function exists
         has_function = hasattr(tool.Sequence, 'copy_task_colortype_config')
         self.report({'INFO'}, f"Function exists: {has_function}")
         
         if has_function:
-            # Listar algunos métodos de la clase
+            # List some methods of the class
             methods = [attr for attr in dir(tool.Sequence) if not attr.startswith('_')]
             print("Available Sequence methods:")
             for method in methods[-10:]:  # Show last 10 methods
@@ -631,30 +658,31 @@ class ANIM_OT_group_stack_add(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        # --- INICIO DE LA CORRECCIÓN ---
-        # Primero, guardar cualquier cambio pendiente del editor de perfiles.
-        # Esto asegura que los grupos recién creados o los perfiles modificados
-        # estén en los datos JSON antes de intentar agregarlos al stack.
-        # Esto soluciona el bug donde un grupo nuevo se añadía vacío.
+    
+        # First, save any pending changes from the profile editor.
+        # This ensures that newly created groups or modified profiles
+        # are in the JSON data before attempting to add them to the stack.
+        # This fixes the bug where a new group was added empty.
         try:
-            tool.Sequence.sync_active_group_to_json()
+            from bonsai.tool.sequence.color_management_sequence import sync_active_group_to_json
+            sync_active_group_to_json()
         except Exception as e:
-            print(f"Bonsai WARNING: No se pudo sincronizar el grupo activo antes de agregarlo al stack: {e}")
-        # --- FIN DE LA CORRECCIÓN ---
+            print(f"Bonsai WARNING: Could not sync active group before adding to stack: {e}")
+        # --- END OF FIX ---
 
         props = tool.Sequence.get_animation_props()
         stack = props.animation_group_stack
 
-        # Candidatos: selector de Appearance, selector de tareas, y luego todos los grupos disponibles
+        # Candidates: Appearance selector, task selector, and then all available groups
         selected_colortype_group = getattr(props, "ColorType_groups", "") or ""
         selected_task_group = getattr(props, "task_colortype_group_selector", "") or ""
 
-        # Leer todos los grupos disponibles desde JSON (si falla, lista vacía)
+        # Read all available groups from JSON (empty list on failure)
         all_groups = []
         try:
             data = UnifiedColorTypeManager._read_sets_json(context) or {}
             all_groups = list(data.keys())
-            # Asegurar DEFAULT presente y primero
+            # Ensure DEFAULT is present and first
             if "DEFAULT" in all_groups:
                 all_groups.remove("DEFAULT")
             all_groups.insert(0, "DEFAULT")
@@ -662,21 +690,21 @@ class ANIM_OT_group_stack_add(bpy.types.Operator):
             print(f"[anim add] cannot read groups: {_e}")
             all_groups = ["DEFAULT"]
 
-        # Evitar duplicados con la pila actual
+        # Avoid duplicates with the current stack
         already = {getattr(it, "group", "") for it in stack}
 
-        # Construir lista de candidatos finales
+        # Build final candidate list
         candidates = []
         for g in [selected_colortype_group, selected_task_group]:
-            # Filtrar nombres inválidos
+            # Filter invalid names
             if g and g.strip() and g not in ["NONE", "None", "none", "", " "] and g not in candidates:
                 candidates.append(g)
         for g in all_groups:
-            # Filtrar nombres inválidos
+            # Filter invalid names
             if g and g.strip() and g not in ["NONE", "None", "none", "", " "] and g not in candidates and g not in already:
                 candidates.append(g)
 
-        # Elegir el primero disponible que no esté ya en la pila
+        # Choose the first available one that is not already in the stack
         group_to_add = None
         for g in candidates:
             if g and g not in already:
@@ -684,10 +712,10 @@ class ANIM_OT_group_stack_add(bpy.types.Operator):
                 break
 
         if not group_to_add:
-            self.report({'INFO'}, "No hay más grupos disponibles para agregar.")
+            self.report({'INFO'}, "No more available groups to add.")
             return {'CANCELLED'}
 
-        # Garantizar que el grupo exista en JSON (si es nuevo)
+        # Ensure the group exists in JSON (if it's new)
         try:
             data = UnifiedColorTypeManager._read_sets_json(context) or {}
             if group_to_add == "DEFAULT":
@@ -701,7 +729,7 @@ class ANIM_OT_group_stack_add(bpy.types.Operator):
         except Exception as _e:
             print(f"[anim add] ensure group failed: {_e}")
 
-        # Añadir y seleccionar
+        # Add and select
         it = stack.add()
         it.group = group_to_add
         try:
@@ -709,7 +737,7 @@ class ANIM_OT_group_stack_add(bpy.types.Operator):
         except Exception:
             pass
 
-        # Sincronizar con el panel de edición de colortypes
+        # Synchronize with the colortype editing panel
         try:
             props.ColorType_groups = group_to_add
         except Exception:
@@ -732,7 +760,7 @@ class ANIM_OT_group_stack_remove(bpy.types.Operator):
                 self.report({'WARNING'}, "DEFAULT cannot be removed.")
                 return {'CANCELLED'}
             props.animation_group_stack.remove(idx)
-            # Ajustar selección
+            # Adjust selection
             if idx > 0:
                 props.animation_group_stack_index = idx - 1
             else:
@@ -787,8 +815,8 @@ class BIM_OT_cleanup_colortype_groups(bpy.types.Operator):
             sets = {}
         valid_groups = set(sets.keys()) if isinstance(sets, dict) else set()
         cleaned_count = 0
-        
-        # 1. Limpiar colortype_mappings en BIMTasks
+
+        # 1. Clean up colortype_mappings in BIMTasks
         for ob in getattr(scn, "BIMTasks", []):
             coll = getattr(ob, "colortype_mappings", None) or []
             # remove invalid entries safely
@@ -809,8 +837,8 @@ class BIM_OT_cleanup_colortype_groups(bpy.types.Operator):
                         except Exception:
                             pass
                 i -= 1
-        
-        # 2. Limpiar task colortype group selectors
+
+        # 2. Clean up task colortype group selectors
         try:
             tprops = tool.Sequence.get_task_tree_props()
             for task in getattr(tprops, "tasks", []):
@@ -833,7 +861,7 @@ class BIM_OT_cleanup_colortype_groups(bpy.types.Operator):
                     for offset, idx in enumerate(to_remove):
                         task.colortype_group_choices.remove(idx - offset)
                         
-                # Clear enum property if pointing to invalid colortype
+                # Clear enum property if pointing to an invalid colortype
                 if hasattr(task, "selected_colortype_in_active_group"):
                     current = getattr(task, "selected_colortype_in_active_group", "")
                     if current:
@@ -851,8 +879,8 @@ class BIM_OT_cleanup_colortype_groups(bpy.types.Operator):
                                     pass
         except Exception as e:
             print(f"Warning: Task properties cleanup failed: {e}")
-        
-        # 3. Limpiar animation group stack
+
+        # 3. Clean up animation group stack
         try:
             anim_props = tool.Sequence.get_animation_props()
             if hasattr(anim_props, 'animation_group_stack'):

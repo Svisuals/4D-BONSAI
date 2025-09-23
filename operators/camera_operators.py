@@ -1,5 +1,21 @@
-# File: camera_operators.py
-# Description: All camera-related operators for the add-on.
+# Bonsai - OpenBIM Blender Add-on
+# Copyright (C) 2021, 2022 Dion Moult <dion@thinkmoult.com>, Yassine Oualid <yassine@sigmadimensions.com>, Federico Eraso <feraso@svisuals.net
+#
+# This file is part of Bonsai.
+#
+# Bonsai is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Bonsai is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Bonsai.  If not, see <http://www.gnu.org/licenses/>.
+
 
 import bpy
 import bonsai.tool as tool
@@ -42,7 +58,7 @@ def _is_snapshot_camera_simple(obj):
     return False
 
 def _get_animation_cameras(self, context):
-    """Callback que retorna SOLO las cámaras de Animación."""
+    """Callback that returns ONLY the Animation cameras."""
     print("🔥 _get_animation_cameras called")
     items = []
     total_cameras = 0
@@ -75,7 +91,7 @@ def _get_animation_cameras(self, context):
     return items
 
 def _get_snapshot_cameras(self, context):
-    """Callback que retorna SOLO las cámaras de Snapshot."""
+    """Callback that returns ONLY the Snapshot cameras."""
     print("🔥 _get_snapshot_cameras called")
     items = []
     total_cameras = 0
@@ -162,7 +178,7 @@ class RefreshCameraSelectors(bpy.types.Operator):
             return {'CANCELLED'}
 
 
-class ForceCameraPropertyUpdate(bpy.types.Operator):
+class ForceCameraPropertyUpdate(bpy.types.Operator): # type: ignore
     bl_idname = "bim.force_camera_property_update"
     bl_label = "FORCE: Update Camera Properties"
     bl_description = "Force complete update of camera selector properties"
@@ -225,7 +241,7 @@ class ForceCameraPropertyUpdate(bpy.types.Operator):
             return {'CANCELLED'}
 
 
-class SetActiveAnimationCamera(bpy.types.Operator):
+class SetActiveAnimationCamera(bpy.types.Operator): # type: ignore
     bl_idname = "bim.set_active_animation_camera"
     bl_label = "Set Active Animation Camera"
     bl_description = "Manually set the active animation camera"
@@ -267,7 +283,7 @@ class SetActiveAnimationCamera(bpy.types.Operator):
             return {'CANCELLED'}
 
 
-class SetActiveSnapshotCamera(bpy.types.Operator):
+class SetActiveSnapshotCamera(bpy.types.Operator): # type: ignore
     bl_idname = "bim.set_active_snapshot_camera"
     bl_label = "Set Active Snapshot Camera"
     bl_description = "Manually set the active snapshot camera"
@@ -309,7 +325,7 @@ class SetActiveSnapshotCamera(bpy.types.Operator):
             return {'CANCELLED'}
 
 
-class TestCameraDetection(bpy.types.Operator):
+class TestCameraDetection(bpy.types.Operator): # type: ignore
     bl_idname = "bim.test_camera_detection"
     bl_label = "TEST: Camera Detection"
     bl_description = "Quick test to see what cameras are detected right now"
@@ -323,7 +339,7 @@ class TestCameraDetection(bpy.types.Operator):
         animation_found = 0
         snapshot_found = 0
 
-        for obj in bpy.data.objects:
+        for obj in bpy.data.objects: # type: ignore
             if obj.type == 'CAMERA':
                 total_cameras += 1
                 name = obj.name
@@ -344,7 +360,7 @@ class TestCameraDetection(bpy.types.Operator):
 
         print(f"\n📊 RESULT: {total_cameras} total, {animation_found} animation, {snapshot_found} snapshot")
 
-        # Test callbacks directamente
+        # Test callbacks directly
         print(f"\n🔧 TESTING CALLBACKS:")
         try:
             anim_items = _get_animation_cameras(self, context)
@@ -358,7 +374,7 @@ class TestCameraDetection(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class DebugListAllCameras(bpy.types.Operator):
+class DebugListAllCameras(bpy.types.Operator): # type: ignore
     bl_idname = "bim.debug_list_all_cameras"
     bl_label = "Debug: List All Cameras"
     bl_description = "List all cameras with their properties for debugging"
@@ -377,7 +393,7 @@ class DebugListAllCameras(bpy.types.Operator):
             snapshot_cameras = 0
             other_cameras = 0
 
-            for obj in bpy.data.objects:
+            for obj in bpy.data.objects: # type: ignore
                 if obj.type == 'CAMERA':
                     total_cameras += 1
 
@@ -444,7 +460,7 @@ class DebugListAllCameras(bpy.types.Operator):
 # --- OPERATORS ---
 
 class ResetCameraSettings(bpy.types.Operator):
-    bl_idname = "bim.reset_camera_settings"
+    bl_idname = "bim.reset_camera_settings" # type: ignore
     bl_label = "Reset Camera Settings"
     bl_description = "Reset camera and orbit settings to their default values (HUD and UI settings are preserved)"
     bl_options = {"REGISTER", "UNDO"}
@@ -454,24 +470,24 @@ class ResetCameraSettings(bpy.types.Operator):
             anim_props = tool.Sequence.get_animation_props()
             camera_props = anim_props.camera_orbit
 
-            # --- Resetear todas las propiedades a sus valores por defecto ---
+            # --- Reset all properties to their default values ---
 
-            # Propiedades de la Cámara
+            # Camera Properties
             camera_props.camera_focal_mm = 35.0
             camera_props.camera_clip_start = 0.1
             camera_props.camera_clip_end = 10000.0
 
-            # Propiedades de la Órbita
+            # Orbit Properties
             camera_props.orbit_mode = "CIRCLE_360"
             camera_props.orbit_radius_mode = "AUTO"
             camera_props.orbit_radius = 10.0
             camera_props.orbit_height = 8.0
             camera_props.orbit_start_angle_deg = 0.0
             camera_props.orbit_direction = "CCW"
-
-            # Propiedades del Objetivo (Look At)
+            
+            # Look At Properties
             camera_props.look_at_mode = "AUTO"
-            camera_props.look_at_object = None # Limpiar cualquier objeto seleccionado
+            camera_props.look_at_object = None # Clear any selected object
 
             # Propiedades de la Trayectoria y la Animación
             camera_props.orbit_path_shape = "CIRCLE"
@@ -491,7 +507,7 @@ class ResetCameraSettings(bpy.types.Operator):
             return {'CANCELLED'}
 
 
-class Align4DCameraToView(bpy.types.Operator):
+class Align4DCameraToView(bpy.types.Operator): # type: ignore
     bl_idname = "bim.align_4d_camera_to_view"
     bl_label = "Align Active Camera to View"
     bl_description = "Aligns the active 4D camera to the current 3D view and sets it to static"
@@ -545,8 +561,9 @@ class Align4DCameraToView(bpy.types.Operator):
             return {'CANCELLED'}
 
 # --- OPERADOR DE BORRADO DE CÁMARA DE ANIMACIÓN (NUEVO) ---
-class DeleteAnimationCamera(bpy.types.Operator):
-    """Elimina una cámara de Animación 4D y sus objetos asociados."""
+ # --- ANIMATION CAMERA DELETION OPERATOR (NEW) ---
+class DeleteAnimationCamera(bpy.types.Operator): # type: ignore
+    """Deletes a 4D Animation camera and its associated objects."""
     bl_idname = "bim.delete_animation_camera"
     bl_label = "Delete an Animation Camera"
     bl_options = {'REGISTER', 'UNDO'}
@@ -568,7 +585,7 @@ class DeleteAnimationCamera(bpy.types.Operator):
             self.report({'ERROR'}, f"Camera '{cam_name}' not found.")
             return {'CANCELLED'}
 
-        # Objetos asociados a la cámara de animación
+        # Objects associated with the animation camera
         path_name = f"4D_OrbitPath_for_{cam_name}"
         target_name = f"4D_OrbitTarget_for_{cam_name}"
         objects_to_remove = [cam_obj]
@@ -584,8 +601,8 @@ class DeleteAnimationCamera(bpy.types.Operator):
         return context.window_manager.invoke_props_dialog(self)
 
 
-# --- OPERADOR DE BORRADO DE CÁMARA DE SNAPSHOT (NUEVO) ---
-class DeleteSnapshotCamera(bpy.types.Operator):
+# --- SNAPSHOT CAMERA DELETION OPERATOR (NEW) ---
+class DeleteSnapshotCamera(bpy.types.Operator): # type: ignore
     """Elimina una cámara de Snapshot y sus objetos asociados."""
     bl_idname = "bim.delete_snapshot_camera"
     bl_label = "Delete a Snapshot Camera"
@@ -608,7 +625,7 @@ class DeleteSnapshotCamera(bpy.types.Operator):
             self.report({'ERROR'}, f"Camera '{cam_name}' not found.")
             return {'CANCELLED'}
 
-        # Objetos asociados a la cámara de snapshot
+        # Objects associated with the snapshot camera
         target_name = "Snapshot_Target"
         objects_to_remove = [cam_obj]
         if bpy.data.objects.get(target_name): objects_to_remove.append(bpy.data.objects[target_name])
@@ -622,8 +639,8 @@ class DeleteSnapshotCamera(bpy.types.Operator):
         return context.window_manager.invoke_props_dialog(self)
 
 
-# ... (el resto de los operadores de cámara como AddSnapshotCamera y AddAnimationCamera no cambian) ...
-class AddSnapshotCamera(bpy.types.Operator):
+# ... (the rest of the camera operators like AddSnapshotCamera and AddAnimationCamera do not change) ...
+class AddSnapshotCamera(bpy.types.Operator): # type: ignore
     bl_idname = "bim.add_snapshot_camera"
     bl_label = "Add Snapshot Camera"
     bl_description = "Create a new static camera positioned for snapshot viewing"
@@ -687,7 +704,7 @@ class AddSnapshotCamera(bpy.types.Operator):
             return {'CANCELLED'}
 
 class AlignSnapshotCameraToView(bpy.types.Operator):
-    bl_idname = "bim.align_snapshot_camera_to_view"
+    bl_idname = "bim.align_snapshot_camera_to_view" # type: ignore
     bl_label = "Align Snapshot Camera to View"
     bl_description = "Align the snapshot camera to match the current 3D viewport view"
     bl_options = {'REGISTER', 'UNDO'}
@@ -701,10 +718,10 @@ class AlignSnapshotCameraToView(bpy.types.Operator):
         try:
             tool.Sequence.align_snapshot_camera_to_view()
 
-            # *** CREAR EMPTY 3D HUD RENDER Y 3D TEXTS PARA SNAPSHOT ***
+            # *** CREATE EMPTY 3D HUD RENDER AND 3D TEXTS FOR SNAPSHOT ***
             print("📊 Creating/updating 3D HUD components for snapshot camera...")
             try:
-                # Crear Empty parent si no existe
+                # Create Empty parent if it doesn't exist
                 parent_name = "Schedule_Display_Parent"
                 parent_empty = bpy.data.objects.get(parent_name)
                 if not parent_empty:
@@ -716,14 +733,14 @@ class AlignSnapshotCameraToView(bpy.types.Operator):
                 else:
                     print(f"✅ Schedule_Display_Parent already exists")
 
-                # Crear 3D Legend HUD si está habilitado
+                # Create 3D Legend HUD if enabled
                 anim_props = tool.Sequence.get_animation_props()
                 camera_props = anim_props.camera_orbit
                 legend_hud_enabled = getattr(camera_props, "enable_3d_legend_hud", False)
                 show_3d_texts = getattr(camera_props, "show_3d_schedule_texts", False)
 
                 legend_hud_exists = any(obj.get("is_3d_legend_hud", False) for obj in bpy.data.objects)
-                if not legend_hud_exists and legend_hud_enabled:
+                if not legend_hud_exists and legend_hud_enabled: # type: ignore
                     bpy.ops.bim.setup_3d_legend_hud()
                     print("✅ 3D Legend HUD created")
 
@@ -732,7 +749,7 @@ class AlignSnapshotCameraToView(bpy.types.Operator):
                 if not texts_collection or len(texts_collection.objects) == 0:
                     print("📝 Creating 3D texts for snapshot...")
 
-                    # Obtener datos del schedule
+                    # Get schedule data
                     ws_props = tool.Sequence.get_work_schedule_props()
                     active_schedule_id = getattr(ws_props, "active_work_schedule_id", None)
 
@@ -758,7 +775,7 @@ class AlignSnapshotCameraToView(bpy.types.Operator):
                         tool.Sequence.create_text_objects_static(snapshot_settings)
                         print("✅ 3D texts created")
 
-                        # *** APLICAR VISIBILIDAD SEGÚN CHECKBOX ***
+                        # *** APPLY VISIBILITY ACCORDING TO CHECKBOX ***
                         should_hide = not getattr(camera_props, "show_3d_schedule_texts", False)
                         texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
                         if texts_collection:
@@ -766,7 +783,7 @@ class AlignSnapshotCameraToView(bpy.types.Operator):
                             texts_collection.hide_render = should_hide
                             print(f"✅ 3D texts visibility set (hidden: {should_hide})")
 
-                        # *** ORGANIZAR Y ALINEAR LOS TEXTOS 3D ***
+                        # *** ORGANIZE AND ALIGN 3D TEXTS ***
                         try:
                             bpy.ops.bim.arrange_schedule_texts()
                             print("✅ 3D texts arranged and aligned")
@@ -788,13 +805,24 @@ class AlignSnapshotCameraToView(bpy.types.Operator):
             return {'CANCELLED'}
 
 class AddAnimationCamera(bpy.types.Operator):
-    bl_idname = "bim.add_animation_camera"
+    bl_idname = "bim.add_animation_camera" # type: ignore
     bl_label = "Add Animation Camera"
     bl_description = "Create a new camera for Animation Settings with orbital animation"
     bl_options = {"REGISTER", "UNDO"}
     def execute(self, context):
         try:
             cam_obj = tool.Sequence.add_animation_camera()
+
+            # Validate that camera was created successfully
+            if not cam_obj:
+                self.report({'ERROR'}, "Failed to create animation camera: Camera object is None")
+                return {'CANCELLED'}
+
+            # Validate that camera object has required attributes
+            if not hasattr(cam_obj, 'select_set'):
+                self.report({'ERROR'}, f"Camera object is invalid: {type(cam_obj)}")
+                return {'CANCELLED'}
+
             bpy.ops.object.select_all(action='DESELECT')
             cam_obj.select_set(True)
             context.view_layer.objects.active = cam_obj
@@ -812,6 +840,129 @@ class AddAnimationCamera(bpy.types.Operator):
 
             self.report({'INFO'}, f"Animation camera '{cam_obj.name}' created and set as active")
             return {'FINISHED'}
+        except AttributeError as e:
+            if "'NoneType' object has no attribute 'select_set'" in str(e):
+                self.report({'ERROR'}, "Failed to create animation camera: Camera creation returned None. Check that you have an active work schedule with tasks.")
+            else:
+                self.report({'ERROR'}, f"Failed to create animation camera: {str(e)}")
+            return {'CANCELLED'}
         except Exception as e:
             self.report({'ERROR'}, f"Failed to create animation camera: {str(e)}")
+            return {'CANCELLED'}
+
+
+class UpdateCameraOnly(bpy.types.Operator): # type: ignore
+    bl_idname = "bim.update_camera_only"
+    bl_label = "Update Camera"
+    bl_description = "Update selected camera with current panel settings (no animation creation)"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        try:
+            print(f"🔄 UPDATE CAMERA ONLY: Updating camera without creating animation...")
+
+            import bonsai.tool as tool
+            anim_props = tool.Sequence.get_animation_props()
+            camera_props = anim_props.camera_orbit
+
+            # Get selected 4D camera
+            selected_camera_name = getattr(camera_props, 'active_animation_camera', 'NONE')
+
+            if selected_camera_name == 'NONE':
+                self.report({'WARNING'}, "No 4D camera selected in selector")
+                return {'CANCELLED'}
+
+            # Ensure we have a string name
+            if hasattr(selected_camera_name, 'name'):
+                selected_camera_name = selected_camera_name.name
+            elif not isinstance(selected_camera_name, str):
+                selected_camera_name = str(selected_camera_name)
+
+            # Find the selected camera object
+            if selected_camera_name not in bpy.data.objects:
+                self.report({'ERROR'}, f"Selected camera '{selected_camera_name}' not found")
+                return {'CANCELLED'}
+
+            selected_camera = bpy.data.objects[selected_camera_name]
+            print(f"📹 UPDATE ONLY: Updating camera '{selected_camera_name}' with panel settings...")
+
+            try:
+                # 1. Save panel values to camera (same as Update Animation)
+                print(f"💾 SAVING panel values to camera '{selected_camera_name}'...")
+                selected_camera['orbit_mode'] = camera_props.orbit_mode
+                selected_camera['orbit_radius'] = camera_props.orbit_radius
+                selected_camera['orbit_height'] = camera_props.orbit_height
+                selected_camera['orbit_start_angle_deg'] = camera_props.orbit_start_angle_deg
+                selected_camera['orbit_direction'] = camera_props.orbit_direction
+                selected_camera['orbit_radius_mode'] = camera_props.orbit_radius_mode
+                selected_camera['orbit_path_shape'] = camera_props.orbit_path_shape
+                selected_camera['orbit_path_method'] = camera_props.orbit_path_method
+                selected_camera['interpolation_mode'] = camera_props.interpolation_mode
+
+                print(f"✅ SAVED: height={camera_props.orbit_height}, angle={camera_props.orbit_start_angle_deg}, direction={camera_props.orbit_direction}")
+
+                # 2. Update basic camera properties
+                if hasattr(selected_camera, 'data') and selected_camera.data:
+                    selected_camera.data.lens = camera_props.camera_focal_mm
+                    selected_camera.data.clip_start = camera_props.camera_clip_start
+                    selected_camera.data.clip_end = camera_props.camera_clip_end
+                    print(f"✅ Updated camera data: focal={camera_props.camera_focal_mm}mm")
+
+                # 3. Update camera using same logic as Update Animation (but no animation creation)
+                tool.Sequence.update_animation_camera(selected_camera)
+                print(f"✅ Camera '{selected_camera_name}' updated with new orbit configuration")
+
+            except Exception as e:
+                print(f"❌ Camera update failed: {e}")
+                self.report({'ERROR'}, f"Camera update failed: {e}")
+                return {'CANCELLED'}
+
+            # Force UI refresh
+            for area in context.screen.areas:
+                area.tag_redraw()
+
+            self.report({'INFO'}, f"Camera '{selected_camera_name}' updated successfully")
+            return {'FINISHED'}
+
+        except Exception as e:
+            self.report({'ERROR'}, f"Update failed: {e}")
+            print(f"❌ Update error: {e}")
+            return {'CANCELLED'}
+
+
+class AddCameraByMode(bpy.types.Operator): # type: ignore
+    bl_idname = "bim.add_camera_by_mode"
+    bl_label = "Add Camera"
+    bl_description = "Add camera based on selected orbit mode"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        try:
+            animation_props = tool.Sequence.get_animation_props()
+            camera_props = animation_props.camera_orbit
+            orbit_mode = camera_props.orbit_mode
+
+            print(f"🎬 Adding camera for orbit mode: {orbit_mode}")
+
+            if orbit_mode in ['NONE']:
+                # Create 4D Camera Static (animation camera with NONE mode)
+                bpy.ops.bim.add_animation_camera()
+                self.report({'INFO'}, "4D Camera Static created")
+                print("📸 Created 4D Camera Static")
+
+            elif orbit_mode in ['CIRCLE_360', 'PINGPONG']:
+                # Create animation camera
+                bpy.ops.bim.add_animation_camera()
+                self.report({'INFO'}, "4D Camera Animation created")
+                print("🎥 Created 4D Camera Animation")
+
+            else:
+                self.report({'WARNING'}, f"Unknown orbit mode: {orbit_mode}")
+                print(f"⚠️ Unknown orbit mode: {orbit_mode}")
+
+            return {'FINISHED'}
+
+        except Exception as e:
+            self.report({'ERROR'}, f"Failed to add camera: {e}")
+            print(f"❌ Add camera error: {e}")
             return {'CANCELLED'}
