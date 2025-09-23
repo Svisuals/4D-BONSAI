@@ -23,6 +23,7 @@ from datetime import datetime
 import ifcopenshell
 import ifcopenshell.util.date
 from .props_sequence import PropsSequence
+import bonsai.tool as tool
 
 class DateUtilsSequence:
     """Mixin class for date and time utility functions."""
@@ -108,7 +109,7 @@ class DateUtilsSequence:
         """Devuelve la fecha de inicio configurada (visualisation_start) o None.
         Parseo robusto: ISO-8601 primero (YYYY-MM-DD), luego dateutil con yearfirst=True.
         """
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         s = getattr(props, "visualisation_start", None)
         if not s or s == "-":
             return None
@@ -145,7 +146,7 @@ class DateUtilsSequence:
         """Devuelve la fecha de fin configurada (visualisation_finish) o None.
         Parseo robusto: ISO-8601 primero, luego dateutil con yearfirst=True.
         """
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         s = getattr(props, "visualisation_finish", None)
         if not s or s == "-":
             return None
@@ -196,7 +197,7 @@ class DateUtilsSequence:
             # TEMPORARILY DISABLED: Cache optimization to prevent infinite loops
             # NEW: Use cache-optimized date retrieval
             # work_schedule_id = work_schedule.id()
-            # props = cls.get_work_schedule_props()
+            # props = tool.Sequence.get_work_schedule_props()
             # date_source = getattr(props, "date_source_type", "SCHEDULE")
             # 
             # cached_dates = SequenceCache.get_schedule_dates(work_schedule_id, date_source)
@@ -262,7 +263,7 @@ class DateUtilsSequence:
         if not all_schedule_tasks:
             return None
 
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         date_source = getattr(props, "date_source_type", "SCHEDULE")
         start_attr = f"{date_source.capitalize()}Start"
         finish_attr = f"{date_source.capitalize()}Finish"
@@ -304,7 +305,7 @@ class DateUtilsSequence:
         tuple: (viz_start: datetime, viz_finish: datetime) or (None, None) if not configured
         """
         try:
-            props = cls.get_work_schedule_props()
+            props = tool.Sequence.get_work_schedule_props()
             viz_start = cls.get_start_date()  # This function already exists
             viz_finish = cls.get_finish_date()  # This function already exists
 

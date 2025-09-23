@@ -20,6 +20,7 @@
 from __future__ import annotations
 import bpy
 from typing import TYPE_CHECKING
+import bonsai.tool as tool
 
 if TYPE_CHECKING:
     from bonsai.bim.module.sequence.prop import (

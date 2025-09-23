@@ -20,11 +20,6 @@
 import bpy
 import bonsai.tool as tool
 
-# --- Helpers ---
-
-import bpy
-import bonsai.tool as tool
-
 # --- HELPER FUNCTIONS ---
 
 def _is_animation_camera_simple(obj):

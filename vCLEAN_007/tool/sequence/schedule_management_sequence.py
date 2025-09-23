@@ -51,7 +51,7 @@ class ScheduleManagementSequence:
                 return True
             return False
 
-        props = cls.get_work_plan_props()
+        props = tool.Sequence.get_work_plan_props()
         return bonsai.bim.helper.export_attributes(props.work_plan_attributes, callback)
 
     @classmethod
@@ -62,26 +62,26 @@ class ScheduleManagementSequence:
                 prop.string_value = "" if prop.is_null else data[name]
                 return True
 
-        props = cls.get_work_plan_props()
+        props = tool.Sequence.get_work_plan_props()
         props.work_plan_attributes.clear()
         bonsai.bim.helper.import_attributes(work_plan, props.work_plan_attributes, callback)
 
     @classmethod
     def enable_editing_work_plan(cls, work_plan: Union[ifcopenshell.entity_instance, None]) -> None:
         if work_plan:
-            props = cls.get_work_plan_props()
+            props = tool.Sequence.get_work_plan_props()
             props.active_work_plan_id = work_plan.id()
             props.editing_type = "ATTRIBUTES"
 
     @classmethod
     def disable_editing_work_plan(cls) -> None:
-        props = cls.get_work_plan_props()
+        props = tool.Sequence.get_work_plan_props()
         props.active_work_plan_id = 0
 
     @classmethod
     def enable_editing_work_plan_schedules(cls, work_plan: Union[ifcopenshell.entity_instance, None]) -> None:
         if work_plan:
-            props = cls.get_work_plan_props()
+            props = tool.Sequence.get_work_plan_props()
             props.active_work_plan_id = work_plan.id()
             props.editing_type = "SCHEDULES"
 
@@ -100,7 +100,7 @@ class ScheduleManagementSequence:
                 return cls.export_duration_prop(prop, attributes)
             return False
 
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         return bonsai.bim.helper.export_attributes(props.work_schedule_attributes, callback)
 
     @classmethod
@@ -121,7 +121,7 @@ class ScheduleManagementSequence:
                 assert prop
                 cls.add_duration_prop(prop, data[name])
 
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.work_schedule_attributes.clear()
         bonsai.bim.helper.import_attributes(work_schedule, props.work_schedule_attributes, callback)
 
@@ -314,30 +314,30 @@ class ScheduleManagementSequence:
 
     @classmethod
     def enable_editing_work_schedule(cls, work_schedule: ifcopenshell.entity_instance) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.active_work_schedule_id = work_schedule.id()
         props.editing_type = "WORK_SCHEDULE"
 
     @classmethod
     def disable_editing_work_schedule(cls) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.active_work_schedule_id = 0
 
     @classmethod
     def enable_editing_work_schedule_tasks(cls, work_schedule: Union[ifcopenshell.entity_instance, None]) -> None:
         if work_schedule:
-            props = cls.get_work_schedule_props()
+            props = tool.Sequence.get_work_schedule_props()
             props.active_work_schedule_id = work_schedule.id()
             props.editing_type = "TASKS"
 
     @classmethod
     def get_active_work_schedule(cls) -> Union[ifcopenshell.entity_instance, None]:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         if not props.active_work_schedule_id:
             return None
         return tool.Ifc.get().by_id(props.active_work_schedule_id)
 
     @classmethod
     def disable_work_schedule(cls) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.active_work_schedule_id = 0

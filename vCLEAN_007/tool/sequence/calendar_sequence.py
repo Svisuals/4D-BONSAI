@@ -31,40 +31,40 @@ class CalendarSequence:
 
     @classmethod
     def get_active_work_time(cls) -> ifcopenshell.entity_instance:
-        props = cls.get_work_calendar_props()
+        props = tool.Sequence.get_work_calendar_props()
         return tool.Ifc.get().by_id(props.active_work_time_id)
 
     @classmethod
     def enable_editing_work_calendar_times(cls, work_calendar: ifcopenshell.entity_instance) -> None:
-        props = cls.get_work_calendar_props()
+        props = tool.Sequence.get_work_calendar_props()
         props.active_work_calendar_id = work_calendar.id()
         props.editing_type = "WORKTIMES"
 
     @classmethod
     def load_work_calendar_attributes(cls, work_calendar: ifcopenshell.entity_instance) -> dict[str, Any]:
-        props = cls.get_work_calendar_props()
+        props = tool.Sequence.get_work_calendar_props()
         props.work_calendar_attributes.clear()
         return bonsai.bim.helper.import_attributes(work_calendar, props.work_calendar_attributes)
 
     @classmethod
     def enable_editing_work_calendar(cls, work_calendar: ifcopenshell.entity_instance) -> None:
-        props = cls.get_work_calendar_props()
+        props = tool.Sequence.get_work_calendar_props()
         props.active_work_calendar_id = work_calendar.id()
         props.editing_type = "ATTRIBUTES"
 
     @classmethod
     def disable_editing_work_calendar(cls) -> None:
-        props = cls.get_work_calendar_props()
+        props = tool.Sequence.get_work_calendar_props()
         props.active_work_calendar_id = 0
 
     @classmethod
     def get_work_calendar_attributes(cls) -> dict[str, Any]:
-        props = cls.get_work_calendar_props()
+        props = tool.Sequence.get_work_calendar_props()
         return bonsai.bim.helper.export_attributes(props.work_calendar_attributes)
 
     @classmethod
     def load_work_time_attributes(cls, work_time: ifcopenshell.entity_instance) -> None:
-        props = cls.get_work_calendar_props()
+        props = tool.Sequence.get_work_calendar_props()
         props.work_time_attributes.clear()
 
         bonsai.bim.helper.import_attributes(work_time, props.work_time_attributes)
@@ -110,7 +110,7 @@ class CalendarSequence:
             for component in recurrence_pattern.MonthComponent or []:
                 props.month_components[component - 1].is_specified = True
 
-        props = cls.get_work_calendar_props()
+        props = tool.Sequence.get_work_calendar_props()
         initialise_recurrence_components(props)
         load_recurrence_pattern_data(work_time, props)
         props.active_work_time_id = work_time.id()
@@ -129,12 +129,12 @@ class CalendarSequence:
             return True
         return False
 
-        props = cls.get_work_calendar_props()
+        props = tool.Sequence.get_work_calendar_props()
         return bonsai.bim.helper.export_attributes(props.work_time_attributes, callback)
 
     @classmethod
     def get_recurrence_pattern_attributes(cls, recurrence_pattern):
-        props = cls.get_work_calendar_props()
+        props = tool.Sequence.get_work_calendar_props()
         attributes = {
             "Interval": props.interval if props.interval > 0 else None,
             "Occurrences": props.occurrences if props.occurrences > 0 else None,
@@ -161,13 +161,13 @@ class CalendarSequence:
 
     @classmethod
     def disable_editing_work_time(cls) -> None:
-        props = cls.get_work_calendar_props()
+        props = tool.Sequence.get_work_calendar_props()
         props.active_work_time_id = 0
 
 
     @classmethod
     def get_recurrence_pattern_times(cls) -> Union[tuple[datetime, datetime], None]:
-        props = cls.get_work_calendar_props()
+        props = tool.Sequence.get_work_calendar_props()
         try:
             start_time = parser.parse(props.start_time)
             end_time = parser.parse(props.end_time)
@@ -177,13 +177,13 @@ class CalendarSequence:
     
     @classmethod
     def reset_time_period(cls) -> None:
-        props = cls.get_work_calendar_props()
+        props = tool.Sequence.get_work_calendar_props()
         props.start_time = ""
         props.end_time = ""
 
     @classmethod
     def disable_editing_task_time(cls) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.active_task_id = 0
         props.active_task_time_id = 0
 

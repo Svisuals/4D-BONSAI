@@ -23,6 +23,7 @@ import json
 from typing import Optional
 import ifcopenshell
 from .props_sequence import PropsSequence
+import bonsai.tool as tool
 
 # Asumimos que UnifiedColorTypeManager estará en el módulo prop
 try:
@@ -307,7 +308,7 @@ class ColorManagementSequence:
             "USERDEFINED": {"PredefinedType": ["USERDEFINED", "NOTDEFINED"], "Color": (0.2, 0.2, 0.2)},
         }
 
-        props = cls.get_animation_props()
+        props = tool.Sequence.get_animation_props()
         props.task_output_colors.clear()
         props.task_input_colors.clear()
 

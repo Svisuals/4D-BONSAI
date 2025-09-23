@@ -38,9 +38,9 @@ try:
     from .ui import calculate_visible_columns_count
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop import update_filter_column
-        import bonsai.bim.module.sequence.prop as prop
-        from bonsai.bim.module.sequence.ui import calculate_visible_columns_count
+        from ..prop.filter import update_filter_column
+        from .. import prop
+        from ..ui.schedule_ui import calculate_visible_columns_count
     except Exception:
         def update_filter_column(*args, **kwargs):
             pass

@@ -19,12 +19,10 @@
 
 
 from __future__ import annotations
-import bonsai.core.tool
 from collections.abc import Iterable
 import ifcopenshell
 
 # --- STEP 1: Import all the refactored module classes ---
-# (This part remains the same)
 from .props_sequence import PropsSequence
 from .camera_sequence import CameraSequence
 from .text_sequence import TextSequence
@@ -76,8 +74,6 @@ class Sequence(
     # --- LEVEL 0: The Fundamental Base for Properties ---
     PropsSequence,
 
-    # --- Original Bonsai Base Class (always last) ---
-    bonsai.core.tool.Sequence
 ):
     """
     The main Sequence tool class, assembled from refactored mixins

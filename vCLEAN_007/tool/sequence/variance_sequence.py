@@ -37,7 +37,7 @@ class VarianceSequence:
         Retorna True si al menos una tarea tiene variance_status calculado.
         """
         try:
-            tprops = cls.get_task_tree_props()
+            tprops = tool.Sequence.get_task_tree_props()
             if not tprops or not tprops.tasks:
                 return False
             
@@ -99,7 +99,7 @@ class VarianceSequence:
             print("[CLEAN] CLEAR_VARIANCE_COLOR_MODE: Starting cleanup process...")
             
             # Desactivar todos los checkboxes de varianza
-            tprops = cls.get_task_tree_props()
+            tprops = tool.Sequence.get_task_tree_props()
             if tprops:
                 cleared_checkboxes = 0
                 total_tasks = len(tprops.tasks)
@@ -223,7 +223,7 @@ class VarianceSequence:
             cls._ensure_viewport_shading()
             
             # Obtener tareas
-            tprops = cls.get_task_tree_props()
+            tprops = tool.Sequence.get_task_tree_props()
             if not tprops:
                 print("[ERROR] No task tree properties found")
                 return
@@ -363,7 +363,7 @@ class VarianceSequence:
             cls._create_variance_colortype_group()
             
             # Activar el live color update system
-            anim_props = cls.get_animation_props()
+            anim_props = tool.Sequence.get_animation_props()
             
             # Trigger immediate color update
             cls._trigger_variance_color_update()
@@ -537,7 +537,7 @@ class VarianceSequence:
             cls._ensure_viewport_shading()
             
             # Obtener tareas con varianza seleccionadas
-            tprops = cls.get_task_tree_props()
+            tprops = tool.Sequence.get_task_tree_props()
             if not tprops:
                 return
                 
@@ -620,7 +620,7 @@ class VarianceSequence:
                     continue
                     
                 # Usar el método correcto de Bonsai para obtener outputs
-                outputs = cls.get_task_outputs(task_ifc)
+                outputs = tool.Sequence.get_task_outputs(task_ifc)
                 
                 if outputs:
                     print(f"📋 Task {task_pg.ifc_definition_id} ({task_pg.name}) has {len(outputs)} outputs:")
@@ -697,7 +697,7 @@ class VarianceSequence:
             print("[CLEAN] CLEAR_SCHEDULE_VARIANCE: Starting comprehensive cleanup process...")
             
             # Clear variance DATA from all tasks (this was missing!)
-            tprops = cls.get_task_tree_props()
+            tprops = tool.Sequence.get_task_tree_props()
             if tprops and tprops.tasks:
                 cleared_tasks = 0
                 print(f"[CLEAN] CLEAR_SCHEDULE_VARIANCE: Found {len(tprops.tasks)} tasks to clean")

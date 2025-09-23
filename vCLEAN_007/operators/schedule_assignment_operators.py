@@ -34,10 +34,10 @@ try:
     from .operator import snapshot_all_ui_state, restore_all_ui_state
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop import update_filter_column
-        import bonsai.bim.module.sequence.prop as prop
-        from bonsai.bim.module.sequence.ui import calculate_visible_columns_count
-        from bonsai.bim.module.sequence.operator import snapshot_all_ui_state, restore_all_ui_state
+        from ..prop.filter import update_filter_column
+        from .. import prop
+        from ..ui.schedule_ui import calculate_visible_columns_count
+        from .operator import snapshot_all_ui_state, restore_all_ui_state
     except Exception:
         def update_filter_column(*args, **kwargs):
             pass

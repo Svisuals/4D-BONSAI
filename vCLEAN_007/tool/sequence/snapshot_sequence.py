@@ -231,7 +231,7 @@ class SnapshotSequence:
             return
 
         outputs = ifcopenshell.util.sequence.get_task_outputs(task) or []
-        inputs = cls.get_task_inputs(task) or []
+        inputs = tool.Sequence.get_task_inputs(task) or []
 
         # Consider visualization range
 
@@ -314,20 +314,20 @@ class SnapshotSequence:
                 obj.animation_data_clear()
 
         # 2. Obtener la fecha del snapshot y la fuente de fechas desde la UI
-        ws_props = cls.get_work_schedule_props()
+        ws_props = tool.Sequence.get_work_schedule_props()
         snapshot_date_str = getattr(ws_props, "visualisation_start", None)
         if not snapshot_date_str or snapshot_date_str == "-":
             print("Snapshot abortado: no se ha establecido una fecha.")
             return
         try:
-            snapshot_date = cls.parse_isodate_datetime(snapshot_date_str)
+            snapshot_date = tool.Sequence.parse_isodate_datetime(snapshot_date_str)
         except Exception:
             print(f"Snapshot abortado: fecha inválida '{snapshot_date_str}'.")
             return
         date_source = getattr(ws_props, "date_source_type", "SCHEDULE")
 
         # 3. Determinar el grupo de perfiles activo desde el Animation Stack
-        anim_props = cls.get_animation_props()
+        anim_props = tool.Sequence.get_animation_props()
         active_group_name = None
         for item in anim_props.animation_group_stack:
             if item.enabled and item.group:
@@ -371,7 +371,7 @@ class SnapshotSequence:
                 state = "end"
 
             # Obtener el perfil de color correcto
-            ColorType = cls.get_assigned_ColorType_for_task(task, anim_props, active_group_name)
+            ColorType = tool.Sequence.get_assigned_ColorType_for_task(task, anim_props, active_group_name)
             original_color = original_properties.get(obj.name, {}).get("color", [1,1,1,1])
 
             # PRIORITY MODE CHECK for snapshot

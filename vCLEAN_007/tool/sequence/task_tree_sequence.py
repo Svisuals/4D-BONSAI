@@ -32,10 +32,10 @@ class TaskTreeSequence:
 
     @classmethod
     def load_task_tree(cls, work_schedule: ifcopenshell.entity_instance) -> None:
-        props = cls.get_task_tree_props()
+        props = tool.Sequence.get_task_tree_props()
 
         props.tasks.clear()
-        schedule_props = cls.get_work_schedule_props()
+        schedule_props = tool.Sequence.get_work_schedule_props()
         cls.contracted_tasks = json.loads(schedule_props.contracted_tasks)
 
         # 1. Get ALL root tasks, as before
@@ -53,7 +53,7 @@ class TaskTreeSequence:
 
     @classmethod
     def get_sorted_tasks_ids(cls, tasks: list[ifcopenshell.entity_instance]) -> list[int]:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
 
         def get_sort_key(task):
             # Sorting only applies to actual tasks, not the WBS
@@ -87,7 +87,7 @@ class TaskTreeSequence:
         Filters a list of tasks (and their children) based on active rules.
         If a parent task doesn't meet the filter, its children won't be shown either.
         """
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         try:
             filter_rules = [r for r in getattr(props, "filters").rules if r.is_active]
         except Exception:
@@ -235,7 +235,7 @@ class TaskTreeSequence:
     @classmethod
     def create_new_task_li(cls, related_object_id: int, level_index: int) -> None:
         task = tool.Ifc.get().by_id(related_object_id)
-        props = cls.get_task_tree_props()
+        props = tool.Sequence.get_task_tree_props()
         new = props.tasks.add()
         new.ifc_definition_id = related_object_id
         new.is_expanded = related_object_id not in cls.contracted_tasks
@@ -278,8 +278,8 @@ class TaskTreeSequence:
 
     @classmethod
     def load_task_properties(cls, task: Optional[ifcopenshell.entity_instance] = None) -> None:
-        props = cls.get_work_schedule_props()
-        task_props = cls.get_task_tree_props()
+        props = tool.Sequence.get_work_schedule_props()
+        task_props = tool.Sequence.get_task_tree_props()
         tasks_with_visual_bar = cls.get_task_bar_list()
         props.is_task_update_enabled = False
 
@@ -340,7 +340,7 @@ class TaskTreeSequence:
         per task in the UI tree.
         """
         try:
-            tprops = cls.get_task_tree_props()
+            tprops = tool.Sequence.get_task_tree_props()
             if not hasattr(tprops, "tasks"):
                 return
         except Exception:
@@ -377,20 +377,20 @@ class TaskTreeSequence:
 
     @classmethod
     def expand_task(cls, task: ifcopenshell.entity_instance) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         contracted_tasks = json.loads(props.contracted_tasks)
         contracted_tasks.remove(task.id())
         props.contracted_tasks = json.dumps(contracted_tasks)
 
     @classmethod
     def expand_all_tasks(cls) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.contracted_tasks = json.dumps([])
 
     @classmethod
     def contract_all_tasks(cls) -> None:
-        props = cls.get_work_schedule_props()
-        tprops = cls.get_task_tree_props()
+        props = tool.Sequence.get_work_schedule_props()
+        tprops = tool.Sequence.get_task_tree_props()
         contracted_tasks = json.loads(props.contracted_tasks)
         for task_item in tprops.tasks:
             if task_item.is_expanded:
@@ -400,14 +400,14 @@ class TaskTreeSequence:
 
     @classmethod
     def contract_task(cls, task: ifcopenshell.entity_instance) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         contracted_tasks = json.loads(props.contracted_tasks)
         contracted_tasks.append(task.id())
         props.contracted_tasks = json.dumps(contracted_tasks)
 
     @classmethod
     def go_to_task(cls, task):
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
 
         def get_ancestor_ids(task):
             ids = []
@@ -426,7 +426,7 @@ class TaskTreeSequence:
         cls.load_task_tree(work_schedule)
         cls.load_task_properties()
 
-        task_props = cls.get_task_tree_props()
+        task_props = tool.Sequence.get_task_tree_props()
         expanded_tasks = [item.ifc_definition_id for item in task_props.tasks]
         props.active_task_index = expanded_tasks.index(task.id()) or 0
 

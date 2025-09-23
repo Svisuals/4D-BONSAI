@@ -32,24 +32,24 @@ class SequenceRelationsSequence:
 
     @classmethod
     def enable_editing_task_sequence(cls) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.editing_task_type = "SEQUENCE"
 
     @classmethod
     def load_rel_sequence_attributes(cls, rel_sequence: ifcopenshell.entity_instance) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.sequence_attributes.clear()
         bonsai.bim.helper.import_attributes(rel_sequence, props.sequence_attributes)
     
     @classmethod
     def enable_editing_rel_sequence_attributes(cls, rel_sequence: ifcopenshell.entity_instance) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.active_sequence_id = rel_sequence.id()
         props.editing_sequence_type = "ATTRIBUTES"
 
     @classmethod
     def load_lag_time_attributes(cls, lag_time: ifcopenshell.entity_instance) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
 
     def callback(name: str, prop: Union[Attribute, None], data: dict[str, Any]) -> None | Literal[True]:
         if name == "LagValue":
@@ -68,23 +68,23 @@ class SequenceRelationsSequence:
 
     @classmethod
     def enable_editing_sequence_lag_time(cls, rel_sequence: ifcopenshell.entity_instance) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.active_sequence_id = rel_sequence.id()
         props.editing_sequence_type = "LAG_TIME"
 
     @classmethod
     def get_rel_sequence_attributes(cls) -> dict[str, Any]:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         return bonsai.bim.helper.export_attributes(props.sequence_attributes)
 
     @classmethod
     def disable_editing_rel_sequence(cls) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.active_sequence_id = 0
 
     @classmethod
     def get_lag_time_attributes(cls) -> dict[str, Any]:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         return bonsai.bim.helper.export_attributes(props.lag_time_attributes)
 
 

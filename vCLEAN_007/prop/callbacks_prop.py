@@ -1532,7 +1532,7 @@ def update_gpu_hud_visibility(self, context):
             getattr(self, "enable_3d_legend_hud", False)
         )
 
-        from bonsai.bim.module.sequence import hud as hud_overlay
+        from .. import hud as hud_overlay
 
         def deferred_update():
             try:

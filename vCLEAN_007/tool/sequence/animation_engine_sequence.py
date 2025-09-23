@@ -98,7 +98,7 @@ class AnimationEngineSequence:
 
         def calculate_using_frames(start, finish, animation_frames, real_duration):
             return ((finish - start) / real_duration) * animation_frames
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         # Get visualization dates: first UI, if missing, infer from active schedule
         viz_start_prop = getattr(props, "visualisation_start", None)
         viz_finish_prop = getattr(props, "visualisation_finish", None)
@@ -282,7 +282,7 @@ class AnimationEngineSequence:
 
         def calculate_using_frames(start, finish, animation_frames, real_duration):
             return ((finish - start) / real_duration) * animation_frames
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         # Get visualization dates: first UI, if missing, infer from active schedule
         viz_start_prop = getattr(props, "visualisation_start", None)
         viz_finish_prop = getattr(props, "visualisation_finish", None)
@@ -404,7 +404,7 @@ class AnimationEngineSequence:
         product_frames: dict[int, list] = {}
         
         # --- Obtener la fuente de fechas desde las propiedades ---
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         date_source = getattr(props, "date_source_type", "SCHEDULE")
         start_date_type = f"{date_source.capitalize()}Start"
         finish_date_type = f"{date_source.capitalize()}Finish"
@@ -473,7 +473,7 @@ class AnimationEngineSequence:
                 return
 
             # Get the complete profile to verify the state combination, not just 'consider_start'.
-            ColorType = cls._get_best_ColorType_for_task(task, cls.get_animation_props())
+            ColorType = tool.Sequence._get_best_ColorType_for_task(task, tool.Sequence.get_animation_props())
             consider_start = getattr(ColorType, 'consider_start', False)
             consider_active = getattr(ColorType, 'consider_active', True)
             consider_end = getattr(ColorType, 'consider_end', True)
@@ -492,7 +492,7 @@ class AnimationEngineSequence:
                 print(f"🔒 Tarea '{task.Name}' en modo prioritario. Ignorando fechas.")
                 for output in ifcopenshell.util.sequence.get_task_outputs(task):
                     add_product_frame_full_range(output.id(), task, "output")
-                for input_prod in cls.get_task_inputs(task):
+                for input_prod in tool.Sequence.get_task_inputs(task):
                     add_product_frame_full_range(input_prod.id(), task, "input")
                 return
 
@@ -511,7 +511,7 @@ class AnimationEngineSequence:
 
             for output in ifcopenshell.util.sequence.get_task_outputs(task):
                 add_product_frame_enhanced(output.id(), task, task_start, task_finish, sf, ff, "output")
-            for input_prod in cls.get_task_inputs(task):
+            for input_prod in tool.Sequence.get_task_inputs(task):
                 add_product_frame_enhanced(input_prod.id(), task, task_start, task_finish, sf, ff, "input")
 
         for root_task in ifcopenshell.util.sequence.get_root_tasks(work_schedule):
@@ -584,7 +584,7 @@ class AnimationEngineSequence:
         product_frames = {}
 
         # Get date source from properties
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         date_source = getattr(props, "date_source_type", "SCHEDULE")
         start_date_type = f"{date_source.capitalize()}Start"
         finish_date_type = f"{date_source.capitalize()}Finish"
@@ -596,7 +596,7 @@ class AnimationEngineSequence:
         for task in lookup_optimizer.get_all_tasks():
             try:
                 # PRIORITY MODE DETECTION: Check if only START is activated
-                ColorType = cls._get_best_ColorType_for_task(task, cls.get_animation_props())
+                ColorType = tool.Sequence._get_best_ColorType_for_task(task, tool.Sequence.get_animation_props())
                 is_priority_mode = (
                     getattr(ColorType, 'consider_start', False) and
                     not getattr(ColorType, 'consider_active', True) and
@@ -740,7 +740,7 @@ class AnimationEngineSequence:
         print(f"[OPTIMIZED] OPTIMIZED ANIMATION: Planning for {len(product_frames)} products")
 
         # Get properties once
-        animation_props = cls.get_animation_props()
+        animation_props = tool.Sequence.get_animation_props()
         active_group_name = cls._get_active_group_optimized(animation_props)
 
         # Save original colors if not already saved
@@ -861,7 +861,7 @@ class AnimationEngineSequence:
         """
         from collections import defaultdict
 
-        animation_props = cls.get_animation_props()
+        animation_props = tool.Sequence.get_animation_props()
 
         # Active group logic (stack → DEFAULT)
         active_group_name = None
@@ -917,7 +917,7 @@ class AnimationEngineSequence:
 
             for frame_data in product_frames[element.id()]:
                 task = frame_data.get("task") or tool.Ifc.get().by_id(frame_data.get("task_id"))
-                ColorType = cls.get_assigned_ColorType_for_task(task, animation_props, active_group_name)
+                ColorType = tool.Sequence.get_assigned_ColorType_for_task(task, animation_props, active_group_name)
 
                 # Plan keyframes for each state
                 cls._plan_object_animation(animation_plan, obj, frame_data, ColorType, original_color)
@@ -1196,7 +1196,7 @@ class AnimationEngineSequence:
                     break
             if not agn:
                 agn = 'DEFAULT'
-            ColorType = cls.get_assigned_ColorType_for_task(task, anim_props, agn)
+            ColorType = tool.Sequence.get_assigned_ColorType_for_task(task, anim_props, agn)
             if ColorType:
                 return ColorType
         except Exception:
@@ -1264,7 +1264,7 @@ class AnimationEngineSequence:
 
         def calculate_using_frames(start, finish, animation_frames, real_duration):
             return ((finish - start) / real_duration) * animation_frames
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         # Get visualization dates: first UI, if missing, infer from active schedule
         viz_start_prop = getattr(props, "visualisation_start", None)
         viz_finish_prop = getattr(props, "visualisation_finish", None)
@@ -1576,7 +1576,7 @@ class AnimationEngineSequence:
                 colortype_cache = None
 
             try:
-                from bonsai.bim.module.sequence import ifc_lookup
+                from ... import ifc_lookup
                 lookup = ifc_lookup.get_ifc_lookup()
                 lookup.build_lookup_tables(bpy.context)
                 print("✅ IFC lookup loaded")
@@ -1585,7 +1585,7 @@ class AnimationEngineSequence:
                 lookup = None
 
             try:
-                from bonsai.bim.module.sequence import performance_cache
+                from ... import performance_cache
                 perf_cache = performance_cache.get_performance_cache()
                 perf_cache.build_scene_cache(bpy.context)
                 print("✅ Performance cache loaded")
@@ -1594,7 +1594,7 @@ class AnimationEngineSequence:
                 perf_cache = None
 
             try:
-                from bonsai.bim.module.sequence import batch_processor
+                from ... import batch_processor
                 batch_proc = batch_processor.get_batch_processor()
                 print("✅ Batch processor loaded")
             except Exception as e:
@@ -1604,7 +1604,7 @@ class AnimationEngineSequence:
         except Exception as e:
             print(f"⚠️ Some optimizations not available, continuing with basic optimizations: {e}")
 
-        animation_props = cls.get_animation_props()
+        animation_props = tool.Sequence.get_animation_props()
 
         # Active group logic (stack → DEFAULT) - PRESERVED
         active_group_name = None
@@ -1723,10 +1723,10 @@ class AnimationEngineSequence:
                             cached_colortype = colortype_cache.get_task_colortype(task.id())
                             colortype_cache_dict[task_key] = cached_colortype
                         except:
-                            colortype_cache_dict[task_key] = cls.get_assigned_ColorType_for_task(task, animation_props, active_group_name)
+                            colortype_cache_dict[task_key] = tool.Sequence.get_assigned_ColorType_for_task(task, animation_props, active_group_name)
                     else:
                         # Fallback to original method
-                        colortype_cache_dict[task_key] = cls.get_assigned_ColorType_for_task(task, animation_props, active_group_name)
+                        colortype_cache_dict[task_key] = tool.Sequence.get_assigned_ColorType_for_task(task, animation_props, active_group_name)
 
                 ColorType = colortype_cache_dict[task_key]
 
@@ -1843,7 +1843,7 @@ class AnimationEngineSequence:
             # Cache de perfil (aunque el perfil puede resolverse en apply)
             task_id = task.id()
             if task_id not in ColorType_cache:
-                ColorType_cache[task_id] = cls._get_best_ColorType_for_task(task, anim_props)
+                ColorType_cache[task_id] = tool.Sequence._get_best_ColorType_for_task(task, anim_props)
 
             def _add(pid, relationship):
                 product_frames.setdefault(pid, []).append({
@@ -1866,7 +1866,7 @@ class AnimationEngineSequence:
 
             for output in ifcopenshell.util.sequence.get_task_outputs(task):
                 _add(output.id(), "output")
-            for input_prod in cls.get_task_inputs(task):
+            for input_prod in tool.Sequence.get_task_inputs(task):
                 _add(input_prod.id(), "input")
 
     @classmethod
@@ -1874,8 +1874,8 @@ class AnimationEngineSequence:
         """Helper to check if a task's resolved ColorType has consider_start=True."""
         try:
             # Re-use existing logic to find the best ColorType for the task
-            anim_props = cls.get_animation_props()
-            ColorType = cls._get_best_ColorType_for_task(task, anim_props)
+            anim_props = tool.Sequence.get_animation_props()
+            ColorType = tool.Sequence._get_best_ColorType_for_task(task, anim_props)
             return getattr(ColorType, 'consider_start', False)
         except Exception as e:
             print(f"[WARNING]️ Error in _task_has_consider_start_ColorType for task {getattr(task, 'Name', 'N/A')}: {e}")
@@ -2184,7 +2184,7 @@ class AnimationEngineSequence:
                 }
             else:
                 # Fallback if not in cache
-                colortype = cls.get_assigned_ColorType_for_task(task, animation_props, active_group_name)
+                colortype = tool.Sequence.get_assigned_ColorType_for_task(task, animation_props, active_group_name)
                 return {
                     'consider_start': getattr(colortype, 'consider_start', False),
                     'consider_active': getattr(colortype, 'consider_active', True),

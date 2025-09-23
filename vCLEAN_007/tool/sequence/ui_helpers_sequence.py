@@ -26,14 +26,14 @@ class UiHelpersSequence:
 
     @classmethod
     def add_task_column(cls, column_type: str, name: str, data_type: str) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         new = props.columns.add()
         new.name = f"{column_type}.{name}"
         new.data_type = data_type
 
     @classmethod
     def setup_default_task_columns(cls) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.columns.clear()
         default_columns = ["ScheduleStart", "ScheduleFinish", "ScheduleDuration"]
         for item in default_columns:
@@ -43,14 +43,14 @@ class UiHelpersSequence:
 
     @classmethod
     def remove_task_column(cls, name: str) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.columns.remove(props.columns.find(name))
         if props.sort_column == name:
             props.sort_column = ""
 
     @classmethod
     def set_task_sort_column(cls, column: str) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.sort_column = column
 
     @staticmethod
@@ -163,6 +163,6 @@ class UiHelpersSequence:
 
     @classmethod
     def enable_editing_task_calendar(cls, task: ifcopenshell.entity_instance) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.active_task_id = task.id()
         props.editing_task_type = "CALENDAR"

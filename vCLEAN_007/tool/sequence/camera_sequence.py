@@ -54,7 +54,7 @@ class CameraSequence:
 
             # DURING ANIMATION: Only allow STATIC cameras
             try:
-                anim_props = cls.get_animation_props()
+                anim_props = tool.Sequence.get_animation_props()
                 if getattr(anim_props, 'is_animation_created', False):
                     # During active animation, only show static cameras
                     if (obj.get('camera_type') == 'STATIC' or
@@ -165,9 +165,9 @@ class CameraSequence:
 
         
         
-        anim = cls.get_animation_props()
+        anim = tool.Sequence.get_animation_props()
         camera_props = anim.camera_orbit  
-        ws_props = cls.get_work_schedule_props()
+        ws_props = tool.Sequence.get_work_schedule_props()
         
         current_orbit_mode = getattr(camera_props, 'orbit_mode', 'NONE')
         existing_camera = bpy.context.scene.camera
@@ -284,7 +284,7 @@ class CameraSequence:
         from mathutils import Vector
 
         # Props - use animation structure for basic configuration
-        anim = cls.get_animation_props()
+        anim = tool.Sequence.get_animation_props()
         camera_props = anim.camera_orbit
 
 
@@ -341,7 +341,7 @@ class CameraSequence:
                 pass
 
             # Now create the 3D Legend HUD if enabled
-            anim_props = cls.get_animation_props()
+            anim_props = tool.Sequence.get_animation_props()
             camera_props = anim_props.camera_orbit
             legend_hud_enabled = getattr(camera_props, "enable_3d_legend_hud", False)
             show_3d_texts = getattr(camera_props, "show_3d_schedule_texts", False)
@@ -368,7 +368,7 @@ class CameraSequence:
         # 3D texts are created when adding the camera, not when creating the snapshot
         try:
             # Get basic configurations for texts
-            ws_props = cls.get_work_schedule_props()
+            ws_props = tool.Sequence.get_work_schedule_props()
             active_schedule_id = getattr(ws_props, "active_work_schedule_id", None)
 
             if active_schedule_id:
@@ -385,7 +385,7 @@ class CameraSequence:
                     snapshot_date_str = getattr(ws_props, "visualisation_start", None)
                     if snapshot_date_str and snapshot_date_str != "-":
                         try:
-                            snapshot_date = cls.parse_isodate_datetime(snapshot_date_str)
+                            snapshot_date = tool.Sequence.parse_isodate_datetime(snapshot_date_str)
                         except Exception:
                             pass
 
@@ -404,7 +404,7 @@ class CameraSequence:
                     cls._create_basic_snapshot_texts(schedule_name)
 
                 # --- APPLY VISIBILITY ACCORDING TO CHECKBOX ---
-                anim_props = cls.get_animation_props()
+                anim_props = tool.Sequence.get_animation_props()
                 camera_props = anim_props.camera_orbit
                 should_hide = not getattr(camera_props, "show_3d_schedule_texts", False)
 
@@ -492,7 +492,7 @@ class CameraSequence:
 
         # (Key Step) Update the UI so that the orbit mode is "Static"
         try:
-            anim_props = cls.get_animation_props()
+            anim_props = tool.Sequence.get_animation_props()
             camera_props = anim_props.camera_orbit
             camera_props.orbit_mode = 'NONE' # 'NONE' se muestra como "Static" en la UI
         except Exception as e:
@@ -547,7 +547,7 @@ class CameraSequence:
 
 
         # 1.5. NEW: Save panel values to camera BEFORE updating
-        anim = cls.get_animation_props()
+        anim = tool.Sequence.get_animation_props()
         camera_props = anim.camera_orbit
 
 
@@ -676,7 +676,7 @@ class CameraSequence:
     @classmethod
     def _create_follow_path_orbit(cls, cam_obj, center, radius, z, angle0, start_frame, end_frame, sign, mode, preserved_offset_factor=None):
         import bpy, math, mathutils
-        anim = cls.get_animation_props()
+        anim = tool.Sequence.get_animation_props()
         camera_props = anim.camera_orbit
         path_object = None
 
@@ -888,7 +888,7 @@ class CameraSequence:
     @classmethod
     def _create_keyframe_orbit(cls, cam_obj, center, radius, z, angle0, start_frame, end_frame, sign, mode):
         import math, mathutils
-        anim = cls.get_animation_props()
+        anim = tool.Sequence.get_animation_props()
         camera_props = anim.camera_orbit
 
         def pt(theta):

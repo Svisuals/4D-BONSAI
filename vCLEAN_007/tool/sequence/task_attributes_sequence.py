@@ -34,12 +34,12 @@ class TaskAttributesSequence:
 
     @classmethod
     def get_task_attribute_value(cls, attribute_name: str) -> Any:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         return props.task_attributes[attribute_name].get_value()
 
     @classmethod
     def get_active_task(cls) -> ifcopenshell.entity_instance:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         return tool.Ifc.get().by_id(props.active_task_id)
 
     @classmethod
@@ -48,24 +48,24 @@ class TaskAttributesSequence:
 
     @classmethod
     def load_task_attributes(cls, task: ifcopenshell.entity_instance) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.task_attributes.clear()
         bonsai.bim.helper.import_attributes(task, props.task_attributes)
 
     @classmethod
     def enable_editing_task_attributes(cls, task: ifcopenshell.entity_instance) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.active_task_id = task.id()
         props.editing_task_type = "ATTRIBUTES"
 
     @classmethod
     def get_task_attributes(cls) -> dict[str, Any]:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         return bonsai.bim.helper.export_attributes(props.task_attributes)
 
     @classmethod
     def load_task_time_attributes(cls, task_time: ifcopenshell.entity_instance) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         schema = tool.Ifc.schema()
         entity = schema.declaration_by_name("IfcTaskTime").as_entity()
         assert entity
@@ -86,14 +86,14 @@ class TaskAttributesSequence:
 
     @classmethod
     def enable_editing_task_time(cls, task: ifcopenshell.entity_instance) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.active_task_id = task.id()
         props.active_task_time_id = task.TaskTime.id()
         props.editing_task_type = "TASKTIME"
 
     @classmethod
     def disable_editing_task(cls) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.active_task_id = 0
         props.active_task_time_id = 0
         props.editing_task_type = ""
@@ -102,7 +102,7 @@ class TaskAttributesSequence:
     def get_task_time_attributes(cls) -> dict[str, Any]:
         import bonsai.bim.module.sequence.helper as helper
 
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
 
     def callback(attributes: dict[str, Any], prop: Attribute) -> bool:
         if "Start" in prop.name or "Finish" in prop.name or prop.name == "StatusTime":
@@ -122,7 +122,7 @@ class TaskAttributesSequence:
     def add_duration_prop(cls, prop: Attribute, duration_value: Union[str, None]) -> None:
         import bonsai.bim.module.sequence.helper as helper
 
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         prop.special_type = "DURATION"
         duration_props = props.durations_attributes.add()
         duration_props.name = prop.name
@@ -135,7 +135,7 @@ class TaskAttributesSequence:
     def export_duration_prop(cls, prop: Attribute, out_attributes: dict[str, Any]) -> Literal[True]:
         import bonsai.bim.module.sequence.helper as helper
 
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         if prop.is_null:
             out_attributes[prop.name] = None
         else:

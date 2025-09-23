@@ -31,13 +31,13 @@ class TaskIcomSequence:
     def update_task_ICOM(cls, task: Union[ifcopenshell.entity_instance, None]) -> None:
         """Refreshes the ICOM data (Outputs, Inputs, Resources) of the panel for the active task.
         If there is no task, it clears the lists to avoid remnants of the previous task."""
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         if task:
             # Outputs
-            outputs = cls.get_task_outputs(task) or []
+            outputs = tool.Sequence.get_task_outputs(task) or []
             cls.load_task_outputs(outputs)
             # Inputs
-            inputs = cls.get_task_inputs(task) or []
+            inputs = tool.Sequence.get_task_inputs(task) or []
             cls.load_task_inputs(inputs)
             # Resources
             cls.load_task_resources(task)
@@ -48,7 +48,7 @@ class TaskIcomSequence:
 
     @classmethod
     def load_task_resources(cls, task: ifcopenshell.entity_instance) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         rprops = tool.Resource.get_resource_props()
         props.task_resources.clear()
         rprops.is_resource_update_enabled = False
@@ -61,7 +61,7 @@ class TaskIcomSequence:
 
     @classmethod
     def get_task_outputs(cls, task: ifcopenshell.entity_instance) -> list[ifcopenshell.entity_instance]:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         is_deep = props.show_nested_outputs
         return ifcopenshell.util.sequence.get_task_outputs(task, is_deep)
 
@@ -72,13 +72,13 @@ class TaskIcomSequence:
     ) -> Union[list[ifcopenshell.entity_instance], None]:
         if not task:
             return
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         is_deep = props.show_nested_resources
         return ifcopenshell.util.sequence.get_task_resources(task, is_deep)
 
     @classmethod
     def load_task_inputs(cls, inputs: list[ifcopenshell.entity_instance]) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.task_inputs.clear()
         for input in inputs:
             new = props.task_inputs.add()
@@ -87,7 +87,7 @@ class TaskIcomSequence:
 
     @classmethod
     def load_task_outputs(cls, outputs: list[ifcopenshell.entity_instance]) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.task_outputs.clear()
         if outputs:
             for output in outputs:
@@ -97,7 +97,7 @@ class TaskIcomSequence:
 
     @classmethod
     def get_task_inputs(cls, task: ifcopenshell.entity_instance) -> list[ifcopenshell.entity_instance]:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         is_deep = props.show_nested_inputs
         return ifcopenshell.util.sequence.get_task_inputs(task, is_deep)
 

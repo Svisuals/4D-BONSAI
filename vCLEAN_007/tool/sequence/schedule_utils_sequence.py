@@ -35,7 +35,7 @@ class ScheduleUtilsSequence:
         Deselects everything else.
         """
         try:
-            tprops = cls.get_task_tree_props()
+            tprops = tool.Sequence.get_task_tree_props()
             if not tprops:
                 return
 
@@ -58,8 +58,8 @@ class ScheduleUtilsSequence:
                     continue
 
                 # Include both outputs and inputs
-                outputs = cls.get_task_outputs(task_ifc) or []
-                inputs = cls.get_task_inputs(task_ifc) or []
+                outputs = tool.Sequence.get_task_outputs(task_ifc) or []
+                inputs = tool.Sequence.get_task_inputs(task_ifc) or []
 
                 # Combine both, removing duplicates
                 all_products = list(set(outputs + inputs))
@@ -116,9 +116,9 @@ class ScheduleUtilsSequence:
 
     @classmethod
     def disable_selecting_deleted_task(cls) -> None:
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         if props.active_task_id not in [
-            task.ifc_definition_id for task in cls.get_task_tree_props().tasks
+            task.ifc_definition_id for task in tool.Sequence.get_task_tree_props().tasks
         ]:  # Task was deleted
             props.active_task_id = 0
             props.active_task_time_id = 0
@@ -126,13 +126,13 @@ class ScheduleUtilsSequence:
     @classmethod
     def get_checked_tasks(cls) -> list[ifcopenshell.entity_instance]:
         return [
-            tool.Ifc.get().by_id(task.ifc_definition_id) for task in cls.get_task_tree_props().tasks if task.is_selected
+            tool.Ifc.get().by_id(task.ifc_definition_id) for task in tool.Sequence.get_task_tree_props().tasks if task.is_selected
         ] or []
 
     @classmethod
     def get_highlighted_task(cls) -> Union[ifcopenshell.entity_instance, None]:
-        tasks = cls.get_task_tree_props().tasks
-        props = cls.get_work_schedule_props()
+        tasks = tool.Sequence.get_task_tree_props().tasks
+        props = tool.Sequence.get_work_schedule_props()
         if len(tasks) and len(tasks) > props.active_task_index:
             return tool.Ifc.get().by_id(tasks[props.active_task_index].ifc_definition_id)
 
@@ -166,12 +166,12 @@ class ScheduleUtilsSequence:
 
     @classmethod
     def is_work_schedule_active(cls, work_schedule):
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         return True if work_schedule.id() == props.active_work_schedule_id else False
 
     @classmethod
     def update_visualisation_date(cls, start_date, finish_date):
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         if start_date and finish_date:
             start_iso = ifcopenshell.util.date.canonicalise_time(start_date)
             finish_iso = ifcopenshell.util.date.canonicalise_time(finish_date)
@@ -237,11 +237,11 @@ class ScheduleUtilsSequence:
                     for task in rel.RelatedObjects:
                         if task.is_a("IfcTask"):
                             # Obtener productos de salida (outputs)
-                            task_outputs = cls.get_task_outputs(task) or []
+                            task_outputs = tool.Sequence.get_task_outputs(task) or []
                             products.extend(task_outputs)
 
                             # Obtener productos de entrada (inputs)
-                            task_inputs = cls.get_task_inputs(task) or []
+                            task_inputs = tool.Sequence.get_task_inputs(task) or []
                             products.extend(task_inputs)
 
             # Eliminar duplicados manteniendo el orden
@@ -406,7 +406,7 @@ class ScheduleUtilsSequence:
             str: Mensaje de resultado o lista de tareas
         """
         try:
-            props = cls.get_work_schedule_props()
+            props = tool.Sequence.get_work_schedule_props()
 
             # Obtener el work_schedule activo si existe
             active_work_schedule = None

@@ -36,7 +36,7 @@ class TaskBarsSequence:
         Obtiene la lista de IDs de tareas que deben mostrar barra visual.
         Retorna una lista de IDs de tareas.
         """
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         try:
             task_bars = json.loads(props.task_bars)
             return task_bars if isinstance(task_bars, list) else []
@@ -46,7 +46,7 @@ class TaskBarsSequence:
     @classmethod
     def add_task_bar(cls, task_id: int) -> None:
         """Agrega una tarea a la lista de barras visuales."""
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         try:
             task_bars = json.loads(props.task_bars)
         except Exception:
@@ -58,7 +58,7 @@ class TaskBarsSequence:
     @classmethod
     def remove_task_bar(cls, task_id: int) -> None:
         """Remueve una tarea de la lista de barras visuales."""
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         try:
             task_bars = json.loads(props.task_bars)
         except Exception:
@@ -89,7 +89,7 @@ class TaskBarsSequence:
         try:
             # Check if animation is active for safer operations
             try:
-                anim_props = cls.get_animation_props()
+                anim_props = tool.Sequence.get_animation_props()
                 is_animation_active = getattr(anim_props, 'is_animation_created', False)
                 if is_animation_active:
                     # Continue but with more care
@@ -118,11 +118,11 @@ class TaskBarsSequence:
         import bpy
 
         # 1. Limpiar la lista de tareas marcadas para tener barras.
-        props = cls.get_work_schedule_props()
+        props = tool.Sequence.get_work_schedule_props()
         props.task_bars = "[]"  # Reset to an empty JSON list.
 
         # 2. Desmarcar todos los checkboxes en la interfaz de usuario.
-        tprops = cls.get_task_tree_props()
+        tprops = tool.Sequence.get_task_tree_props()
         for task in getattr(tprops, "tasks", []):
             if getattr(task, "has_bar_visual", False):
                 task.has_bar_visual = False
@@ -244,7 +244,7 @@ class TaskBarsSequence:
                     position_shift = task_data["start_frame"] * size_to_duration_ratio
                     bar_size = (task_data["finish_frame"] - task_data["start_frame"]) * size_to_duration_ratio
 
-                    anim_props = cls.get_animation_props()
+                    anim_props = tool.Sequence.get_animation_props()
                     color_progress = anim_props.color_progress
                     bar = add_bar(
                         material=material_progress,

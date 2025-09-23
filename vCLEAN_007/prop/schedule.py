@@ -41,8 +41,8 @@ try:
     from .filter import BIMTaskFilterProperties, SavedFilterSet
 except ImportError:
     # Fallback for when running from the original location
-    from bonsai.bim.module.sequence.prop.task import TaskResource, TaskProduct, get_date_source_items
-    from bonsai.bim.module.sequence.prop.filter import BIMTaskFilterProperties, SavedFilterSet
+    from .task import TaskResource, TaskProduct, get_date_source_items
+    from .filter import BIMTaskFilterProperties, SavedFilterSet
 
 # ============================================================================
 # SCHEDULE CALLBACK FUNCTIONS

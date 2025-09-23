@@ -31,9 +31,9 @@ try:
     from .ui import calculate_visible_columns_count
 except Exception:
     try:
-        from bonsai.bim.module.sequence.prop import update_filter_column
-        import bonsai.bim.module.sequence.prop as prop
-        from bonsai.bim.module.sequence.ui import calculate_visible_columns_count
+        from ..prop.filter import update_filter_column
+        from .. import prop
+        from ..ui.schedule_ui import calculate_visible_columns_count
     except Exception:
         def update_filter_column(*args, **kwargs):
             pass
@@ -53,7 +53,7 @@ try:
     from .animation_operators import _ensure_default_group
 except Exception:
     try:
-        from bonsai.bim.module.sequence.animation_operators import _ensure_default_group
+        from .animation_operators import _ensure_default_group
     except Exception:
         def _ensure_default_group(context):
             """Fallback implementation if import fails"""

@@ -115,7 +115,7 @@ class SyncConfigSequence:
         try:
             print(f"🔄 Copy3D: Syncing animation_color_schemes in source schedule...")
             
-            tprops = cls.get_task_tree_props()
+            tprops = tool.Sequence.get_task_tree_props()
             tasks_synced = 0
             
             for task in getattr(tprops, 'tasks', []):
@@ -172,7 +172,7 @@ class SyncConfigSequence:
         try:
             import json
             
-            tprops = cls.get_task_tree_props()
+            tprops = tool.Sequence.get_task_tree_props()
             if not tprops or not hasattr(tprops, 'tasks'):
                 return
             
@@ -369,7 +369,7 @@ class SyncConfigSequence:
             task_configs.append(task_config)
 
         # 5. Assemble final JSON
-        anim_props = cls.get_animation_props()
+        anim_props = tool.Sequence.get_animation_props()
         export_data = {
             "version": "1.3",
             "schedule_name": work_schedule.Name,
@@ -403,7 +403,7 @@ class SyncConfigSequence:
             UnifiedColorTypeManager._write_sets_json(bpy.context, data["ColorType_groups"])
 
         if "ui_settings" in data:
-            anim_props = cls.get_animation_props()
+            anim_props = tool.Sequence.get_animation_props()
             anim_props.task_ColorType_group_selector = data["ui_settings"].get("task_ColorType_group_selector", "")
             
             # Import animation group stack
@@ -487,7 +487,7 @@ class SyncConfigSequence:
         print(f"\n[CHECK] COPY3D DEBUG [{stage}] - Schedule: {schedule_name}, Tasks: {task_count}")
         
         try:
-            tprops = cls.get_task_tree_props()
+            tprops = tool.Sequence.get_task_tree_props()
             if not tprops or not hasattr(tprops, 'tasks'):
                 print("[ERROR] No task properties available")
                 return
@@ -535,7 +535,7 @@ class SyncConfigSequence:
         
         try:
             # Check if active schedule has proper ColorType data
-            tprops = cls.get_task_tree_props()
+            tprops = tool.Sequence.get_task_tree_props()
             if not tprops or not hasattr(tprops, 'tasks'):
                 print("[ERROR] TEST FAIL: No task properties available for verification")
                 return False
@@ -666,7 +666,7 @@ class SyncConfigSequence:
                 print(f"📋 Copy3D: Processing target schedule '{target_schedule.Name}' (ID: {target_schedule.id()})")
                 
                 # Switch to target schedule for UI state  
-                ws_props = cls.get_work_schedule_props()
+                ws_props = tool.Sequence.get_work_schedule_props()
                 if ws_props:
                     ws_props.active_work_schedule_id = target_schedule.id()
                 
@@ -767,7 +767,7 @@ class SyncConfigSequence:
 
             # Copy UI settings
             if config_data.get("ui_settings"):
-                anim_props = cls.get_animation_props()
+                anim_props = tool.Sequence.get_animation_props()
                 anim_props.task_ColorType_group_selector = config_data["ui_settings"].get("task_ColorType_group_selector", "")
                 
                 # Copy animation group stack

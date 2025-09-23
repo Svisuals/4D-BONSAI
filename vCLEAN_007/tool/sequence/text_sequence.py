@@ -24,6 +24,7 @@ from .props_sequence import PropsSequence
 # Importar la clase de utilidades de fecha que crearemos a continuación
 from .date_utils_sequence import DateUtilsSequence
 
+import bonsai.tool as tool
 class TextSequence:
     """Mixin class for creating and managing 3D schedule texts."""
 
@@ -109,7 +110,7 @@ class TextSequence:
             schedule_name = "Unknown Schedule"
             try:
                 import bonsai.tool as tool
-                ws_props = cls.get_work_schedule_props()
+                ws_props = tool.Sequence.get_work_schedule_props()
                 if ws_props and hasattr(ws_props, 'active_work_schedule_id'):
                     ws_id = ws_props.active_work_schedule_id
                     if ws_id:
@@ -136,7 +137,7 @@ class TextSequence:
             try:
                 scene = bpy.context.scene
                 if scene.camera and "4D_Animation_Camera" in scene.camera.name:
-                    anim_props = cls.get_animation_props()
+                    anim_props = tool.Sequence.get_animation_props()
                     camera_props = anim_props.camera_orbit
 
                     # Only auto-enable if not already configured
@@ -194,7 +195,7 @@ class TextSequence:
         schedule_name = "Unknown Schedule"
         try:
             import bonsai.tool as tool
-            ws_props = cls.get_work_schedule_props()
+            ws_props = tool.Sequence.get_work_schedule_props()
             if ws_props and hasattr(ws_props, 'active_work_schedule_id'):
                 ws_id = ws_props.active_work_schedule_id
                 if ws_id:
@@ -302,7 +303,7 @@ class TextSequence:
                 return "Week --"
 
             # Get schedule range for week calculation
-            sch_start, sch_finish = cls.get_schedule_date_range()
+            sch_start, sch_finish = tool.Sequence.get_schedule_date_range()
             if not sch_start:
                 return "Week --"
 
@@ -328,7 +329,7 @@ class TextSequence:
                 return "Day --"
 
             # Get schedule range for day calculation
-            sch_start, sch_finish = cls.get_schedule_date_range()
+            sch_start, sch_finish = tool.Sequence.get_schedule_date_range()
             if not sch_start:
                 return "Day --"
 
@@ -355,7 +356,7 @@ class TextSequence:
                 return "Progress: --%"
 
             # Get schedule range for progress calculation
-            sch_start, sch_finish = cls.get_schedule_date_range()
+            sch_start, sch_finish = tool.Sequence.get_schedule_date_range()
             if not (sch_start and sch_finish):
                 return "Progress: --%"
 
@@ -524,7 +525,7 @@ class TextSequence:
             try:
                 # Get full schedule dates (same as HUD logic)
                 try:
-                    sch_start, sch_finish = cls.get_schedule_date_range()
+                    sch_start, sch_finish = tool.Sequence.get_schedule_date_range()
                     if sch_start and sch_finish:
                         # Use same logic as HUD Schedule
                         cd_d = current_date.date()
@@ -554,7 +555,7 @@ class TextSequence:
             try:
                 # Get full schedule dates (same as HUD logic)
                 try:
-                    sch_start, sch_finish = cls.get_schedule_date_range()
+                    sch_start, sch_finish = tool.Sequence.get_schedule_date_range()
                     if sch_start and sch_finish:
                         # Use same logic as HUD Schedule
                         cd_d = current_date.date()
@@ -582,7 +583,7 @@ class TextSequence:
             try:
                 # Get full schedule dates (same as HUD logic)
                 try:
-                    sch_start, sch_finish = cls.get_schedule_date_range()
+                    sch_start, sch_finish = tool.Sequence.get_schedule_date_range()
                     if sch_start and sch_finish:
                         # Use same logic as HUD Schedule
                         cd_d = current_date.date()
@@ -672,7 +673,7 @@ class TextSequence:
                             # Fallback: get schedule name dynamically
                             try:
                                 import bonsai.tool as tool
-                                ws_props = cls.get_work_schedule_props()
+                                ws_props = tool.Sequence.get_work_schedule_props()
                                 if ws_props and hasattr(ws_props, 'active_work_schedule_id'):
                                     ws_id = ws_props.active_work_schedule_id
                                     if ws_id:
