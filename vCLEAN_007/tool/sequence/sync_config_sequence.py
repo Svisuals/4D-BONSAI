@@ -446,10 +446,14 @@ class SyncConfigSequence:
                 output_ids = [guid_map[guid] for guid in task_config.get("outputs", []) if guid in guid_map]
                 resource_ids = [guid_map[guid] for guid in task_config.get("resources", []) if guid in guid_map]
 
-                if input_ids: ifcopenshell.api.run("sequence.assign_process", ifc_file, relating_process=task, products=[ifc_file.by_id(i) for i in input_ids])
+                if input_ids:
+                    for input_id in input_ids:
+                        ifcopenshell.api.run("sequence.assign_process", ifc_file, relating_process=task, related_object=ifc_file.by_id(input_id))
                 if output_ids:
                     for product_id in output_ids: ifcopenshell.api.run("sequence.assign_product", ifc_file, relating_product=ifc_file.by_id(product_id), related_object=task)
-                if resource_ids: ifcopenshell.api.run("sequence.assign_process", ifc_file, relating_process=task, resources=[ifc_file.by_id(i) for i in resource_ids])
+                if resource_ids:
+                    for resource_id in resource_ids:
+                        ifcopenshell.api.run("sequence.assign_process", ifc_file, relating_process=task, related_object=ifc_file.by_id(resource_id))
                 
                 if "ColorType_assignments" in task_config:
                     # Translate from the JSON file structure to the internal snapshot format
@@ -741,15 +745,17 @@ class SyncConfigSequence:
                     resources = [guid_map[guid] for guid in task_config.get("resources", []) if guid in guid_map]
 
                     if inputs:
-                        ifcopenshell.api.run("sequence.assign_process", ifc_file, 
-                                            relating_process=target_task, products=inputs)
+                        for input_obj in inputs:
+                            ifcopenshell.api.run("sequence.assign_process", ifc_file,
+                                                relating_process=target_task, related_object=input_obj)
                     if outputs:
                         for product in outputs:
                             ifcopenshell.api.run("sequence.assign_product", ifc_file, 
                                                 relating_product=product, related_object=target_task)
                     if resources:
-                        ifcopenshell.api.run("sequence.assign_process", ifc_file, 
-                                            relating_process=target_task, resources=resources)
+                        for resource_obj in resources:
+                            ifcopenshell.api.run("sequence.assign_process", ifc_file,
+                                                relating_process=target_task, related_object=resource_obj)
 
                     schedule_matches += 1
 

@@ -42,7 +42,7 @@ class IFCLookupOptimizer:
         """Builds all lookup tables at once - 10x faster"""
         start_time = time.time()
 
-        print("🔧 Building IFC lookup tables...")
+        print("🔧 Construyendo lookup tables IFC...")
 
         # 1. Get all tasks at once
         root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
@@ -57,7 +57,7 @@ class IFCLookupOptimizer:
         for root_task in root_tasks:
             collect_all_tasks(root_task)
 
-        print(f"📊 Found {len(self.all_tasks_flat)} tasks")
+        print(f"📊 Encontradas {len(self.all_tasks_flat)} tareas")
 
         # 2. Pre-compute ALL relationships at once
         for task in self.all_tasks_flat:
@@ -97,8 +97,25 @@ class IFCLookupOptimizer:
 
         self.lookup_built = True
         elapsed = time.time() - start_time
-        print(f"✅ Lookup tables built in {elapsed:.2f}s")
-        print(f"📈 {len(self.product_ids)} products, {len(self.all_tasks_flat)} tasks")
+        print(f"✅ Lookup tables construidas en {elapsed:.2f}s")
+        print(f"📈 {len(self.product_ids)} productos, {len(self.all_tasks_flat)} tareas")
+
+        # Debug: Show some details
+        print(f"[DEBUG] task_to_outputs entries: {len(self.task_to_outputs)}")
+        print(f"[DEBUG] task_to_inputs entries: {len(self.task_to_inputs)}")
+
+        # Show first few tasks with their products
+        tasks_with_products = 0
+        for task in self.all_tasks_flat[:5]:  # Check first 5 tasks
+            task_id = task.id()
+            outputs = self.task_to_outputs.get(task_id, [])
+            inputs = self.task_to_inputs.get(task_id, [])
+            if outputs or inputs:
+                tasks_with_products += 1
+                task_name = getattr(task, 'Name', f'Task_{task_id}')
+                print(f"[DEBUG] {task_name}: {len(outputs)} outputs, {len(inputs)} inputs")
+
+        print(f"[DEBUG] Tasks with products (first 5): {tasks_with_products}/5")
 
     def get_tasks_for_product(self, product_id: int) -> tuple[List, List]:
         """Gets input/output tasks for a product instantly"""

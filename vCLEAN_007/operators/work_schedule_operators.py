@@ -931,8 +931,7 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                 print(f"Bonsai WARNING: Auto-saving of profiles to IFC failed: {e}")
 
             # --- 1. Product animation logic (no changes) ---
-            from bonsai.tool.sequence.color_management_sequence import sync_active_group_to_json
-            sync_active_group_to_json()
+            tool.Sequence.sync_active_group_to_json()
             work_schedule = tool.Ifc.get().by_id(self.work_schedule)
 
             # Better error logging to understand what's failing
@@ -1215,14 +1214,22 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
 
                         # END state with REAL ColorType
                         after_end = states.get("after_end", (0, -1))
-                        if after_end[1] >= after_end[0] and getattr(ColorType, 'consider_end', True):
-                            should_hide_at_end = getattr(ColorType, 'hide_at_end', False)
-                            if should_hide_at_end:
-                                # Hide object at the end (e.g., demolitions)
+                        if after_end[1] >= after_end[0]:
+                            consider_end = getattr(ColorType, 'consider_end', True)
+                            print(f"      END logic: consider_end={consider_end}, after_end range: {after_end}")
+
+                            if not consider_end:
+                                # If consider_end=False, hide objects at END phase (like snapshot logic)
+                                print(f"      ✅ HIDING OBJECT: {obj.name} at frame {after_end[0]} (consider_end=False)")
                                 visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': True})
                             else:
-                                # Show object at the end with END color
-                                visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': False})
+                                should_hide_at_end = getattr(ColorType, 'hide_at_end', False)
+                                if should_hide_at_end:
+                                    # Hide object at the end (e.g., demolitions)
+                                    visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': True})
+                                else:
+                                    # Show object at the end with END color
+                                    visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': False})
 
                                 # END COLOR using REAL ColorType - only if not hidden
                                 use_original = getattr(ColorType, 'use_end_original_color', False)
@@ -1331,12 +1338,15 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
             print("⚠️ CRASH PREVENTION: Only adding basic functionalities")
 
             # BÁSICO 1: Text animation handler (SAFE - no auto-arrange)
+            print("🔧🔧 [DEBUG] OPERATOR: About to call add_text_animation_handler")
             try:
                 tool.Sequence.add_text_animation_handler(settings)
                 print("✅ Text animation handler added (SAFE MODE)")
                 print("⚠️ Auto-arrange disabled to prevent crashes")
             except Exception as e:
                 print(f"❌ Text animation handler failed: {e}")
+                import traceback
+                traceback.print_exc()
 
             # REMOVED: Schedule name text - CAUSES CRASH
             # The creation of text objects is causing crashes

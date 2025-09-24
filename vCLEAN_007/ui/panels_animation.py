@@ -406,8 +406,11 @@ class BIM_PT_animation_tools(Panel):
             is_animation_active = False
             is_snapshot_active = False
 
-        # Deshabilitar si CUALQUIER estado está activo (animación o snapshot)
-        main_row.enabled = not (is_animation_active or is_snapshot_active)
+        # Check if work schedule tasks are opened/expanded
+        tasks_opened = self.props.active_work_schedule_id and self.props.editing_type == "TASKS"
+
+        # Deshabilitar si CUALQUIER estado está activo (animación o snapshot) OR tasks are not opened
+        main_row.enabled = not (is_animation_active or is_snapshot_active) and tasks_opened
 
         # Dynamic button text based on state
         if is_animation_active:
@@ -504,8 +507,11 @@ class BIM_PT_animation_tools(Panel):
             is_snapshot_active = False
             is_animation_active = False
 
-        # Deshabilitar si CUALQUIER estado está activo (animación o snapshot)
-        main_row.enabled = not (is_snapshot_active or is_animation_active)
+        # Check if work schedule tasks are opened/expanded
+        tasks_opened = self.props.active_work_schedule_id and self.props.editing_type == "TASKS"
+
+        # Deshabilitar si CUALQUIER estado está activo (animación o snapshot) OR tasks are not opened
+        main_row.enabled = not (is_snapshot_active or is_animation_active) and tasks_opened
 
         # Dynamic button text based on state
         if is_snapshot_active:

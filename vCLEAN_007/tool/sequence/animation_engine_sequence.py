@@ -212,7 +212,7 @@ class AnimationEngineSequence:
 
     @classmethod
     def get_task_for_product(cls, product):
-        """Obtiene la tarea asociada a un producto IFC."""
+        """Gets the task associated with an IFC product."""
         element = tool.Ifc.get_entity(product) if hasattr(product, 'name') else product
         if not element:
             return None
@@ -456,7 +456,7 @@ class AnimationEngineSequence:
                 "consider_start_active": True,
             }
             product_frames.setdefault(product_id, []).append(frame_data)
-            print(f"🔒 DEBUG_START: Product {product_id} creado con consider_start_active=True")
+            # Product created with consider_start_active=True
             print(f"   Task: {task.Name}")
             print(f"   Relationship: {relationship}")
             print(f"   States: {states}")
@@ -480,7 +480,7 @@ class AnimationEngineSequence:
 
             is_priority_mode = (consider_start and not consider_active and not consider_end)
 
-            print(f"🔍 DEBUG_START: Task '{task.Name}'")
+            # DEBUG: Task processing started
             print(f"   ColorType: {getattr(ColorType, 'name', 'Unknown')}")
             print(f"   consider_start: {consider_start}")
             print(f"   consider_active: {consider_active}")
@@ -574,7 +574,7 @@ class AnimationEngineSequence:
         """ULTRA-OPTIMIZED version using pre-computed lookup tables and cache"""
         import time
         start_time = time.time()
-        print(f"🚀 USING get_animation_product_frames_enhanced_OPTIMIZED with priority mode support")
+        print("Using optimized animation product frames with priority mode support")
 
         animation_start = int(settings["start_frame"])
         animation_end = int(settings["start_frame"] + settings["total_frames"])
@@ -589,12 +589,32 @@ class AnimationEngineSequence:
         start_date_type = f"{date_source.capitalize()}Start"
         finish_date_type = f"{date_source.capitalize()}Finish"
 
-        print(f"[OPTIMIZED] OPTIMIZED FRAMES: Processing {len(lookup_optimizer.get_all_tasks())} tasks")
+        all_tasks = lookup_optimizer.get_all_tasks()
+        print(f"[OPTIMIZED] OPTIMIZED FRAMES: Processing {len(all_tasks)} tasks")
+        # Processing tasks for animation
+
+        # Debug: Check if lookup optimizer has products
+        total_products_in_lookup = len(lookup_optimizer.product_ids) if hasattr(lookup_optimizer, 'product_ids') else 0
+        print(f"Total products in lookup optimizer: {total_products_in_lookup}")
 
         # Process all tasks using pre-computed lookup
         tasks_processed = 0
-        for task in lookup_optimizer.get_all_tasks():
+        for task in all_tasks:
             try:
+                task_name = getattr(task, 'Name', f'Task_{task.id()}')
+                print(f"Processing task: {task_name} (ID: {task.id()})")
+
+                # Check what products this task has
+                task_outputs = lookup_optimizer.get_outputs_for_task(task.id())
+                task_inputs = lookup_optimizer.get_inputs_for_task(task.id())
+                print(f"   - Outputs: {len(task_outputs)}, Inputs: {len(task_inputs)}")
+
+                # If no products, skip early
+                if not task_outputs and not task_inputs:
+                    print(f"   - Skipping: No products found for task {task_name}")
+                    continue
+                else:
+                    print(f"   - Processing: Task {task_name} has products, continuing...")
                 # PRIORITY MODE DETECTION: Check if only START is activated
                 ColorType = tool.Sequence._get_best_ColorType_for_task(task, tool.Sequence.get_animation_props())
                 is_priority_mode = (
@@ -613,6 +633,7 @@ class AnimationEngineSequence:
 
                     outputs_processed = 0
                     for output in lookup_optimizer.get_outputs_for_task(task.id()):
+                        print(f"     - Adding OUTPUT product {output.id()} in PRIORITY mode")
                         cls._add_optimized_priority_frame(
                             product_frames, output.id(), task, "output", animation_start, animation_end
                         )
@@ -620,12 +641,14 @@ class AnimationEngineSequence:
 
                     inputs_processed = 0
                     for input_prod in lookup_optimizer.get_inputs_for_task(task.id()):
+                        print(f"     - Adding INPUT product {input_prod.id()} in PRIORITY mode")
                         cls._add_optimized_priority_frame(
                             product_frames, input_prod.id(), task, "input", animation_start, animation_end
                         )
                         inputs_processed += 1
 
                     print(f"   Products added: {outputs_processed} outputs, {inputs_processed} inputs")
+                    print(f"   - Current product_frames count: {len(product_frames)}")
                     continue
 
                 # Use date cache for instant access
@@ -646,17 +669,26 @@ class AnimationEngineSequence:
                 ff = int(round(settings["start_frame"] + (finish_progress * settings["total_frames"])))
 
                 # Use lookup for instant access to outputs and inputs
+                outputs_added = 0
                 for output in lookup_optimizer.get_outputs_for_task(task.id()):
+                    print(f"     - Adding OUTPUT product {output.id()} in NORMAL mode")
                     cls._add_optimized_product_frame(
                         product_frames, output.id(), task, task_start, task_finish,
                         sf, ff, "output", animation_start, animation_end, viz_start, viz_finish
                     )
+                    outputs_added += 1
 
+                inputs_added = 0
                 for input_prod in lookup_optimizer.get_inputs_for_task(task.id()):
+                    print(f"     - Adding INPUT product {input_prod.id()} in NORMAL mode")
                     cls._add_optimized_product_frame(
                         product_frames, input_prod.id(), task, task_start, task_finish,
                         sf, ff, "input", animation_start, animation_end, viz_start, viz_finish
                     )
+                    inputs_added += 1
+
+                print(f"   - Added {outputs_added} outputs, {inputs_added} inputs in NORMAL mode")
+                print(f"[DEBUG]   - Current product_frames count: {len(product_frames)}")
 
                 tasks_processed += 1
 
@@ -665,9 +697,78 @@ class AnimationEngineSequence:
                 continue
 
         elapsed = time.time() - start_time
+
+        # Debug final results
+        total_frames = sum(len(frames) for frames in product_frames.values())
+        print(f"Final product_frames keys: {list(product_frames.keys())[:10]}...")  # First 10 keys
+        print(f"Total frames across all products: {total_frames}")
+
         print(f"[OK] OPTIMIZED FRAMES: {len(product_frames)} products, {tasks_processed} tasks in {elapsed:.2f}s")
         return product_frames
 
+    @classmethod
+    def _add_optimized_priority_frame(cls, product_frames, product_id, task, relationship, animation_start, animation_end):
+        """Add priority mode frame (START only activated) to optimized product frames"""
+        states = { "active": (animation_start, animation_end) }
+
+        frame_data = {
+            "task": task, "task_id": task.id(),
+            "type": getattr(task, "PredefinedType", "NOTDEFINED"),
+            "relationship": relationship,
+            "start_date": None, "finish_date": None,  # Dates ignored in priority mode
+            "STARTED": animation_start, "COMPLETED": animation_end,
+            "start_frame": animation_start, "finish_frame": animation_end,
+            "states": states,
+            "consider_start_active": True,  # KEY FLAG for priority mode
+        }
+
+        product_frames.setdefault(product_id, []).append(frame_data)
+        print(f"   Added priority frame for product {product_id}: consider_start_active={frame_data['consider_start_active']}")
+
+    @classmethod
+    def _add_optimized_product_frame(cls, product_frames, product_id, task, start_date, finish_date,
+                                   start_frame, finish_frame, relationship, animation_start, animation_end,
+                                   viz_start, viz_finish):
+        """Optimized version of add_product_frame_enhanced"""
+        # Fast state calculation
+        if finish_date < viz_start:
+            states = {
+                "before_start": (animation_start, animation_start - 1),
+                "active": (animation_start, animation_start - 1),
+                "after_end": (animation_start, animation_end),
+            }
+        elif start_date > viz_finish:
+            return
+        else:
+            s_vis = max(animation_start, int(start_frame))
+            f_vis = min(animation_end, int(finish_frame))
+            if f_vis < s_vis:
+                s_vis = max(animation_start, min(animation_end, s_vis))
+                f_vis = s_vis
+            before_end = s_vis - 1
+            after_start = f_vis + 1
+            states = {
+                "before_start": (animation_start, before_end) if before_end >= animation_start else (animation_start, animation_start - 1),
+                "active": (s_vis, f_vis),
+                "after_end": (after_start if after_start <= animation_end else animation_end + 1, animation_end),
+            }
+
+        # Create optimized frame data
+        frame_data = {
+            "task": task,
+            "task_id": task.id(),
+            "type": getattr(task, "PredefinedType", "NOTDEFINED"),
+            "relationship": relationship,
+            "start_date": start_date,
+            "finish_date": finish_date,
+            "STARTED": int(start_frame),
+            "COMPLETED": int(finish_frame),
+            "start_frame": max(animation_start, int(start_frame)),
+            "finish_frame": min(animation_end, int(finish_frame)),
+            "states": states,
+        }
+
+        product_frames.setdefault(product_id, []).append(frame_data)
 
     @classmethod
     def animate_objects_with_ColorTypes_new(cls, settings, product_frames):
@@ -677,10 +778,11 @@ class AnimationEngineSequence:
         """
         import time
         start_time = time.time()
+        print("Starting new animation with ColorTypes")
         print("[ANIM] STARTING NEW BATCH ANIMATION SYSTEM")
 
         # IFC MAPPING - From COMPLETE_SYSTEM_ULTRA_FAST
-        print("📦 [OPT1] Building IFC mapping...")
+        print("Building IFC mapping...")
         map_start = time.time()
         ifc_to_blender = {}
         assigned_objects = set()
@@ -695,7 +797,7 @@ class AnimationEngineSequence:
                         assigned_objects.add(obj)
 
         map_time = time.time() - map_start
-        print(f"📦 [OPT1] Mapped {len(ifc_to_blender)} IFC objects ({len(assigned_objects)} assigned) in {map_time:.3f}s")
+        print(f"Mapped {len(ifc_to_blender)} IFC objects ({len(assigned_objects)} assigned) in {map_time:.3f}s")
 
         # Save original colors using existing system
         if not bpy.context.scene.get('BIM_VarianceOriginalObjectColors'):
@@ -703,7 +805,7 @@ class AnimationEngineSequence:
 
 
         #  Use original build_animation_plan approach
-        print("🔧 [SAFE] Using original stable animation system...")
+        print("Using original stable animation system...")
 
         # Phase 1: Build animation plan (original approach)
         animation_plan = cls.build_animation_plan(bpy.context, settings, product_frames)
@@ -723,7 +825,7 @@ class AnimationEngineSequence:
         # SAFE BASELINE TIMING REPORT
         total_time = time.time() - start_time
         print(f"⏱️ [SAFE] IFC mapping + Original stable system - Total time: {total_time:.2f}s")
-        print(f"🔧 [SAFE] Reverted aggressive optimizations to prevent crashes")
+        print("Reverted aggressive optimizations to prevent crashes")
         print("[ANIM] SAFE BASELINE SYSTEM COMPLETE")
 
 
@@ -731,12 +833,13 @@ class AnimationEngineSequence:
     def animate_objects_with_ColorTypes_optimized(cls, settings, product_frames, cache):
         """
         ULTRA-OPTIMIZED version using cache.
-        MODIFIED to execute directly with Live Color Update support.
+        Optimized animation with pre-built plan.
         """
         import time
         from datetime import datetime
         start_time = time.time()
 
+        print("Starting optimized animation with ColorTypes")
         print(f"[OPTIMIZED] OPTIMIZED ANIMATION: Planning for {len(product_frames)} products")
 
         # Get properties once
@@ -747,7 +850,7 @@ class AnimationEngineSequence:
         if not bpy.context.scene.get('BIM_VarianceOriginalObjectColors'):
             cls._save_original_colors_optimized(cache)
 
-        # Listas locales para construir el plan de animación
+        # Local lists to build the animation plan
         visibility_ops = []
         color_ops = []
         total_objects_processed = 0
@@ -794,47 +897,6 @@ class AnimationEngineSequence:
         elapsed = time.time() - start_time
         print(f"[OK] OPTIMIZED ANIMATION: {total_objects_processed} objects processed in {elapsed:.2f}s")
 
-        # === LIVE COLOR UPDATE INTEGRATION ===
-        if animation_props.enable_live_color_updates:
-
-            # Convert product_frames keys to strings for scene storage
-            string_keyed_product_frames = {str(k): v for k, v in product_frames.items()}
-
-            # Create serializable version avoiding non-serializable objects
-            serializable_product_frames = {}
-            for pid_str, frame_data_list in string_keyed_product_frames.items():
-                serializable_frame_data_list = []
-                for frame_data_item in frame_data_list:
-                    serializable_item = {}
-                    for key, value in frame_data_item.items():
-                        if key == 'task':
-                            # Store task_id to recover task in live handler
-                            if value is not None and hasattr(value, 'id') and callable(value.id):
-                                serializable_item['task_id'] = value.id()
-                            continue  # Skip non-serializable 'task' object
-                        elif isinstance(value, datetime):
-                            serializable_item[key] = value.isoformat()  # Convert datetime to string
-                        else:
-                            serializable_item[key] = value
-                    serializable_frame_data_list.append(serializable_item)
-                serializable_product_frames[pid_str] = serializable_frame_data_list
-
-            # Store original colors for live updates
-            live_update_props = {"product_frames": serializable_product_frames, "original_colors": {}}
-            for obj in bpy.data.objects:
-                if obj.type == 'MESH':
-                    element = tool.Ifc.get_entity(obj)
-                    if element:
-                        live_update_props["original_colors"][str(element.id())] = list(obj.color)
-
-            bpy.context.scene['BIM_LiveUpdateProductFrames'] = live_update_props
-            print(f"[OPTIMIZED] Created live update cache with {len(serializable_product_frames)} products")
-
-            # Immediate verification
-            if bpy.context.scene.get('BIM_LiveUpdateProductFrames'):
-                print("[OPTIMIZED] Cache verification: SUCCESS - BIM_LiveUpdateProductFrames exists")
-            else:
-                print("[OPTIMIZED] Cache verification: FAILED - BIM_LiveUpdateProductFrames missing!")
 
 
         # Configure viewport and scene
@@ -848,7 +910,7 @@ class AnimationEngineSequence:
         bpy.context.scene.frame_start = settings["start_frame"]
         bpy.context.scene.frame_end = int(settings["start_frame"] + settings["total_frames"] + 1)
 
-        print("🚀 [OPTIMIZED] Animation completed with Live Color Update support!")
+        print("[OPTIMIZED] Animation completed successfully!")
 
 
     @classmethod
@@ -974,18 +1036,27 @@ class AnimationEngineSequence:
         end_state_frames = frame_data["states"]["after_end"]
         start_f, end_f = end_state_frames
 
-        if end_f >= start_f and getattr(ColorType, 'consider_end', True):
-            should_hide_at_end = getattr(ColorType, 'hide_at_end', False)
+        if end_f >= start_f:
+            consider_end = getattr(ColorType, 'consider_end', True)
+            print(f"ColorType: {obj.name} consider_end={consider_end} at END phase frames {start_f}-{end_f}")
 
-            if not should_hide_at_end:
-                animation_plan[start_f]["REVEAL"].append(obj)
-                use_original = getattr(ColorType, 'use_end_original_color', True)
-                color = original_color if use_original else list(ColorType.end_color)
-                alpha = 1.0 - getattr(ColorType, 'end_transparency', 0.0)
-                end_color = (color[0], color[1], color[2], alpha)
-                animation_plan[start_f]["SET_COLOR"].append((obj, end_color))
-            else:
+            if not consider_end:
+                # If consider_end=False, hide objects at END phase (like snapshot logic)
+                print(f"Animation: Hiding {obj.name} at END phase (consider_end=False) at frame {start_f}")
                 animation_plan[start_f]["HIDE"].append(obj)
+            else:
+                # Normal consider_end=True logic
+                should_hide_at_end = getattr(ColorType, 'hide_at_end', False)
+
+                if not should_hide_at_end:
+                    animation_plan[start_f]["REVEAL"].append(obj)
+                    use_original = getattr(ColorType, 'use_end_original_color', True)
+                    color = original_color if use_original else list(ColorType.end_color)
+                    alpha = 1.0 - getattr(ColorType, 'end_transparency', 0.0)
+                    end_color = (color[0], color[1], color[2], alpha)
+                    animation_plan[start_f]["SET_COLOR"].append((obj, end_color))
+                else:
+                    animation_plan[start_f]["HIDE"].append(obj)
 
     @classmethod
     def execute_animation_plan(cls, context, animation_plan):
@@ -1044,14 +1115,15 @@ class AnimationEngineSequence:
     @classmethod
     def apply_ColorType_animation(cls, obj, frame_data, ColorType, original_color, settings):
         """
-        Aplica la animación a un objeto basándose en su perfil de apariencia.
+        Applies animation to an object based on its appearance profile.
         RESTAURADO: Lógica exacta de v110 para manejo de consider flags.
         """
-        # Limpiar cualquier animación previa en este objeto para empezar de cero.
+        print(f"Applying ColorType animation for {obj.name}")
+        # Clear any previous animation on this object to start fresh.
         if obj.animation_data:
             obj.animation_data_clear()
 
-        # Verificar consider_start_active (priority mode)
+        # Check consider_start_active (priority mode)
         if frame_data.get("consider_start_active", False):
             print(f"🔒 APPLY_COLORTYPE: {obj.name} detectado consider_start_active=True (Start prioritario)")
             start_f, end_f = frame_data["states"]["active"]
@@ -1061,12 +1133,12 @@ class AnimationEngineSequence:
             print(f"   Visibilidad después: viewport={not obj.hide_viewport}, render={not obj.hide_render}")
             return
 
-        # Verificar flags una sola vez al inicio
+        # Check flags once at the beginning
         has_consider_start = getattr(ColorType, 'consider_start', False)
         is_active_considered = getattr(ColorType, 'consider_active', True)
         is_end_considered = getattr(ColorType, 'consider_end', True)
 
-        # Procesar cada estado por separado con lógica original
+        # Process each state separately with original logic
         for state_name, (start_f, end_f) in frame_data["states"].items():
             if end_f < start_f:
                 continue
@@ -1080,7 +1152,7 @@ class AnimationEngineSequence:
             # La lógica "start" está separada para manejar ocultación explícita.
             if state == "start":
                 if not has_consider_start:
-                    # Si 'Start' NO se considera y es un objeto de construcción ('output'),
+                    # If 'Start' is NOT considered and it's a construction object ('output'),
                     # debe estar OCULTO hasta que empiece su fase 'Active'.
                     if frame_data.get("relationship") == "output":
                         obj.hide_viewport = True
@@ -1091,7 +1163,7 @@ class AnimationEngineSequence:
                             obj.keyframe_insert(data_path="hide_viewport", frame=end_f)
                             obj.keyframe_insert(data_path="hide_render", frame=end_f)
                     # Para inputs (demolición), no hacer nada los mantiene visibles, lo cual es correcto.
-                    continue  # Continuar al siguiente estado.
+                    continue  # Continue to the next state.
                 # Si 'Start' SÍ se considera, aplicar su apariencia.
                 cls.apply_state_appearance(obj, ColorType, "start", start_f, end_f, original_color, frame_data)
 
@@ -1102,6 +1174,12 @@ class AnimationEngineSequence:
 
             elif state == "end":
                 if not is_end_considered:
+                    # If consider_end=False, hide objects at END phase (like snapshot logic)
+                    print(f"Animation: Hiding {obj.name} at END phase (consider_end=False) at frame {start_f}")
+                    obj.hide_viewport = True
+                    obj.hide_render = True
+                    obj.keyframe_insert(data_path="hide_viewport", frame=start_f)
+                    obj.keyframe_insert(data_path="hide_render", frame=start_f)
                     continue
                 cls.apply_state_appearance(obj, ColorType, "end", start_f, end_f, original_color, frame_data)
 
@@ -1109,10 +1187,10 @@ class AnimationEngineSequence:
 
     @classmethod
     def apply_state_appearance(cls, obj, ColorType, state, start_frame, end_frame, original_color, frame_data=None):
-        """V110 LOGIC: Apply appearance for a specific state"""
+        """Apply appearance for a specific state"""
         if state == "start":
-            # Cuando consider_start=True, el objeto debe ser siempre visible
-            print(f"   📦 APPLY_STATE_APPEARANCE: Aplicando estado 'start' a {obj.name}")
+            # When consider_start=True, the object should always be visible
+            print(f"   Applying 'start' state to {obj.name}")
             print(f"      Antes: viewport={not obj.hide_viewport}, render={not obj.hide_render}")
             obj.hide_viewport = False
             obj.hide_render = False
@@ -1179,7 +1257,7 @@ class AnimationEngineSequence:
                     obj.keyframe_insert(data_path="hide_render", frame=end_frame)
                     obj.keyframe_insert(data_path="color", frame=end_frame)
 
-        # Restaurar el estado oculto después de establecer keyframes
+        # Restore hidden state after setting keyframes
         obj.hide_viewport = True
         obj.hide_render = True
 
@@ -1379,19 +1457,43 @@ class AnimationEngineSequence:
     @classmethod
     def get_animation_product_frames(self, work_schedule, settings):
         """
-        Calcula los fotogramas de la animación con un enfoque de alto rendimiento.
+        Calculates animation frames with a high-performance approach.
         Utiliza caché de fechas y reduce drásticamente las operaciones repetitivas.
         """
         import time
         from datetime import datetime
 
-        print("🚀 TOOL: Iniciando cálculo de frames con optimización final...")
+        print("Starting frame calculation with final optimization...")
         start_time = time.time()
 
-        # Access core functions through 'self' or 'type(self)'
-        core_sequence = type(self).get_core()
-        
-        products = core_sequence.get_products(self, work_schedule)
+        # Get all products from the work schedule by collecting from all tasks
+        import ifcopenshell.util.sequence
+        products = []
+
+        def get_all_tasks_recursive(tasks):
+            all_tasks = []
+            for task in tasks:
+                all_tasks.append(task)
+                nested = ifcopenshell.util.sequence.get_nested_tasks(task)
+                if nested:
+                    all_tasks.extend(get_all_tasks_recursive(nested))
+            return all_tasks
+
+        root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
+        all_tasks = get_all_tasks_recursive(root_tasks)
+
+        # Collect all products from tasks (outputs and inputs)
+        for task in all_tasks:
+            task_outputs = ifcopenshell.util.sequence.get_task_outputs(task)
+            if task_outputs:
+                products.extend(task_outputs)
+            task_inputs = ifcopenshell.util.sequence.get_task_inputs(task)
+            if task_inputs:
+                products.extend(task_inputs)
+
+        # Remove duplicates
+        products = list(set(products))
+
         if not products:
             return {}
 
@@ -1399,12 +1501,11 @@ class AnimationEngineSequence:
         finish_date_str = settings.get("finish")
 
         if not start_date_str or not finish_date_str:
-            print("   - No se proporcionaron fechas de inicio/fin. Calculando desde tareas...")
-            all_tasks = core_sequence.get_tasks(self, work_schedule, recursive=True)
+            print("   - No start/end dates provided. Calculating from tasks...")
             all_dates = []
             for task in all_tasks:
-                task_start = core_sequence.get_start(self, task)
-                task_end = core_sequence.get_end(self, task)
+                task_start = ifcopenshell.util.sequence.derive_date(task, "ScheduleStart", is_earliest=True)
+                task_end = ifcopenshell.util.sequence.derive_date(task, "ScheduleFinish", is_latest=True)
                 if task_start: all_dates.append(task_start)
                 if task_end: all_dates.append(task_end)
             
@@ -1439,14 +1540,24 @@ class AnimationEngineSequence:
         
         # --- BUCLE OPTIMIZADO ---
         for product in products:
-            tasks = core_sequence.get_tasks(self, product)
+            # Find tasks that have this product as input or output
+            tasks = {}
+            for task in all_tasks:
+                task_outputs = ifcopenshell.util.sequence.get_task_outputs(task)
+                if product in task_outputs:
+                    tasks[task] = "output"
+
+                task_inputs = ifcopenshell.util.sequence.get_task_inputs(task)
+                if product in task_inputs:
+                    tasks[task] = "input"
+
             if not tasks:
                 continue
 
             product_frames = []
             for task, rel in tasks.items():
-                task_start = core_sequence.get_start(self, task)
-                task_end = core_sequence.get_end(self, task)
+                task_start = ifcopenshell.util.sequence.derive_date(task, "ScheduleStart", is_earliest=True)
+                task_end = ifcopenshell.util.sequence.derive_date(task, "ScheduleFinish", is_latest=True)
 
                 if not task_start or not task_end or task_start >= task_end:
                     continue
@@ -1501,10 +1612,10 @@ class AnimationEngineSequence:
         if before_start[1] >= before_start[0]:
             should_be_hidden = is_construction and not getattr(ColorType, 'consider_start', False)
             if should_be_hidden:
-                # OCULTAR objeto antes de empezar si consider_start=False
+                # HIDE object before starting if consider_start=False
                 visibility_ops.append({'obj': obj, 'frame': before_start[0], 'hide': True})
             else:
-                # MOSTRAR objeto antes de empezar si consider_start=True
+                # SHOW object before starting if consider_start=True
                 visibility_ops.append({'obj': obj, 'frame': before_start[0], 'hide': False})
 
                 # COLOR START usando ColorType REAL
@@ -1534,10 +1645,10 @@ class AnimationEngineSequence:
             # FIXED: Verificar hide_at_end como en v110
             should_hide_at_end = getattr(ColorType, 'hide_at_end', False)
             if should_hide_at_end:
-                # Ocultar objeto al final (ej: demoliciones)
+                # Hide object at the end (e.g. demolitions)
                 visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': True})
             else:
-                # Mostrar objeto al final con color END
+                # Show object at the end with END color
                 visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': False})
 
                 # COLOR END usando ColorType REAL - solo si no se oculta
@@ -1558,10 +1669,11 @@ class AnimationEngineSequence:
         - Pre-filtering, Object caching, Batch keyframes
         - 100% original functionality maintained
         """
+        print("Starting animation with ColorTypes")
         import time
         start_time = time.time()
 
-        print(f"🚀 [ULTRA-OPTIMIZED] Starting animation for {len(product_frames)} products")
+        print(f"Starting optimized animation for {len(product_frames)} products")
 
         
         try:
@@ -1572,7 +1684,7 @@ class AnimationEngineSequence:
                 colortype_cache.build_cache(bpy.context)
                 print("✅ ColorType cache loaded")
             except Exception as e:
-                print(f"⚠️ ColorType cache not available: {e}")
+                print(f"Warning: ColorType cache not available: {e}")
                 colortype_cache = None
 
             try:
@@ -1581,7 +1693,7 @@ class AnimationEngineSequence:
                 lookup.build_lookup_tables(bpy.context)
                 print("✅ IFC lookup loaded")
             except Exception as e:
-                print(f"⚠️ IFC lookup not available: {e}")
+                print(f"Warning: IFC lookup not available: {e}")
                 lookup = None
 
             try:
@@ -1590,7 +1702,7 @@ class AnimationEngineSequence:
                 perf_cache.build_scene_cache(bpy.context)
                 print("✅ Performance cache loaded")
             except Exception as e:
-                print(f"⚠️ Performance cache not available: {e}")
+                print(f"Warning: Performance cache not available: {e}")
                 perf_cache = None
 
             try:
@@ -1598,11 +1710,11 @@ class AnimationEngineSequence:
                 batch_proc = batch_processor.get_batch_processor()
                 print("✅ Batch processor loaded")
             except Exception as e:
-                print(f"⚠️ Batch processor not available: {e}")
+                print(f"Warning: Batch processor not available: {e}")
                 batch_proc = None
 
         except Exception as e:
-            print(f"⚠️ Some optimizations not available, continuing with basic optimizations: {e}")
+            print(f"Warning: Some optimizations not available, continuing with basic optimizations: {e}")
 
         animation_props = tool.Sequence.get_animation_props()
 
@@ -1614,7 +1726,7 @@ class AnimationEngineSequence:
                 break
         if not active_group_name:
             active_group_name = "DEFAULT"
-        print(f"[ANIM] INICIANDO ANIMACIÓN: Usando el grupo de perfiles '{active_group_name}'")
+        print(f"[ANIMATION] Starting animation: Using profile group '{active_group_name}'")
 
         # --- GUARDAR COLORES ORIGINALES USANDO SISTEMA EXISTENTE - PRESERVED ---
         if not bpy.context.scene.get('BIM_VarianceOriginalObjectColors'):
@@ -1623,7 +1735,7 @@ class AnimationEngineSequence:
         original_colors = {}
 
         # Pre-filter relevant objects (avoid processing all scene objects)
-        print("🔍 Pre-filtering relevant objects...")
+        print("Pre-filtering relevant objects...")
         relevant_objects = []
         ifc_entity_cache = {}  # OPTIMIZATION 2: Cache IFC entities
 
@@ -1646,7 +1758,7 @@ class AnimationEngineSequence:
         print(f"📊 Filtered {len(relevant_objects)} relevant objects from {len(candidate_objects)} total")
 
         # Batch color extraction
-        print("🎨 Extracting original colors (optimized)...")
+        print("Extracting original colors (optimized)...")
         for obj in relevant_objects:
             # Intentar obtener el color del material IFC original primero - PRESERVED LOGIC
             original_color = None
@@ -1672,11 +1784,11 @@ class AnimationEngineSequence:
             # Guardamos una copia serializada de los colores en la escena.
             # Esta propiedad actuará como nuestra "memoria" para la restauración.
             bpy.context.scene['bonsai_animation_original_colors'] = json.dumps(original_colors)
-            print(f"🎨 Se han guardado los colores originales de {len(original_colors)} objetos para la animación.")
+            print(f"Saved original colors of {len(original_colors)} objects for animation.")
         except Exception as e:
-            print(f"[WARNING]️ No se pudieron guardar los colores originales de la animación: {e}")
+            print(f"[WARNING] Could not save original animation colors: {e}")
 
-        print("🚀 Processing objects with ultra-optimizations...")
+        print("Processing objects with ultra-optimizations...")
 
         # Cache ColorTypes to avoid repeated lookups
         colortype_cache_dict = {}
@@ -1703,7 +1815,7 @@ class AnimationEngineSequence:
                 objects_to_hide.append(obj)
                 continue
 
-            # Para objetos que SÍ van a ser animados - PRESERVED LOGIC
+            # For objects that WILL be animated - PRESERVED LOGIC
             objects_to_hide.append(obj)  # Will be batched
             keyframe_operations.append((obj, "hide_viewport", True, 0))
             keyframe_operations.append((obj, "hide_render", True, 0))
@@ -1763,7 +1875,7 @@ class AnimationEngineSequence:
         # === CONFIGURE VIEWPORT AND SCENE (PRESERVED FUNCTIONALITY) ===
         area = tool.Blender.get_view3d_area()
         try:
-            # This ensures colors are visible if baked, or if live updates are on - PRESERVED
+            # This ensures colors are visible when animation is baked
             area.spaces[0].shading.color_type = "OBJECT"
         except Exception:
             pass
@@ -1776,16 +1888,16 @@ class AnimationEngineSequence:
         elapsed = time.time() - start_time
         print(f"🎉 [ULTRA-OPTIMIZED] Animation completed in {elapsed:.2f}s (vs ~25-30s original)")
         print(f"📈 Performance improvement: {(25/elapsed):.1f}x faster")
-        print(f"🔧 Optimizations used:")
-        print(f"   - ColorType cache: {'✅' if colortype_cache else '❌'}")
-        print(f"   - IFC lookup: {'✅' if lookup else '❌'}")
-        print(f"   - Performance cache: {'✅' if perf_cache else '❌'}")
-        print(f"   - Batch processor: {'✅' if batch_proc else '❌'}")
-        print(f"   - Pre-filtering: ✅ ({len(relevant_objects)}/{len(candidate_objects)} objects)")
-        print(f"   - Entity caching: ✅ ({len(ifc_entity_cache)} entities)")
-        print(f"   - ColorType caching: ✅ ({len(colortype_cache_dict)} cached)")
-        print(f"   - Batch operations: ✅ ({len(keyframe_operations)} keyframes)")
-        print("🚀 All optimizations successfully integrated maintaining 100% functionality!")
+        print("Optimizations used:")
+        print(f"   - ColorType cache: {'OK' if colortype_cache else 'MISSING'}")
+        print(f"   - IFC lookup: {'OK' if lookup else 'MISSING'}")
+        print(f"   - Performance cache: {'OK' if perf_cache else 'MISSING'}")
+        print(f"   - Batch processor: {'OK' if batch_proc else 'MISSING'}")
+        print(f"   - Pre-filtering: OK ({len(relevant_objects)}/{len(candidate_objects)} objects)")
+        print(f"   - Entity caching: OK ({len(ifc_entity_cache)} entities)")
+        print(f"   - ColorType caching: OK ({len(colortype_cache_dict)} cached)")
+        print(f"   - Batch operations: OK ({len(keyframe_operations)} keyframes)")
+        print("All optimizations successfully integrated maintaining 100% functionality!")
 
 
     @classmethod
@@ -1814,7 +1926,7 @@ class AnimationEngineSequence:
     @classmethod
     def debug_ColorType_application(cls, obj, ColorType, frame_data):
         """Debug helper to verify profile application"""
-        print(f"[CHECK] DEBUG ColorType Application:")
+        print("ColorType Application Check:")
         print(f"   Object: {obj.name}")
         print(f"   ColorType: {getattr(ColorType, 'name', 'Unknown')}")
         print(f"   consider_start: {getattr(ColorType, 'consider_start', False)}")
@@ -1825,7 +1937,7 @@ class AnimationEngineSequence:
 
     @classmethod
     def _process_task_with_ColorTypes(cls, task, settings, product_frames, anim_props, ColorType_cache):
-            """Procesa recursivamente una tarea, agregando frames con estados.
+            """Recursively processes a task, adding frames with states.
             Mantiene compatibilidad con la estructura 'enhanced'."""
             for subtask in ifcopenshell.util.sequence.get_nested_tasks(task):
                 cls._process_task_with_ColorTypes(subtask, settings, product_frames, anim_props, ColorType_cache)
@@ -1883,6 +1995,7 @@ class AnimationEngineSequence:
 
     @classmethod
     def _apply_ColorType_to_object(cls, obj, frame_data, ColorType, original_color, settings):
+        print(f"Applying ColorType to object {obj.name}")
         for state_name, (start_f, end_f) in frame_data["states"].items():
             if end_f < start_f:
                 continue
@@ -1904,6 +2017,12 @@ class AnimationEngineSequence:
             elif state == "in_progress" and not getattr(ColorType, 'consider_active', True):
                 return
             elif state == "end" and not getattr(ColorType, 'consider_end', True):
+                # If consider_end=False, hide objects at END phase (like snapshot logic)
+                print(f"Animation: Hiding {obj.name} at END phase (consider_end=False) at frame {start_f}")
+                obj.hide_viewport = True
+                obj.hide_render = True
+                obj.keyframe_insert(data_path="hide_viewport", frame=start_f)
+                obj.keyframe_insert(data_path="hide_render", frame=start_f)
                 return
             cls.apply_state_appearance(obj, ColorType, state, start_f, end_f, original_color, frame_data)
             # Transparency: fade during active stretch
@@ -1927,64 +2046,6 @@ class AnimationEngineSequence:
                 pass
 
 
-    @classmethod
-    def create_live_update_cache_from_existing(cls, context):
-        """
-        Creates live update cache from existing animation keyframes.
-        This allows enabling Live Color Updates after animation creation.
-        """
-        try:
-            print("🔧 Creating live update cache from existing animation...")
-
-            # Check if we have objects with animation data
-            animated_objects = []
-            for obj in bpy.data.objects:
-                if obj.type == 'MESH' and obj.animation_data and obj.animation_data.action:
-                    element = tool.Ifc.get_entity(obj)
-                    if element:
-                        animated_objects.append((obj, element))
-
-            if not animated_objects:
-                print("❌ No animated objects found - cannot create live update cache")
-                return False
-
-            print(f"📋 Found {len(animated_objects)} animated objects")
-
-            # Create basic cache structure
-            live_update_props = {"product_frames": {}, "original_colors": {}}
-
-            # For each animated object, create basic frame data
-            for obj, element in animated_objects:
-                pid_str = str(element.id())
-
-                # Store original color
-                live_update_props["original_colors"][pid_str] = list(obj.color)
-
-                # Create basic frame data (simplified)
-                # This is a minimal implementation - doesn't recreate full animation analysis
-                frame_data = {
-                    "states": {
-                        "before_start": (0, 1),
-                        "active": (1, 100),
-                        "after_end": (100, 200)
-                    },
-                    "task_id": None,  # Will be resolved in live handler
-                    "task": None,
-                    "element_id": element.id()
-                }
-
-                live_update_props["product_frames"][pid_str] = [frame_data]
-
-            # Store in scene
-            context.scene['BIM_LiveUpdateProductFrames'] = live_update_props
-            print(f"✅ Live update cache created with {len(animated_objects)} objects")
-            return True
-
-        except Exception as e:
-            print(f"❌ Failed to create live update cache: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
 
     @classmethod
     def clear_objects_animation(
@@ -1997,9 +2058,9 @@ class AnimationEngineSequence:
             reset_colors_and_visibility: bool = True,
         ):
         """
-        FUNCIÓN DE RESETEO UNIVERSAL:
-        Limpia la animación 4D (keyframes) Y/O revierte un snapshot,
-        restaurando los objetos a su estado original guardado.
+        Universal reset function:
+        Clears 4D animation (keyframes) and/or reverts a snapshot,
+        restoring objects to their saved original state.
         """
         import bpy
         import json
@@ -2009,7 +2070,7 @@ class AnimationEngineSequence:
         # Desregistrar handlers de actualización por frame para evitar errores
         cls._unregister_frame_change_handler()
 
-        # Limpiar elementos visuales auxiliares (textos, barras)
+        # Clear auxiliary visual elements (texts, bars)
         if clear_texts:
             coll = bpy.data.collections.get("Schedule_Display_Texts")
             if coll:
@@ -2024,7 +2085,7 @@ class AnimationEngineSequence:
                     bpy.data.objects.remove(obj, do_unlink=True)
                 bpy.data.collections.remove(coll)
 
-        # Cargar los estados originales guardados (si existen)
+        # Load saved original states (if they exist)
         anim_colors_json = bpy.context.scene.get('bonsai_animation_original_colors')
         snap_props_json = bpy.context.scene.get('bonsai_snapshot_original_props')
         variance_colors = bpy.context.scene.get('BIM_VarianceOriginalObjectColors', {})
@@ -2032,15 +2093,15 @@ class AnimationEngineSequence:
         anim_colors = json.loads(anim_colors_json) if anim_colors_json else {}
         snap_props = json.loads(snap_props_json) if snap_props_json else {}
 
-        # Procesar y restaurar todos los objetos 3D
+        # Process and restore all 3D objects
         if include_blender_objects:
             for obj in bpy.data.objects:
                 if obj.type == 'MESH':
-                    # A. Limpiar keyframes (siempre se ejecuta para limpiar cualquier animación)
+                    # A. Clear keyframes (always executed to clear any animation)
                     if obj.animation_data:
                         obj.animation_data_clear()
 
-                    # B. Restaurar estado (visibilidad y color)
+                    # B. Restore state (visibility and color)
                     if reset_colors_and_visibility:
                         restored = False
                         # Prioridad 1: Restaurar desde datos de Snapshot si existen.
@@ -2067,7 +2128,7 @@ class AnimationEngineSequence:
                         if not restored:
                             obj.hide_viewport = False
                             obj.hide_render = False
-                            # Intentar obtener color del material original del objeto IFC
+                            # Try to get color from original IFC object material
                             try:
                                 if obj.material_slots and obj.material_slots[0].material:
                                     material = obj.material_slots[0].material
@@ -2084,7 +2145,7 @@ class AnimationEngineSequence:
                             if not restored:
                                 obj.color = (0.9, 0.9, 0.9, 1.0)  # Blanco casi neutro en lugar de gris
 
-        # Resetear la línea de tiempo
+        # Reset the timeline
         if reset_timeline:
             scene = bpy.context.scene
             scene.frame_current = scene.frame_start
@@ -2196,7 +2257,7 @@ class AnimationEngineSequence:
                 }
 
         except Exception as e:
-            print(f"⚠️ ColorType cache lookup failed for task {getattr(task, 'ifc_definition_id', 0)}: {e}")
+            print(f"Warning: ColorType cache lookup failed for task {getattr(task, 'ifc_definition_id', 0)}: {e}")
             # Ultimate fallback
             return {
                 'consider_start': True,
@@ -2221,7 +2282,7 @@ class AnimationEngineSequence:
         is_active_considered = colortype.get('consider_active', True)
         is_end_considered = colortype.get('consider_end', True)
 
-        # V110 LOGIC: Procesar cada estado con consider flags
+        # V110 LOGIC: Process each state with consider flags
         for state_name, (start_f, end_f) in states.items():
             if end_f < start_f:
                 continue
@@ -2234,13 +2295,13 @@ class AnimationEngineSequence:
             # === V110 LOGIC WITH BATCH OPTIMIZATION ===
             if state == "start":
                 if not has_consider_start:
-                    # Si 'Start' NO se considera y es un objeto de construcción ('output'),
+                    # If 'Start' is NOT considered and it's a construction object ('output'),
                     # debe estar OCULTO durante toda la fase start
                     if frame_data.get("relationship") == "output":
                         batch_processor_instance.add_visibility_operation(obj, start_f, True, True)
                         if end_f > start_f:
                             batch_processor_instance.add_visibility_operation(obj, end_f, True, True)
-                    continue  # Saltar al siguiente estado
+                    continue  # Skip to the next state
 
                 # Si 'Start' SÍ se considera, aplicar apariencia start
                 batch_processor_instance.add_visibility_operation(obj, start_f, False, False)

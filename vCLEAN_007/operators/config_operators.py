@@ -224,8 +224,7 @@ class VisualiseWorkScheduleDate(bpy.types.Operator):
         # 1. FORCE SYNCHRONIZATION: As with the animation, this ensures
         #    that the snapshot uses the most up-to-date data from the group being edited.
         try:
-            from bonsai.tool.sequence.color_management_sequence import sync_active_group_to_json
-            sync_active_group_to_json()
+            tool.Sequence.sync_active_group_to_json()
         except Exception as e:
             print(f"Error syncing colortypes for snapshot: {e}")
         # --- END OF CORRECTION ---
@@ -303,8 +302,7 @@ class LoadAndActivatecolortypeGroup(bpy.types.Operator):
         props.ColorType_groups = self.set_name
 
         # Synchronize with JSON
-        from bonsai.tool.sequence.color_management_sequence import sync_active_group_to_json
-        sync_active_group_to_json()
+        tool.Sequence.sync_active_group_to_json()
 
         self.report({'INFO'}, f"Loaded and activated group '{self.set_name}'")
         return {'FINISHED'}

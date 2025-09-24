@@ -86,6 +86,8 @@ class TextSequence:
     @classmethod
     def add_text_animation_handler(cls, settings):
             """Creates multiple animated text objects to display schedule information"""
+            print("🚀🚀 [DEBUG] add_text_animation_handler: METHOD STARTED")
+            print(f"[DEBUG] add_text_animation_handler: Received settings type: {type(settings)}")
 
             from datetime import timedelta
 
@@ -120,6 +122,8 @@ class TextSequence:
             except Exception as e:
                 print(f"⚠️ Could not get schedule name: {e}")
 
+            print(f"[DEBUG] add_text_animation_handler: About to create 3D texts with schedule_name: {schedule_name}")
+
             text_configs = [
                 {"name": "Schedule_Name", "position": (0, 10, 6), "size": 1.4, "align": "CENTER", "color": (1, 1, 1, 1), "type": "schedule_name", "content": f"Schedule: {schedule_name}"},
                 {"name": "Schedule_Date", "position": (0, 10, 5), "size": 1.2, "align": "CENTER", "color": (1, 1, 1, 1), "type": "date"},
@@ -130,8 +134,15 @@ class TextSequence:
 
             created_texts = []
             for config in text_configs:
-                text_obj = cls._create_animated_text(config, settings, collection)
-                created_texts.append(text_obj)
+                try:
+                    print(f"[DEBUG] Creating 3D text: {config['name']} (type: {config['type']})")
+                    text_obj = cls._create_animated_text(config, settings, collection)
+                    created_texts.append(text_obj)
+                    print(f"[DEBUG] ✅ Successfully created: {config['name']}")
+                except Exception as e:
+                    print(f"[DEBUG] ❌ Failed to create {config['name']}: {e}")
+
+            print(f"[DEBUG] Total 3D texts created: {len(created_texts)} out of {len(text_configs)}")
 
             # Auto-configure HUD if there is an active 4D camera
             try:
@@ -166,7 +177,14 @@ class TextSequence:
 
             except Exception as e:
                 print(f"Error in auto-HUD setup: {e}")
-            cls._register_multi_text_handler(settings)
+
+            print("[DEBUG] Registering 3D text animation handler...")
+            try:
+                cls._register_multi_text_handler(settings)
+                print("[DEBUG] ✅ 3D text animation handler registered successfully")
+            except Exception as e:
+                print(f"[DEBUG] ❌ Failed to register 3D text handler: {e}")
+
             return created_texts
 
     @classmethod
@@ -386,13 +404,17 @@ class TextSequence:
 
     @classmethod
     def _create_animated_text(cls, config, settings, collection):
+        print(f"[DEBUG] _create_animated_text: Starting creation of {config['name']} (type: {config['type']})")
 
+        try:
             text_curve = bpy.data.curves.new(name=config["name"], type='FONT')
+            print(f"[DEBUG] _create_animated_text: ✅ Created text_curve for {config['name']}")
             text_curve.size = config["size"]
             text_curve.align_x = config["align"]
             text_curve.align_y = 'CENTER'
 
             text_curve["text_type"] = config["type"]
+            print(f"[DEBUG] _create_animated_text: ✅ Set basic properties for {config['name']}")
 
             # Save content for schedule_name type (static content)
             if config["type"] == "schedule_name" and "content" in config:
@@ -413,27 +435,48 @@ class TextSequence:
                     finish_iso = finish.isoformat()
                 else:
                     finish_iso = str(finish)
-            except Exception:
+            except Exception as e:
+                print(f"[DEBUG] _create_animated_text: ⚠️ Warning setting animation_settings for {config['name']}: {e}")
                 start_iso = ""
+                finish_iso = ""
+
             text_curve["animation_settings"] = {
                 "start_frame": start_frame,
                 "total_frames": total_frames,
                 "start_date": start_iso,
                 "finish_date": finish_iso,
             }
+            print(f"[DEBUG] _create_animated_text: ✅ Set animation_settings for {config['name']}")
 
             text_obj = bpy.data.objects.new(name=config["name"], object_data=text_curve)
+            print(f"[DEBUG] _create_animated_text: ✅ Created text_obj for {config['name']}")
             try:
                 collection.objects.link(text_obj)
-            except Exception:
+                print(f"[DEBUG] _create_animated_text: ✅ Linked {config['name']} to collection")
+            except Exception as e:
                 try:
                     bpy.context.scene.collection.objects.link(text_obj)
-                except Exception:
-                    pass
+                    print(f"[DEBUG] _create_animated_text: ⚠️ Linked {config['name']} to scene collection (fallback)")
+                except Exception as e2:
+                    print(f"[DEBUG] _create_animated_text: ❌ Failed to link {config['name']}: {e2}")
+
             text_obj.location = config["position"]
+            print(f"[DEBUG] _create_animated_text: ✅ Set location for {config['name']}")
+
             cls._setup_text_material_colored(text_obj, config["color"], config["name"])
+            print(f"[DEBUG] _create_animated_text: ✅ Set material for {config['name']}")
+
             cls._animate_text_by_type(text_obj, config["type"], settings)
+            print(f"[DEBUG] _create_animated_text: ✅ Animated {config['name']} by type")
+
+            print(f"[DEBUG] _create_animated_text: ✅✅ COMPLETED creation of {config['name']}")
             return text_obj
+
+        except Exception as e:
+            print(f"[DEBUG] _create_animated_text: 💥💥 EXCEPTION creating {config['name']}: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
 
     @classmethod
     def _setup_text_material_colored(cls, text_obj, color, mat_name_suffix):
@@ -458,6 +501,8 @@ class TextSequence:
 
     @classmethod
     def _animate_text_by_type(cls, text_obj, text_type, settings):
+        print(f"[DEBUG] _animate_text_by_type: Starting animation setup for {text_obj.name} (type: {text_type})")
+        try:
 
             from datetime import timedelta, datetime as _dt
 
@@ -510,6 +555,14 @@ class TextSequence:
                 current_date += timedelta(days=step_days)
                 if current_date > finish_date and current_date - timedelta(days=step_days) < finish_date:
                     current_date = finish_date
+
+            print(f"[DEBUG] _animate_text_by_type: ✅✅ COMPLETED animation setup for {text_obj.name} (type: {text_type})")
+
+        except Exception as e:
+            print(f"[DEBUG] _animate_text_by_type: 💥💥 EXCEPTION animating {text_obj.name} (type: {text_type}): {e}")
+            import traceback
+            traceback.print_exc()
+            raise
 
 
     @classmethod
@@ -703,34 +756,3 @@ class TextSequence:
                 pass
             cls._frame_change_handler = None
 
-    @classmethod
-    def add_text_animation_handler(cls, settings):
-        """Creates multiple animated text objects with HUD support.
-        This is a fallback implementation: tries to call existing version if available.
-        """
-        created_texts = []
-        try:
-            base_impl = getattr(super(), "add_text_animation_handler", None)
-            if callable(base_impl):
-                created_texts = base_impl(settings)
-        except Exception:
-            pass
-
-        try:
-            cls._register_multi_text_handler(settings)
-        except Exception:
-            pass
-
-        # Automatic GPU HUD configuration
-        try:
-            anim_props = tool.Sequence.get_animation_props()
-            camera_props = anim_props.camera_orbit
-
-            # Auto-enable GPU HUD if valid schedule exists
-            if settings and settings.get("start") and settings.get("finish"):
-                # Enable GPU HUD automatically
-                bpy.ops.bim.enable_schedule_hud()
-
-        except Exception:
-            pass
-        return created_texts

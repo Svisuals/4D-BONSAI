@@ -462,8 +462,7 @@ class UpdateActivecolortypeGroup(bpy.types.Operator):
                 return {'CANCELLED'}
 
             # This function already exists and does exactly what we need
-            from bonsai.tool.sequence.color_management_sequence import sync_active_group_to_json
-            sync_active_group_to_json()
+            tool.Sequence.sync_active_group_to_json()
 
             # NEW: Immediately update the animation settings dropdown
             try:
@@ -664,8 +663,7 @@ class ANIM_OT_group_stack_add(bpy.types.Operator):
         # are in the JSON data before attempting to add them to the stack.
         # This fixes the bug where a new group was added empty.
         try:
-            from bonsai.tool.sequence.color_management_sequence import sync_active_group_to_json
-            sync_active_group_to_json()
+            tool.Sequence.sync_active_group_to_json()
         except Exception as e:
             print(f"Bonsai WARNING: Could not sync active group before adding to stack: {e}")
         # --- END OF FIX ---

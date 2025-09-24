@@ -1401,8 +1401,7 @@ def restore_all_ui_state(context):
 
         # Synchronize the active group with the JSON backend after restoring
         try:
-            from bonsai.tool.sequence.color_management_sequence import sync_active_group_to_json
-            sync_active_group_to_json()
+            tool.Sequence.sync_active_group_to_json()
         except Exception:
             pass
 

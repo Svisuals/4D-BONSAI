@@ -25,7 +25,7 @@ import ifcopenshell
 from .props_sequence import PropsSequence
 import bonsai.tool as tool
 
-# Asumimos que UnifiedColorTypeManager estará en el módulo prop
+# Assume that UnifiedColorTypeManager will be in the prop module
 try:
     from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager
 except ImportError:
@@ -47,7 +47,7 @@ class ColorManagementSequence:
 
         # Debug: Show full DEFAULT group data
         if group_name == "DEFAULT":
-            print(f"[CHECK] DEBUG: Raw scene data for BIM_AnimationColorSchemesSets:")
+            # Checking scene data for BIM_AnimationColorSchemesSets
             print(f"    Raw type: {type(raw)}")
             print(f"    Raw content: {raw[:200] if isinstance(raw, str) else str(raw)[:200]}...")
             print(f"    Parsed data keys: {list(data.keys())}")
@@ -59,14 +59,14 @@ class ColorManagementSequence:
 
         # Debug info for DEFAULT group specifically
         if group_name == "DEFAULT":
-            print(f"[CHECK] DEBUG: Loading ColorType '{ColorType_name}' from DEFAULT group")
+            print(f"Loading ColorType '{ColorType_name}' from DEFAULT group")
             print(f"    Available ColorTypes in DEFAULT: {available_types}")
             print(f"    Group data has {len(group_data.get('ColorTypes', []))} ColorTypes")
 
             # Show color details for each ColorType in DEFAULT
             for prof in group_data.get("ColorTypes", []):
                 if prof.get("name") == ColorType_name:
-                    print(f"    🎨 ColorType '{ColorType_name}' colors:")
+                    print(f"    ColorType '{ColorType_name}' colors:")
                     print(f"        start_color: {prof.get('start_color', 'N/A')}")
                     print(f"        in_progress_color: {prof.get('in_progress_color', 'N/A')}")
                     print(f"        end_color: {prof.get('end_color', 'N/A')}")
@@ -76,14 +76,14 @@ class ColorManagementSequence:
                     end_color = prof.get('end_color', [])
 
                     if (in_progress == [0, 1, 0, 1] and end_color == [0.7, 0.7, 0.7, 1]):
-                        print(f"🚨 DETECTED OLD GREEN/GRAY COLORS in '{ColorType_name}' - FORCING RECREATION!")
+                        print(f"Warning: Detected old green/gray colors in '{ColorType_name}' - forcing recreation!")
                         cls.force_recreate_default_group()
                         return cls.load_ColorType_from_group(group_name, ColorType_name)  # Retry with new data
 
         for prof_data in group_data.get("ColorTypes", []):
             if prof_data.get("name") == ColorType_name:
                 if group_name == "DEFAULT":
-                    print(f"[OK] DEBUG: Found ColorType '{ColorType_name}' in DEFAULT group")
+                    print(f"Found ColorType '{ColorType_name}' in DEFAULT group")
                 return type('AnimationColorSchemes', (object,), {
                     'name': prof_data.get("name", ""),
                     'consider_start': prof_data.get("consider_start", True),
@@ -105,7 +105,7 @@ class ColorManagementSequence:
 
         # Debug when ColorType not found in DEFAULT group
         if group_name == "DEFAULT":
-            print(f"[ERROR] DEBUG: ColorType '{ColorType_name}' NOT found in DEFAULT group")
+            print(f"Error: ColorType '{ColorType_name}' not found in DEFAULT group")
 
         return None
 
@@ -125,7 +125,7 @@ class ColorManagementSequence:
 
         print("[PROCESS] FORCE RECREATING DEFAULT group with distinctive colors...")
 
-        # LISTA COMPLETA de ColorTypes para el grupo DEFAULT (14 tipos)
+        # Complete list of ColorTypes for the DEFAULT group (14 types)
         default_ColorTypes = {
             # Green Group (Construction)
             "CONSTRUCTION": {"start": [1, 1, 1, 0], "active": [0, 1, 0, 1], "end": [0.3, 1, 0.3, 1]},
@@ -178,7 +178,7 @@ class ColorManagementSequence:
                 "hide_at_end": disappears
             })
 
-        # Sobrescribir el grupo DEFAULT
+        # Override the DEFAULT group
         data["DEFAULT"] = {"ColorTypes": ColorTypes}
         scene[key] = json.dumps(data)
 
@@ -220,15 +220,15 @@ class ColorManagementSequence:
 
     @classmethod
     def load_default_animation_color_scheme(cls):
-        """CORRECTED: Restaura los ColorTypes originales de cada tarea en lugar de sobrescribir con hardcoded"""
-        print("🔄 RESET: Restaurando ColorTypes originales de las tareas...")
+        """Corrected: Restores original ColorTypes of each task instead of overwriting with hardcoded values"""
+        print("Reset: Restoring original ColorTypes of tasks...")
 
         try:
             import bpy
             context = bpy.context
             tprops = getattr(context.scene, 'BIMTaskTreeProperties', None)
             if not tprops:
-                print("[ERROR] RESET: No se encontraron propiedades de tareas")
+                print("Error: Task properties not found")
                 return
 
             reset_count = 0
@@ -238,7 +238,7 @@ class ColorManagementSequence:
                     continue
 
                 try:
-                    # 1. Obtener el grupo personalizado original de la tarea
+                    # 1. Get the original custom group of the task
                     original_group = None
                     if hasattr(task, 'animation_group_stack') and task.animation_group_stack:
                         for group_item in task.animation_group_stack:
@@ -246,16 +246,16 @@ class ColorManagementSequence:
                                 original_group = group_item.group
                                 break
 
-                    # 2. Si la tarea tiene grupo personalizado, restaurar sus ColorTypes
+                    # 2. If the task has a custom group, restore its ColorTypes
                     if original_group and original_group != "DEFAULT":
-                        print(f"🔄 RESET: Restaurando tarea {task_id} del grupo '{original_group}'")
+                        print(f"Reset: Restoring task {task_id} from group '{original_group}'")
 
-                        # Restaurar ColorType del grupo original
+                        # Restore ColorType from original group
                         predefined_type = getattr(task, 'PredefinedType', 'NOTDEFINED') or 'NOTDEFINED'
                         original_colortype = cls.load_ColorType_from_group(original_group, predefined_type)
 
                         if original_colortype:
-                            # Aplicar ColorType original a la tarea
+                            # Apply original ColorType to the task
                             if hasattr(task, 'animation_color_schemes'):
                                 task.animation_color_schemes = predefined_type
 
@@ -267,19 +267,19 @@ class ColorManagementSequence:
                                     task.selected_colortype_in_active_group = ""
 
                             reset_count += 1
-                            print(f"[OK] RESET: Tarea {task_id} restaurada con ColorType '{predefined_type}' del grupo '{original_group}'")
+                            print(f"Reset: Task {task_id} restored with ColorType '{predefined_type}' from group '{original_group}'")
                         else:
                             pass
 
                     # 3. If task uses DEFAULT, maintain current configuration
                     elif not original_group or original_group == "DEFAULT":
                         pass
-                        # No hacer cambios para tareas que usan DEFAULT
+                        # Do not make changes for tasks that use DEFAULT
 
                 except Exception as e:
-                    print(f"[ERROR] RESET: Error procesando tarea {task_id}: {e}")
+                    print(f"Error processing task {task_id}: {e}")
 
-            print(f"[OK] RESET COMPLETADO: {reset_count} tareas restauradas a sus grupos personalizados originales")
+            print(f"Reset completed: {reset_count} tasks restored to their original custom groups")
 
         except Exception as e:
             # Fallback to previous behavior only if there's a critical error
@@ -410,7 +410,7 @@ class ColorManagementSequence:
         # Debug info when DEFAULT is active
         if active_group_name == "DEFAULT":
             task_id_str = str(task.id()) if task is not None else "None"
-            print(f"🎯 DEBUG: DEFAULT group is active for task {task_id_str} (PredefinedType: {getattr(task, 'PredefinedType', 'NOTDEFINED') if task is not None else 'NOTDEFINED'})")
+            print(f"DEFAULT group is active for task {task_id_str} (PredefinedType: {getattr(task, 'PredefinedType', 'NOTDEFINED') if task is not None else 'NOTDEFINED'})")
 
         # Get task configuration from the persistent cache instead of the UI list.
         # This makes the function independent of the current UI filters.
@@ -516,88 +516,54 @@ class ColorManagementSequence:
 
 
 
-        @classmethod
-        def live_color_update_handler(cls, scene):
-            """Handler for live color updates during animation playback"""
-            try:
-                # This method should handle live color updates during animation
-                # For now, it's a placeholder to prevent the missing method error
-                pass
-            except Exception as e:
-                print(f"Error in live_color_update_handler: {e}")
-
-        @classmethod
-        def register_live_color_update_handler(cls):
-            """Register the live color update handler"""
-            try:
-                import bpy
-                if cls.live_color_update_handler not in bpy.app.handlers.frame_change_post:
-                    bpy.app.handlers.frame_change_post.append(cls.live_color_update_handler)
-            except Exception as e:
-                print(f"Error registering live color update handler: {e}")
-
-        @classmethod
-        def unregister_live_color_update_handler(cls):
-            """Unregister the live color update handler"""
-            try:
-                import bpy
-                if cls.live_color_update_handler in bpy.app.handlers.frame_change_post:
-                    bpy.app.handlers.frame_change_post.remove(cls.live_color_update_handler)
-            except Exception as e:
-                print(f"Error unregistering live color update handler: {e}")
 
 
-# ============================================================================
-# MODULE-LEVEL FUNCTIONS (for direct import)
-# ============================================================================
+    @classmethod
+    def sync_active_group_to_json(cls):
+        """Synchronizes the active group profiles from the UI to the scene JSON"""
+        import bpy, json
+        scene = bpy.context.scene
+        anim_props = cls.get_animation_props()
+        active_group = getattr(anim_props, "ColorType_groups", None)
+        if not active_group:
+            return
 
-def sync_active_group_to_json():
-    """Sincroniza los perfiles del grupo activo de la UI al JSON de la escena (función independiente)"""
-    import bpy, json
+        if active_group == "DEFAULT":
+            # Temporary: Allow recreating the DEFAULT group to fix colors
+            print("[PROCESS] RECREATING DEFAULT group with correct colors...")
+            cls.force_recreate_default_group()
+            return
 
-    # Use tool.Sequence instead of cls methods
-    import bonsai.tool as tool
-
-    scene = bpy.context.scene
-    anim_props = tool.Sequence.get_animation_props()
-    active_group = getattr(anim_props, "ColorType_groups", None)
-    if not active_group:
-        return
-
-    if active_group == "DEFAULT":
-        print("[PROCESS] RECREATING DEFAULT group with correct colors...")
-        # Use UnifiedColorTypeManager instead of cls method
-        if UnifiedColorTypeManager:
-            UnifiedColorTypeManager.force_recreate_default_group(bpy.context)
-
-    raw = scene.get("BIM_AnimationColorSchemesSets", "{}")
-    try:
-        data = json.loads(raw) if isinstance(raw, str) else (raw or {})
-        if not isinstance(data, dict):
-            data = {}
-    except Exception:
-        data = {}
-
-    # Get ColorTypes from animation properties
-    ColorTypes_data = []
-    for ColorType in getattr(anim_props, "ColorTypes", []):
+        raw = scene.get("BIM_AnimationColorSchemesSets", "{}")
         try:
-            ColorTypes_data.append({
-                "name": getattr(ColorType, "name", ""),
-                "ifc_class": getattr(ColorType, "ifc_class", ""),
-                "start_color": list(getattr(ColorType, "start_color", [1,1,1,1])),
-                "in_progress_color": list(getattr(ColorType, "in_progress_color", [1,1,1,1])),
-                "end_color": list(getattr(ColorType, "end_color", [1,1,1,1])),
-                "start_transparency": float(getattr(ColorType, "start_transparency", 0.0)),
-                "in_progress_transparency": float(getattr(ColorType, "in_progress_transparency", 0.0)),
-                "end_transparency": float(getattr(ColorType, "end_transparency", 0.0)),
-                "hide_at_end": bool(getattr(ColorType, "hide_at_end", getattr(ColorType, "name", "") in {"DEMOLITION","REMOVAL","DISPOSAL","DISMANTLE"})),
-            })
+            data = json.loads(raw) if isinstance(raw, str) else (raw or {})
         except Exception:
-            pass
+            data = {}
+        ColorTypes_data = []
+        for ColorType in getattr(anim_props, "ColorTypes", []):
+            try:
+                ColorTypes_data.append({
+                    "name": ColorType.name,
+                    "consider_start": bool(getattr(ColorType, "consider_start", False)),
+                    "consider_active": bool(getattr(ColorType, "consider_active", True)),
+                    "consider_end": bool(getattr(ColorType, "consider_end", True)),
+                    "start_color": list(getattr(ColorType, "start_color", [1,1,1,1])),
+                    "in_progress_color": list(getattr(ColorType, "in_progress_color", [1,1,0,1])),
+                    "end_color": list(getattr(ColorType, "end_color", [0,1,0,1])),
+                    "use_start_original_color": bool(getattr(ColorType, "use_start_original_color", False)),
+                    "use_active_original_color": bool(getattr(ColorType, "use_active_original_color", False)),
+                    "use_end_original_color": bool(getattr(ColorType, "use_end_original_color", True)),
+                    "start_transparency": float(getattr(ColorType, "start_transparency", 0.0)),
+                    "active_start_transparency": float(getattr(ColorType, "active_start_transparency", 0.0)),
+                    "active_finish_transparency": float(getattr(ColorType, "active_finish_transparency", 0.0)),
+                    "active_transparency_interpol": float(getattr(ColorType, "active_transparency_interpol", 1.0)),
+                    "end_transparency": float(getattr(ColorType, "end_transparency", 0.0)),
+                    "hide_at_end": bool(getattr(ColorType, "hide_at_end", getattr(ColorType, "name", "") in {"DEMOLITION","REMOVAL","DISPOSAL","DISMANTLE"})),
+                })
+            except Exception:
+                pass
+        data[active_group] = {"ColorTypes": ColorTypes_data}
+        scene["BIM_AnimationColorSchemesSets"] = json.dumps(data)
 
-    data[active_group] = {"ColorTypes": ColorTypes_data}
-    scene["BIM_AnimationColorSchemesSets"] = json.dumps(data)
-    print(f"[PROCESS] Group sync completed for '{active_group}'.")
 
 

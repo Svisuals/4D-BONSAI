@@ -36,6 +36,8 @@ class CreateAnimation(bpy.types.Operator, tool.Ifc.Operator):
         import time
         total_start_time = time.time()
 
+        print("🚨🚨🚨 OPERATOR CreateAnimation._execute STARTED 🚨🚨🚨")
+
         stored_frame = context.scene.frame_current
         work_schedule = tool.Sequence.get_active_work_schedule()
         anim_props = tool.Sequence.get_animation_props()

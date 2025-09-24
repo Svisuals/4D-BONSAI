@@ -248,8 +248,25 @@ class UnifiedColorTypeManager:
                 default_entry.group_name = "DEFAULT"
             
             # 4. Assign the profile and make sure it is enabled.
-            default_entry.selected_colortype = predef_type
-            default_entry.enabled = True # The DEFAULT group is always active.
+            # Use safe property setting to avoid ID class writing restrictions
+            try:
+                default_entry.selected_colortype = predef_type
+                default_entry.enabled = True # The DEFAULT group is always active.
+            except Exception as prop_error:
+                # If we can't write properties now, schedule for later
+                if "Writing to ID classes" in str(prop_error):
+                    # Use timer to defer the property update
+                    import bpy
+                    def deferred_update():
+                        try:
+                            default_entry.selected_colortype = predef_type
+                            default_entry.enabled = True
+                        except Exception:
+                            pass
+                        return None  # Don't repeat timer
+                    bpy.app.timers.register(deferred_update, first_interval=0.01)
+                else:
+                    raise prop_error
 
         except Exception as e:
             print(f"❌ Error synchronizing DEFAULT for the task: {e}")

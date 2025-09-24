@@ -33,8 +33,8 @@ class VarianceSequence:
     @classmethod
     def has_variance_calculation_in_tasks(cls):
         """
-        Verifica si hay cálculo de varianza en las tareas actuales.
-        Retorna True si al menos una tarea tiene variance_status calculado.
+        Verifies if there is variance calculation in current tasks.
+        Returns True if at least one task has variance_status calculated.
         """
         try:
             tprops = tool.Sequence.get_task_tree_props()
@@ -57,13 +57,13 @@ class VarianceSequence:
     @classmethod
     def clear_variance_colors_only(cls):
         """
-        Limpia SOLO los colores 3D de varianza, SIN tocar checkboxes.
-        Se usa cuando cambian filtros y no hay cálculo de varianza.
+        Clears ONLY variance 3D colors, WITHOUT touching checkboxes.
+        Used when filters change and there's no variance calculation.
         """
         try:
             print("[CLEAN] Clearing variance 3D colors only (keeping checkboxes)...")
             
-            # Restaurar colores originales si están guardados
+            # Restore original colors if they are saved
             if hasattr(cls, '_original_colors') and cls._original_colors:
                 restored_count = 0
                 for obj in bpy.context.scene.objects:
@@ -73,7 +73,7 @@ class VarianceSequence:
                                 original_color = cls._original_colors[obj.name]
                                 obj.color = original_color
                                 restored_count += 1
-                                print(f"🔄 Restored color for {obj.name}")
+                                print(f"Restored color for {obj.name}")
                             except Exception as e:
                                 print(f"[ERROR] Error restoring color for {obj.name}: {e}")
                 
@@ -82,7 +82,7 @@ class VarianceSequence:
                 # Forzar actualización del viewport
                 bpy.context.view_layer.update()
             else:
-                print("ℹ️ No original colors to restore")
+                print("No original colors to restore")
                 
         except Exception as e:
             print(f"[ERROR] Error clearing variance colors only: {e}")
@@ -92,13 +92,13 @@ class VarianceSequence:
     @classmethod
     def clear_variance_color_mode(cls):
         """
-        Limpia el modo de color de varianza y restaura colores originales.
-        Se llama cuando se limpia varianza o cambia tipo de cronograma.
+        Clears variance color mode and restores original colors.
+        Called when variance is cleared or schedule type changes.
         """
         try:
             print("[CLEAN] CLEAR_VARIANCE_COLOR_MODE: Starting cleanup process...")
             
-            # Desactivar todos los checkboxes de varianza
+            # Deactivate all variance checkboxes
             tprops = tool.Sequence.get_task_tree_props()
             if tprops:
                 cleared_checkboxes = 0
@@ -119,7 +119,7 @@ class VarianceSequence:
             
             # Method 1: Try to restore from cached original colors
             if hasattr(cls, '_original_colors') and cls._original_colors:
-                print(f"🔄 Attempting to restore from cached colors ({len(cls._original_colors)} stored)")
+                print(f"Attempting to restore from cached colors ({len(cls._original_colors)} stored)")
                 for obj in bpy.context.scene.objects:
                     if obj.type == 'MESH' and tool.Ifc.get_entity(obj):
                         if obj.name in cls._original_colors and hasattr(obj, 'color'):
@@ -131,7 +131,7 @@ class VarianceSequence:
                             except Exception as e:
                                 print(f"[ERROR] Error restoring cached color for {obj.name}: {e}")
                 
-                # Limpiar cache de colores originales
+                # Clear original colors cache
                 cls._original_colors = {}
                 print("[CLEAN] Cleared original colors cache")
             
@@ -139,7 +139,7 @@ class VarianceSequence:
             if restored_count == 0:
                 variance_colors = bpy.context.scene.get('BIM_VarianceOriginalObjectColors', {})
                 if variance_colors:
-                    print(f"🔄 Attempting to restore from scene saved colors ({len(variance_colors)} stored)")
+                    print(f"Attempting to restore from scene saved colors ({len(variance_colors)} stored)")
                     for obj in bpy.context.scene.objects:
                         if obj.type == 'MESH' and tool.Ifc.get_entity(obj) and obj.name in variance_colors:
                             try:
@@ -152,12 +152,12 @@ class VarianceSequence:
 
             # Method 3: Try to get colors from material IFC if still no restoration
             if restored_count == 0:
-                print("🔄 No cached colors found, attempting to restore from IFC materials")
+                print("No cached colors found, attempting to restore from IFC materials")
                 for obj in bpy.context.scene.objects:
                     if obj.type == 'MESH' and tool.Ifc.get_entity(obj):
                         try:
                             restored = False
-                            # Intentar obtener color del material original del objeto IFC
+                            # Try to get color from original IFC object material
                             try:
                                 if obj.material_slots and obj.material_slots[0].material:
                                     material = obj.material_slots[0].material
@@ -200,7 +200,7 @@ class VarianceSequence:
                             if space.type == 'VIEW_3D':
                                 space.shading.color_type = 'OBJECT'  # Ensure object colors are visible
                 
-                print("🔄 Forced complete viewport refresh")
+                print("Forced complete viewport refresh")
                 
             except Exception as e:
                 print(f"[WARNING]️ Error during viewport refresh: {e}")
@@ -213,8 +213,8 @@ class VarianceSequence:
     @classmethod 
     def update_individual_variance_colors(cls):
         """
-        Actualiza colores basado en checkboxes individuales de cada tarea.
-        Cada tarea funciona independientemente.
+        Updates colors based on individual checkboxes for each task.
+        Each task works independently.
         """
         try:
             print("🎯 Updating individual variance colors...")
@@ -222,13 +222,13 @@ class VarianceSequence:
             # Asegurar viewport correcto
             cls._ensure_viewport_shading()
             
-            # Obtener tareas
+            # Get tasks
             tprops = tool.Sequence.get_task_tree_props()
             if not tprops:
                 print("[ERROR] No task tree properties found")
                 return
             
-            # Guardar colores originales la primera vez (si no están guardados)
+            # Save original colors the first time (if they are not saved)
             if not hasattr(cls, '_original_colors'):
                 cls._original_colors = {}
                 for obj in bpy.context.scene.objects:
@@ -254,7 +254,7 @@ class VarianceSequence:
                             cls._original_colors[obj.name] = original_color
                 print(f"[CACHE] Saved original colors for {len(cls._original_colors)} objects (from materials where possible)")
             
-            # Identificar tareas con checkbox activo
+            # Identify tasks with active checkbox
             variance_selected_tasks = [t for t in tprops.tasks if getattr(t, 'is_variance_color_selected', False)]
             
             print(f"[CHECK] Found {len(variance_selected_tasks)} tasks with active variance checkbox")
@@ -263,7 +263,7 @@ class VarianceSequence:
                     print(f"  📋 Task {task.ifc_definition_id}: {task.name} (Status: {getattr(task, 'variance_status', 'No status')})")
             else:
                 print("🎯 No active checkboxes → restoring original colors")
-                # Restaurar colores originales de todos los objetos IFC
+                # Restore original colors of all IFC objects
                 mesh_objects = [obj for obj in bpy.context.scene.objects if obj.type == 'MESH']
                 restored_count = 0
                 
@@ -274,10 +274,10 @@ class VarianceSequence:
                             # Usar color guardado o blanco por defecto
                             if hasattr(cls, '_original_colors') and obj.name in cls._original_colors:
                                 original_color = cls._original_colors[obj.name]
-                                print(f"🔄 Restoring saved color for {obj.name}: {original_color}")
+                                print(f"Restoring saved color for {obj.name}: {original_color}")
                             else:
                                 original_color = (1.0, 1.0, 1.0, 1.0)  # Blanco por defecto
-                                print(f"🔄 Using default color for {obj.name}")
+                                print(f"Using default color for {obj.name}")
                             
                             obj.color = original_color
                             restored_count += 1
@@ -287,16 +287,16 @@ class VarianceSequence:
                 
                 print(f"[OK] Restored {restored_count} objects to original colors")
                 
-                # No limpiar cache aquí - mantener colores guardados para futuros usos
+                # Do not clear cache here - keep saved colors for future use
                 
                 # Forzar actualización del viewport
                 bpy.context.view_layer.update()
                 return
             
-            # Crear mapeo de objetos a tareas
+            # Create mapping of objects to tasks
             object_to_task_map = cls._build_object_task_mapping(tprops.tasks)
             
-            # Contar objetos mesh en la escena
+            # Count mesh objects in the scene
             mesh_objects = [obj for obj in bpy.context.scene.objects if obj.type == 'MESH']
             ifc_objects = []
             
@@ -307,7 +307,7 @@ class VarianceSequence:
             
             print(f"[CHECK] Scene analysis: {len(mesh_objects)} mesh objects, {len(ifc_objects)} have IFC data, {len(object_to_task_map)} task mappings")
             
-            # Procesar cada objeto en la escena
+            # Process each object in the scene
             processed_count = 0
             colored_count = 0
             
@@ -326,7 +326,7 @@ class VarianceSequence:
                     # No cambiar color (sin checkboxes activos)
                     continue
                 
-                # Aplicar color al objeto
+                # Apply color to object
                 cls._apply_color_to_object_simple(obj, color)
                 colored_count += 1
             
@@ -348,18 +348,18 @@ class VarianceSequence:
     @classmethod
     def activate_variance_color_mode(cls):
         """
-        Activa el modo de color de varianza integrándose con el sistema existente de ColorTypes
+        Activates variance color mode integrating with the existing ColorTypes system
         """
         try:
-            print("🎨 Activating variance color mode...")
+            print("Activating variance color mode...")
             
-            # Guardar colores originales de objetos antes de cambiarlos
+            # Save original colors of objects before changing them
             cls._save_original_object_colors()
             
-            # Marcar que el modo varianza está activo
+            # Mark that variance mode is active
             bpy.context.scene['BIM_VarianceColorModeActive'] = True
             
-            # Crear un ColorType group especial para varianza
+            # Create a special ColorType group for variance
             cls._create_variance_colortype_group()
             
             # Activar el live color update system
@@ -377,7 +377,7 @@ class VarianceSequence:
 
     @classmethod
     def _save_original_object_colors(cls):
-        """Guardar los colores originales de todos los objetos desde material IFC si es posible"""
+        """Save the original colors of all objects from IFC material if possible"""
         try:
             original_colors = {}
             for obj in bpy.context.scene.objects:
@@ -402,14 +402,14 @@ class VarianceSequence:
                     original_colors[obj.name] = original_color
 
             bpy.context.scene['BIM_VarianceOriginalObjectColors'] = original_colors
-            print(f"🔄 Saved original colors for {len(original_colors)} objects (from materials where possible)")
+            print(f"Saved original colors for {len(original_colors)} objects (from materials where possible)")
 
         except Exception as e:
             print(f"[ERROR] Error saving original object colors: {e}")
 
     @classmethod
     def _restore_original_object_colors(cls):
-        """Restaurar los colores originales de todos los objetos"""
+        """Restore the original colors of all objects"""
         try:
             original_colors = bpy.context.scene.get('BIM_VarianceOriginalObjectColors', {})
             restored_count = 0
@@ -419,7 +419,7 @@ class VarianceSequence:
                     obj.color = original_colors[obj.name]
                     restored_count += 1
             
-            # Limpiar los datos guardados
+            # Clear saved data
             if 'BIM_VarianceOriginalObjectColors' in bpy.context.scene:
                 del bpy.context.scene['BIM_VarianceOriginalObjectColors']
                 
@@ -431,19 +431,19 @@ class VarianceSequence:
     @classmethod
     def deactivate_variance_color_mode(cls):
         """
-        Desactiva el modo de color de varianza y restaura los colores originales
+        Deactivates variance color mode and restores original colors
         """
         try:
-            print("🔄 Deactivating variance color mode...")
+            print("Deactivating variance color mode...")
             
-            # Restaurar colores originales de objetos
+            # Restore original colors of objects
             cls._restore_original_object_colors()
             
-            # Desmarcar que el modo varianza está activo
+            # Unmark that variance mode is active
             if 'BIM_VarianceColorModeActive' in bpy.context.scene:
                 del bpy.context.scene['BIM_VarianceColorModeActive']
             
-            # Limpiar datos de varianza
+            # Clear variance data
             if 'BIM_VarianceColorTypes' in bpy.context.scene:
                 del bpy.context.scene['BIM_VarianceColorTypes']
             
@@ -462,9 +462,9 @@ class VarianceSequence:
 
     @classmethod
     def _create_variance_colortype_group(cls):
-        """Crea un grupo de ColorTypes especial para varianza"""
+        """Creates a special ColorTypes group for variance"""
         try:
-            # Definir los ColorTypes de varianza
+            # Define variance ColorTypes
             variance_colortypes = {
                 "DELAYED": {
                     "Color": (1.0, 0.2, 0.2),
@@ -488,7 +488,7 @@ class VarianceSequence:
                 }
             }
             
-            # Crear el archivo de configuración del grupo
+            # Create the group configuration file
             variance_group_data = {
                 "name": "VARIANCE_MODE",
                 "description": "Special ColorType group for variance analysis mode",
@@ -515,7 +515,7 @@ class VarianceSequence:
     def _trigger_variance_color_update(cls):
         """Forces a color update using the existing system"""
         try:
-            # Usar el live color update handler existente pero con lógica de varianza
+            # Use existing live color update handler but with variance logic
             cls._variance_aware_color_update()
             
         except Exception as e:
@@ -528,7 +528,7 @@ class VarianceSequence:
             is_variance_mode = bpy.context.scene.get('BIM_VarianceColorModeActive', False)
             
             if not is_variance_mode:
-                # Si no está en modo varianza, usar el sistema normal
+                # If not in variance mode, use normal system
                 return
             
             print("🎯 Applying variance-aware color update...")
@@ -536,7 +536,7 @@ class VarianceSequence:
             # Asegurar que el viewport está en modo Material Preview o Rendered
             cls._ensure_viewport_shading()
             
-            # Obtener tareas con varianza seleccionadas
+            # Get tasks con varianza seleccionadas
             tprops = tool.Sequence.get_task_tree_props()
             if not tprops:
                 return
@@ -551,7 +551,7 @@ class VarianceSequence:
             # Crear mapeo de objetos IFC a tareas reales
             object_to_task_map = cls._build_object_task_mapping(tprops.tasks)
             
-            # Iterar sobre todos los objetos y aplicar colores de varianza
+            # Iterate over all objects and apply variance colors
             for obj in bpy.context.scene.objects:
                 if obj.type != 'MESH':
                     continue
@@ -560,7 +560,7 @@ class VarianceSequence:
                 if not element:
                     continue
                 
-                # Determinar el color basado en la relación real tarea-objeto
+                # Determine color based on real task-object relationship
                 color = cls._get_variance_color_for_object_real(obj, element, object_to_task_map, variance_selected_tasks)
                 
                 if color:
@@ -579,7 +579,7 @@ class VarianceSequence:
 
     @classmethod
     def _ensure_viewport_shading(cls):
-        """Asegurar que el viewport esté en modo Solid con colores de objeto"""
+        """Ensure the viewport is in Solid mode with object colors"""
         try:
             for area in bpy.context.screen.areas:
                 if area.type == 'VIEW_3D':
@@ -588,14 +588,14 @@ class VarianceSequence:
                             current_shading = space.shading.type
                             print(f"[CHECK] Current viewport shading: {current_shading}")
                             
-                            # Asegurar modo Solid con colores de objeto
+                            # Ensure Solid mode with object colors
                             if current_shading != 'SOLID':
                                 space.shading.type = 'SOLID'
-                                print("🔄 Changed viewport to Solid mode")
+                                print("Changed viewport to Solid mode")
                             
                             if hasattr(space.shading, 'color_type'):
                                 space.shading.color_type = 'OBJECT'
-                                print("🎨 Set solid shading to OBJECT color mode")
+                                print("Set solid shading to OBJECT color mode")
                             break
         except Exception as e:
             print(f"[WARNING]️ Could not ensure viewport shading: {e}")
@@ -618,18 +618,33 @@ class VarianceSequence:
                 task_ifc = ifc_file.by_id(task_pg.ifc_definition_id)
                 if not task_ifc:
                     continue
-                    
-                # Usar el método correcto de Bonsai para obtener outputs
-                outputs = tool.Sequence.get_task_outputs(task_ifc)
+                  
+                # 1. Obtener tanto inputs como outputs
+                # Usamos 'or []' para evitar errores si la función devuelve None
+                outputs = tool.Sequence.get_task_outputs(task_ifc) or []
                 
-                if outputs:
-                    print(f"📋 Task {task_pg.ifc_definition_id} ({task_pg.name}) has {len(outputs)} outputs:")
-                    for output in outputs:
-                        object_task_map[output.id()] = task_pg
-                        print(f"  → Output {output.id()} ({output.Name}) assigned to task")
+                # Asumimos que existe un método análogo para los inputs
+                # Si el método tiene otro nombre, ajústalo aquí.
+                inputs = tool.Sequence.get_task_inputs(task_ifc) or []
+
+                # 2. Combinar ambas listas en una sola
+                all_related_objects = outputs + inputs
+                
+                if all_related_objects:
+                    # Usamos un set para manejar eficientemente los duplicados
+                    processed_ids = set()
+                    
+                    print(f"📋 Task {task_pg.ifc_definition_id} ({task_pg.name}) has {len(all_related_objects)} related objects (Inputs & Outputs):")
+                    
+                    for item in all_related_objects:
+                        item_id = item.id()
+                        if item_id not in processed_ids:
+                            object_task_map[item_id] = task_pg
+                            print(f"  → Object {item_id} ({item.Name}) assigned to task")
+                            processed_ids.add(item_id)
                 else:
-                    print(f"[ERROR] Task {task_pg.ifc_definition_id} ({task_pg.name}) has no outputs")
-                        
+                    print(f"Task {task_pg.ifc_definition_id} ({task_pg.name}) has no inputs or outputs assigned.")
+
             except Exception as e:
                 print(f"[ERROR] Error mapping task {task_pg.ifc_definition_id}: {e}")
                 continue
@@ -644,11 +659,11 @@ class VarianceSequence:
             element_id = element.id()
             assigned_task = object_task_map.get(element_id)
             
-            # Si este objeto pertenece a una tarea con checkbox activo
+            # If this object belongs to a task with active checkbox
             if assigned_task and getattr(assigned_task, 'is_variance_color_selected', False):
                 variance_status = getattr(assigned_task, 'variance_status', '')
                 
-                # Colorear según status de varianza
+                # Color according to variance status
                 if "Delayed" in variance_status:
                     print(f"🔴 {obj.name} → Task {assigned_task.ifc_definition_id} → DELAYED")
                     return (1.0, 0.2, 0.2, 1.0)  # Rojo
@@ -662,7 +677,7 @@ class VarianceSequence:
                     print(f"❓ {obj.name} → Task {assigned_task.ifc_definition_id} → Unknown status: '{variance_status}'")
                     return (0.8, 0.8, 0.8, 0.3)  # Gris transparente
             else:
-                # Objeto sin tarea seleccionada → gris transparente
+                # Object without selected task → transparent gray
                 return (0.8, 0.8, 0.8, 0.3)
                 
         except Exception as e:
@@ -671,11 +686,11 @@ class VarianceSequence:
         
     @classmethod
     def _apply_color_to_object_simple(cls, obj, color):
-        """Aplicar color solo al objeto (para viewport Solid)"""
+        """Apply color only to the object (for Solid viewport)"""
         try:
-            print(f"🎨 Applying variance color {color} to {obj.name}")
+            print(f"Applying variance color {color} to {obj.name}")
             
-            # SOLO aplicar color del objeto (para modo Solid > Object)
+            # ONLY apply object color (for Solid > Object mode)
             if hasattr(obj, 'color'):
                 obj.color = color[:4] if len(color) >= 4 else color[:3] + (1.0,)
                 print(f"[OK] Set object color for {obj.name}: {obj.color}")
@@ -752,7 +767,7 @@ class VarianceSequence:
                 if obj.type == 'MESH' and tool.Ifc.get_entity(obj):
                     try:
                         
-                        # Reset color a blanco para desactivar la sobreescritura del objeto
+                        # Reset color to white to deactivate object override
                         # y permitir que se vea el color del material.
                         obj.color = (1.0, 1.0, 1.0, 1.0)
                         

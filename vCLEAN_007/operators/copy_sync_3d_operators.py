@@ -260,8 +260,7 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
         print("🎬 SNAPSHOT: No Timeline HUD registration (static mode)") # Do not register HUD handler in snapshots - it must be static
         
         try:
-            from bonsai.tool.sequence.color_management_sequence import sync_active_group_to_json
-            sync_active_group_to_json() # Sync colortypes for snapshot
+            tool.Sequence.sync_active_group_to_json() # Sync colortypes for snapshot
         except Exception as e:
             print(f"Error syncing colortypes for snapshot: {e}")
 
