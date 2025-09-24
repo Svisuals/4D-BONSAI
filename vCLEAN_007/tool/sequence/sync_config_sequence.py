@@ -32,8 +32,15 @@ from .task_tree_sequence import TaskTreeSequence
 try:
     from ...operators.operator import snapshot_all_ui_state, restore_all_ui_state
 except ImportError:
-    def snapshot_all_ui_state(context): pass
-    def restore_all_ui_state(context): pass
+    try:
+        from ...operators.filter_operators import snapshot_all_ui_state, restore_all_ui_state
+    except ImportError:
+        def snapshot_all_ui_state(context):
+            """Fallback snapshot function when operators are not available"""
+            return {}
+        def restore_all_ui_state(context):
+            """Fallback restore function when operators are not available"""
+            return {}
 
 class SyncConfigSequence:
     """Mixin class for advanced Sync and Copy Configuration tools."""
@@ -41,15 +48,12 @@ class SyncConfigSequence:
     @classmethod
     def _force_complete_task_snapshot(cls, context, work_schedule):
         """
-        Fuerza una captura completa de TODAS las tareas del cronograma especificado,
+        Fuerza una captura completa de TODAS las tasks del schedule especificado,
         no solo las visibles en la UI. Esto asegura que Copy3D capture configuraciones
-        de todas las tareas, no solo las actualmente mostradas en el task tree.
+        de todas las tasks, no solo las actualmente mostradas en el task tree.
         """
         import json
         try:
-            print(f"🔄 Copy3D: Forcing complete task snapshot for schedule '{work_schedule.Name}'...")
-            
-            # Obtener todas las tareas del cronograma directamente del IFC
             def get_all_tasks_recursive(tasks):
                 all_tasks = []
                 for task in tasks:
@@ -58,13 +62,11 @@ class SyncConfigSequence:
                     if nested:
                         all_tasks.extend(get_all_tasks_recursive(nested))
                 return all_tasks
-            
+
             root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
             all_schedule_tasks = get_all_tasks_recursive(root_tasks)
             
-            print(f"🔄 Copy3D: Found {len(all_schedule_tasks)} total tasks in schedule")
-            
-            # Crear un snapshot manual de todas las tareas del cronograma
+            # Crear un snapshot manual de todas las tasks del schedule
             # Esto se hace ANTES de snapshot_all_ui_state para poblar el caché
             
             # Obtener datos actuales del caché si existen
@@ -75,14 +77,14 @@ class SyncConfigSequence:
             except:
                 cache_data = {}
             
-            # Para cada tarea del cronograma, asegurar que tenga entrada en el caché
+            # Para cada task del schedule, asegurar que tenga entrada en el caché
             tasks_added_to_cache = 0
             for task in all_schedule_tasks:
                 tid = str(task.id())
                 if tid == "0":
                     continue
                     
-                # Si la tarea ya está en el caché, conservar sus datos actuales
+                # Si la task ya está en el caché, conservar sus datos actuales
                 if tid in cache_data:
                     continue
                     
@@ -96,20 +98,16 @@ class SyncConfigSequence:
                 }
                 tasks_added_to_cache += 1
             
-            # Actualizar el caché
             if tasks_added_to_cache > 0:
                 context.scene[cache_key] = json.dumps(cache_data)
-                print(f"🔄 Copy3D: Added {tasks_added_to_cache} uncached tasks to snapshot cache")
-            
-            print(f"[OK] Copy3D: Complete task snapshot forced - {len(cache_data)} tasks ready for export")
-            
-        except Exception as e:
-            print(f"[ERROR] Copy3D: Error forcing complete task snapshot: {e}")
+
+        except Exception:
+            pass
 
     @classmethod
     def _sync_source_animation_color_schemes(cls, context):
         """
-        Sincroniza el campo animation_color_schemes en tareas que tienen grupo activo
+        Sincroniza el campo animation_color_schemes en tasks que tienen grupo activo
         ANTES de hacer el snapshot. Esto asegura que Copy3D capture el valor correcto.
         """
         try:
@@ -120,14 +118,14 @@ class SyncConfigSequence:
             
             for task in getattr(tprops, 'tasks', []):
                 try:
-                    # Solo procesar tareas que tienen grupo activo
+                    # Solo procesar tasks que tienen grupo activo
                     if getattr(task, 'use_active_colortype_group', False):
                         current_animation_schemes = getattr(task, 'animation_color_schemes', '')
                         
                         # Encontrar el grupo activo y obtener su selected_colortype
                         selected_colortype = ''
                         
-                        # Buscar en los grupos de la tarea directamente (más confiable)
+                        # Buscar en los grupos de la task directamente (más confiable)
                         group_choices = getattr(task, 'colortype_group_choices', [])
                         for choice in group_choices:
                             group_name = getattr(choice, 'group_name', '')
@@ -176,7 +174,7 @@ class SyncConfigSequence:
             if not tprops or not hasattr(tprops, 'tasks'):
                 return
             
-            # Obtener cronograma activo
+            # Obtener schedule activo
             ws = cls.get_active_work_schedule()
             if not ws:
                 return
@@ -478,7 +476,7 @@ class SyncConfigSequence:
         # The restore_all_ui_state function (called by the operator) will use this
         # to apply the ColorType data after the UI has been reloaded.
         if ColorType_assignments_to_restore:
-            # --- Usar la clave específica del cronograma para el snapshot ---
+            # --- Usar la clave específica del schedule para el snapshot ---
             snap_key_specific = f"_task_colortype_snapshot_json_WS_{work_schedule.id()}"
             bpy.context.scene[snap_key_specific] = json.dumps(ColorType_assignments_to_restore)
             print(f"Bonsai INFO: Stored {len(ColorType_assignments_to_restore)} ColorType assignments for restore under key {snap_key_specific}")
@@ -624,11 +622,11 @@ class SyncConfigSequence:
             print("📤 Copy3D: Capturing source schedule configuration...")
             cls._debug_copy3d_state("BEFORE_FORCE_SNAPSHOT", source_schedule.Name, 0)
             
-            # FORZAR captura completa de TODAS las tareas del cronograma, no solo las visibles
+            # FORZAR captura completa de TODAS las tasks del schedule, no solo las visibles
             cls._force_complete_task_snapshot(bpy.context, source_schedule)
             cls._debug_copy3d_state("AFTER_FORCE_SNAPSHOT", source_schedule.Name, 0)
             
-            # SINCRONIZAR animation_color_schemes en tareas activas ANTES del snapshot
+            # SINCRONIZAR animation_color_schemes en tasks activas ANTES del snapshot
             cls._sync_source_animation_color_schemes(bpy.context)
             cls._debug_copy3d_state("AFTER_SYNC_SOURCE", source_schedule.Name, 0)
             
@@ -1002,7 +1000,7 @@ class SyncConfigSequence:
             # Check current UI state after Copy3D
             print(f"\n[CHECK] COPY3D FINAL VERIFICATION TEST")
             
-            # Forzar reload completo de la UI desde el cronograma destino
+            # Forzar reload completo de la UI desde el schedule destino
             # para verificar que los datos se copiaron correctamente
             print("🔄 Copy3D: Forcing complete UI reload from destination schedule data...")
             restore_all_ui_state(bpy.context)
@@ -1117,7 +1115,7 @@ class SyncConfigSequence:
                 if identification:
                     task_indicators[identification] = task
 
-            print(f"🎯 Sync3D: Encontradas {len(task_indicators)} tareas con identificación:")
+            print(f"🎯 Sync3D: Encontradas {len(task_indicators)} tasks con identificación:")
             for identification, task in list(task_indicators.items())[:5]:  # Show first 5
                 print(f"  📋 Task ID {task.id()}: '{identification}'")
 
@@ -1183,7 +1181,7 @@ class SyncConfigSequence:
                                 break
                             else:
                                 if matched_elements < 5:  # Log first few no-matches
-                                    print(f"  [WARNING]️ Sync3D: No se encontró tarea para valor '{prop_value}'")
+                                    print(f"  [WARNING]️ Sync3D: No se encontró task para valor '{prop_value}'")
 
             # Count processed tasks
             for task in task_indicators.values():
@@ -1194,13 +1192,13 @@ class SyncConfigSequence:
             print(f"[STATS] Sync3D: RESUMEN:")
             print(f"  - Elementos revisados: {elements_checked}")
             print(f"  - Elementos con property set '{property_set_name}': {elements_with_pset}")
-            print(f"  - Elementos asignados a tareas: {matched_elements}")
+            print(f"  - Elementos asignados a tasks: {matched_elements}")
             print(f"  - Tareas con elementos asignados: {processed_tasks}")
 
             # Limpiar datos de perfiles corruptos antes del retorno
             # Esto asegura que cuando restore_all_ui_state() se ejecute, 
             # no restaure valores '0' problemáticos
-            print(f"[CLEAN] Sync3D: Limpiando datos de perfiles corruptos en cronograma")
+            print(f"[CLEAN] Sync3D: Limpiando datos de perfiles corruptos en schedule")
             cls._clean_and_update_ColorType_snapshot_for_schedule(work_schedule)
             
             return {
@@ -1215,25 +1213,25 @@ class SyncConfigSequence:
     @classmethod
     def _clean_and_update_ColorType_snapshot_for_schedule(cls, work_schedule):
         """
-        Limpia específicamente los datos de perfiles corruptos del cronograma dado
+        Limpia específicamente los datos de perfiles corruptos del schedule dado
         y actualiza el snapshot para evitar restaurar valores '0' problemáticos.
         """
         try:
             import json
             
-            # Obtener la clave específica del cronograma
+            # Obtener la clave específica del schedule
             ws_id = work_schedule.id()
             snapshot_key_specific = f"_task_colortype_snapshot_json_WS_{ws_id}"
             
             # Leer datos actuales del snapshot
             snapshot_raw = bpy.context.scene.get(snapshot_key_specific)
             if not snapshot_raw:
-                print(f"[CLEAN] Sync3D: No hay snapshot para limpiar en cronograma {ws_id}")
+                print(f"[CLEAN] Sync3D: No hay snapshot para limpiar en schedule {ws_id}")
                 return
             
             try:
                 snapshot_data = json.loads(snapshot_raw)
-                print(f"[CLEAN] Sync3D: Limpiando {len(snapshot_data)} tareas en snapshot")
+                print(f"[CLEAN] Sync3D: Limpiando {len(snapshot_data)} tasks en snapshot")
             except Exception as e:
                 print(f"[ERROR] Sync3D: Error parseando snapshot: {e}")
                 return
@@ -1243,7 +1241,7 @@ class SyncConfigSequence:
             
             # Actualizar el snapshot con datos limpios
             bpy.context.scene[snapshot_key_specific] = json.dumps(cleaned_data)
-            print(f"[OK] Sync3D: Datos de perfiles limpiados en cronograma {ws_id}")
+            print(f"[OK] Sync3D: Datos de perfiles limpiados en schedule {ws_id}")
             
         except Exception as e:
             print(f"[ERROR] Sync3D: Error en limpieza de perfiles: {e}")

@@ -127,7 +127,7 @@ class CreateAnimation(bpy.types.Operator, tool.Ifc.Operator):
 
         total_time = time.time() - total_start_time
         print("-" * 60)
-        print(f"✅ TOTAL TIME: {total_time:.2f}s")
+        print(f"[DEBUG] TOTAL TIME: {total_time:.2f}s")
         print("-" * 60)
         self.report({'INFO'}, f"Animation created for {len(frames)} elements in {total_time:.2f}s.")
 
@@ -138,7 +138,7 @@ class CreateAnimation(bpy.types.Operator, tool.Ifc.Operator):
             if camera_props.enable_3d_legend_hud:
                 bpy.ops.bim.setup_3d_legend_hud()
         except Exception as e:
-            print(f"⚠️ Could not auto-create 3D Legend HUD: {e}")
+            print(f"[WARNING] Could not auto-create 3D Legend HUD: {e}")
 
         return {'FINISHED'}
 
@@ -378,7 +378,7 @@ def _clear_previous_animation(context) -> None:
         context.scene.frame_set(context.scene.frame_start)
         print(f"  - Timeline reset to frame {context.scene.frame_start}.")
 
-        print("✅ Animation cleanup completed.")
+        print("[DEBUG] Animation cleanup completed.")
 
     except Exception as e:
         print(f"Bonsai WARNING: An error occurred during animation cleanup: {e}")
@@ -651,7 +651,7 @@ class ClearPreviousAnimation(bpy.types.Operator, tool.Ifc.Operator):
         try:
             anim_props = tool.Sequence.get_animation_props()
             anim_props.is_animation_created = False
-            print("❌ Animation flag SET to FALSE.")
+            print("[ERROR] Animation flag SET to FALSE.")
         except Exception as e:
             print(f"Could not reset animation flag: {e}")
         # --- END OF MODIFICATION ---
@@ -690,28 +690,28 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
         try:
             if bpy.context.screen.is_animation_playing:
                 bpy.ops.screen.animation_cancel(restore_frame=False)
-                print(f"✅ Animation playback stopped")
+                print(f"[DEBUG] Animation playback stopped")
         except Exception as e:
-            print(f"❌ Could not stop animation: {e}")
+            print(f"[ERROR] Could not stop animation: {e}")
 
         # Clear snapshot mode flag
         if "is_snapshot_mode" in context.scene:
             del context.scene["is_snapshot_mode"]
-            print("✅ Cleared is_snapshot_mode flag")
+            print("[DEBUG] Cleared is_snapshot_mode flag")
 
         # Restore UI state (3D texts, Timeline HUD, etc.)
         try:
             restore_all_ui_state(context)
-            print(f"✅ UI state restored")
+            print(f"[DEBUG] UI state restored")
         except Exception as e:
-            print(f"❌ Could not restore UI state: {e}")
+            print(f"[ERROR] Could not restore UI state: {e}")
 
         # CORRECTION: Complete cleanup of previous snapshot
         try:
             # CRITICAL: Reset all objects to original state (use existing function)
             print(f"🔄 Clearing previous animation...")
             _clear_previous_animation(context)
-            print(f"✅ Previous animation cleared")
+            print(f"[DEBUG] Previous animation cleared")
             
             # Clear temporary snapshot data
             if hasattr(bpy.context.scene, 'snapshot_data'):
@@ -748,7 +748,7 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
                     invalidate_legend_hud_cache()
                     print("🧹 Active colortype group cleared from HUD Legend")
             except Exception as legend_e:
-                print(f"⚠️ Could not clear colortype group: {legend_e}")
+                print(f"[WARNING] Could not clear colortype group: {legend_e}")
             
             # --- SNAPSHOT 3D TEXTS RESTORATION ---
             # Clear snapshot mode and restore previous state
@@ -847,14 +847,14 @@ class SyncAnimationByDate(bpy.types.Operator):
                 tool.Sequence.live_color_update_handler(context.scene)
                 print("8. Handler executed")
             else:
-                print("7. ❌ No se puede disparar handler (no existe)")
+                print("7. [ERROR] Cannot trigger handler (does not exist)")
 
             # 6. Check animated objects
             animated_count = 0
             for obj in bpy.data.objects:
                 if obj.type == 'MESH' and obj.animation_data and obj.animation_data.action:
                     animated_count += 1
-            print(f"9. Objetos con animación: {animated_count}")
+            print(f"9. Objetos con animation: {animated_count}")
 
             print("=" * 100)
             print("🔬 DIAGNOSIS COMPLETE")
@@ -863,7 +863,7 @@ class SyncAnimationByDate(bpy.types.Operator):
             self.report({'INFO'}, f"Diagnosis complete - Live enabled: {live_enabled}, Active group: {active_group}")
 
         except Exception as e:
-            print(f"❌ Error in diagnosis: {e}")
+            print(f"[ERROR] Error in diagnosis: {e}")
             import traceback
             traceback.print_exc()
             self.report({'ERROR'}, f"Error in diagnosis: {e}")
@@ -879,10 +879,10 @@ def _restore_3d_texts_state():
         # Implementation would go here if needed
         print("📸 3D texts state restored")
     except Exception as e:
-        print(f"❌ Error restoring 3D texts state: {e}")
+        print(f"[ERROR] Error restoring 3D texts state: {e}")
 
 def _clear_previous_animation(context) -> None:
-    print("🧹 Iniciando limpieza completa y optimizada de la animación...")
+    print("🧹 Iniciando cleanup complete y optimized de la animation...")
     try:
         # --- 1. STOP ANIMATION AND HANDLERS (Same as before) ---
         if bpy.context.screen.is_animation_playing:

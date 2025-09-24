@@ -84,9 +84,9 @@ class BIM_UL_task_filters(UIList):
             elif data_type == 'date':
                 # For dates, we show the text and a button that opens the calendar
                 value_row.prop(item, "value_string", text="")
-                # ✅ CORRECTED CALENDAR BUTTON
+                # [DEBUG] CORRECTED CALENDAR BUTTON
                 op = value_row.operator("bim.filter_datepicker", text="", icon="OUTLINER_DATA_CAMERA") # type: ignore
-                op.rule_index = index  # ✅ THIS IS CRUCIAL - pass the index
+                op.rule_index = index  # [DEBUG] THIS IS CRUCIAL - pass the index
             else:  # By default, use string (for text, enums, etc.)
                 value_row.prop(item, "value_string", text="")
 

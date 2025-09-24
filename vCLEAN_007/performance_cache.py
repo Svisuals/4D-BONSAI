@@ -27,7 +27,7 @@ import bonsai.tool as tool
 import ifcopenshell.util.sequence
 
 class AnimationPerformanceCache:
-    """Sistema de cache ultra-eficiente para animaciones 4D grandes"""
+    """Ultra-efficient cache system for large 4D animations"""
 
     def __init__(self) -> None:
         self.ifc_entity_cache: Dict[str, Any] = {}
@@ -72,7 +72,7 @@ class AnimationPerformanceCache:
 
         self.cache_valid = True
         elapsed = time.time() - start_time
-        print(f"🚀 CACHE: Built in {elapsed:.2f}s - {len(ifc_objects)} IFC objects")
+        print(f"[INFO] CACHE: Built in {elapsed:.2f}s - {len(ifc_objects)} IFC objects")
 
     def get_ifc_entity(self, obj) -> Optional[Any]:
         """Gets an IFC entity from the cache."""

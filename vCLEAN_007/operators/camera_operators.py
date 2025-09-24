@@ -74,7 +74,7 @@ def _get_animation_cameras(self, context):
         print(f"📹 Animation camera scan: {animation_cameras}/{total_cameras} cameras are animation cameras")
 
     except Exception as e:
-        print(f"❌ Error in _get_animation_cameras: {e}")
+        print(f"[ERROR] Error in _get_animation_cameras: {e}")
         import traceback
         traceback.print_exc()
 
@@ -107,7 +107,7 @@ def _get_snapshot_cameras(self, context):
         print(f"📸 Snapshot camera scan: {snapshot_cameras}/{total_cameras} cameras are snapshot cameras")
 
     except Exception as e:
-        print(f"❌ Error in _get_snapshot_cameras: {e}")
+        print(f"[ERROR] Error in _get_snapshot_cameras: {e}")
         import traceback
         traceback.print_exc()
 
@@ -148,26 +148,26 @@ class RefreshCameraSelectors(bpy.types.Operator):
             try:
                 anim_items = _get_animation_cameras(self, context)
                 snap_items = _get_snapshot_cameras(self, context)
-                print(f"✅ Animation callback: {len(anim_items)} items")
-                print(f"✅ Snapshot callback: {len(snap_items)} items")
+                print(f"[DEBUG] Animation callback: {len(anim_items)} items")
+                print(f"[DEBUG] Snapshot callback: {len(snap_items)} items")
             except Exception as e:
-                print(f"❌ Callback test error: {e}")
+                print(f"[ERROR] Callback test error: {e}")
 
             # Force UI refresh
             try:
                 for window in context.window_manager.windows:
                     for area in window.screen.areas:
                         area.tag_redraw()
-                print(f"✅ UI refresh triggered")
+                print(f"[DEBUG] UI refresh triggered")
             except Exception as e:
-                print(f"❌ UI refresh error: {e}")
+                print(f"[ERROR] UI refresh error: {e}")
 
             self.report({'INFO'}, "Camera selectors refresh attempted")
             return {'FINISHED'}
 
         except Exception as e:
             self.report({'ERROR'}, f"Failed to refresh selectors: {e}")
-            print(f"❌ RefreshCameraSelectors error: {e}")
+            print(f"[ERROR] RefreshCameraSelectors error: {e}")
             import traceback
             traceback.print_exc()
             return {'CANCELLED'}
@@ -216,7 +216,7 @@ class ForceCameraPropertyUpdate(bpy.types.Operator): # type: ignore
                     print(f"📸 Set snapshot camera to: {snap_items[0][0]}")
 
             except Exception as e:
-                print(f"❌ Property update error: {e}")
+                print(f"[ERROR] Property update error: {e}")
 
             # Method 2: Force UI refresh
             for area in context.screen.areas:
@@ -230,7 +230,7 @@ class ForceCameraPropertyUpdate(bpy.types.Operator): # type: ignore
 
         except Exception as e:
             self.report({'ERROR'}, f"Force update failed: {e}")
-            print(f"❌ ForceCameraPropertyUpdate error: {e}")
+            print(f"[ERROR] ForceCameraPropertyUpdate error: {e}")
             import traceback
             traceback.print_exc()
             return {'CANCELLED'}
@@ -346,10 +346,10 @@ class TestCameraDetection(bpy.types.Operator): # type: ignore
                 # Test direct detection with simplified functions
                 if _is_animation_camera_simple(obj):
                     animation_found += 1
-                    print(f"   ✅ ANIMATION CAMERA")
+                    print(f"   [DEBUG] ANIMATION CAMERA")
                 elif _is_snapshot_camera_simple(obj):
                     snapshot_found += 1
-                    print(f"   ✅ SNAPSHOT CAMERA")
+                    print(f"   [DEBUG] SNAPSHOT CAMERA")
                 else:
                     print(f"   ⚪ OTHER CAMERA")
 
@@ -363,7 +363,7 @@ class TestCameraDetection(bpy.types.Operator): # type: ignore
             print(f"Animation callback returned: {len(anim_items)} items")
             print(f"Snapshot callback returned: {len(snap_items)} items")
         except Exception as e:
-            print(f"❌ Callback error: {e}")
+            print(f"[ERROR] Callback error: {e}")
 
         self.report({'INFO'}, f"Test complete: {animation_found} animation, {snapshot_found} snapshot cameras")
         return {'FINISHED'}
@@ -414,10 +414,10 @@ class DebugListAllCameras(bpy.types.Operator): # type: ignore
 
                     if is_bonsai_animation:
                         animation_cameras += 1
-                        print(f"   ✅ ANIMATION CAMERA")
+                        print(f"   [DEBUG] ANIMATION CAMERA")
                     elif is_bonsai_snapshot:
                         snapshot_cameras += 1
-                        print(f"   ✅ SNAPSHOT CAMERA")
+                        print(f"   [DEBUG] SNAPSHOT CAMERA")
                     else:
                         other_cameras += 1
                         print(f"   ⚪ OTHER CAMERA")
@@ -440,7 +440,7 @@ class DebugListAllCameras(bpy.types.Operator): # type: ignore
                 for item in snapshot_items:
                     print(f"      - {item[0]}: {item[1]}")
             except Exception as e:
-                print(f"   ❌ Error testing callbacks: {e}")
+                print(f"   [ERROR] Error testing callbacks: {e}")
 
             print("="*60 + "\n")
 
@@ -598,7 +598,7 @@ class DeleteAnimationCamera(bpy.types.Operator): # type: ignore
 
 # --- SNAPSHOT CAMERA DELETION OPERATOR (NEW) ---
 class DeleteSnapshotCamera(bpy.types.Operator): # type: ignore
-    """Elimina una cámara de Snapshot y sus objetos asociados."""
+    """Elimina una cámara de Snapshot y sus objects asociados."""
     bl_idname = "bim.delete_snapshot_camera"
     bl_label = "Delete a Snapshot Camera"
     bl_options = {'REGISTER', 'UNDO'}
@@ -679,7 +679,7 @@ class AddSnapshotCamera(bpy.types.Operator): # type: ignore
                         print("📸 This prevents 3D text from animating in snapshot-only mode")
 
             except Exception as e:
-                print(f"⚠️ Snapshot Camera: Could not check for existing animation: {e}")
+                print(f"[WARNING] Snapshot Camera: Could not check for existing animation: {e}")
 
             # *** AUTO-UPDATE CAMERA SELECTOR ***
             # Force refresh of snapshot camera selector to show the new camera
@@ -690,7 +690,7 @@ class AddSnapshotCamera(bpy.types.Operator): # type: ignore
                 camera_props.active_snapshot_camera = cam_obj.name
                 print(f"📸 Snapshot camera selector updated: {cam_obj.name}")
             except Exception as e:
-                print(f"⚠️ Could not update snapshot camera selector: {e}")
+                print(f"[WARNING] Could not update snapshot camera selector: {e}")
 
             self.report({'INFO'}, f"Snapshot camera '{cam_obj.name}' created and set as active")
             return {'FINISHED'}
@@ -724,9 +724,9 @@ class AlignSnapshotCameraToView(bpy.types.Operator):
                     bpy.context.scene.collection.objects.link(parent_empty)
                     parent_empty.empty_display_type = 'PLAIN_AXES'
                     parent_empty.empty_display_size = 2
-                    print(f"✅ Created Schedule_Display_Parent empty")
+                    print(f"[DEBUG] Created Schedule_Display_Parent empty")
                 else:
-                    print(f"✅ Schedule_Display_Parent already exists")
+                    print(f"[DEBUG] Schedule_Display_Parent already exists")
 
                 # Create 3D Legend HUD if enabled
                 anim_props = tool.Sequence.get_animation_props()
@@ -737,7 +737,7 @@ class AlignSnapshotCameraToView(bpy.types.Operator):
                 legend_hud_exists = any(obj.get("is_3d_legend_hud", False) for obj in bpy.data.objects)
                 if not legend_hud_exists and legend_hud_enabled: # type: ignore
                     bpy.ops.bim.setup_3d_legend_hud()
-                    print("✅ 3D Legend HUD created")
+                    print("[DEBUG] 3D Legend HUD created")
 
                 # Crear 3D texts si no existen
                 texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
@@ -768,7 +768,7 @@ class AlignSnapshotCameraToView(bpy.types.Operator):
                         }
 
                         tool.Sequence.create_text_objects_static(snapshot_settings)
-                        print("✅ 3D texts created")
+                        print("[DEBUG] 3D texts created")
 
                         # *** APPLY VISIBILITY ACCORDING TO CHECKBOX ***
                         should_hide = not getattr(camera_props, "show_3d_schedule_texts", False)
@@ -776,22 +776,22 @@ class AlignSnapshotCameraToView(bpy.types.Operator):
                         if texts_collection:
                             texts_collection.hide_viewport = should_hide
                             texts_collection.hide_render = should_hide
-                            print(f"✅ 3D texts visibility set (hidden: {should_hide})")
+                            print(f"[DEBUG] 3D texts visibility set (hidden: {should_hide})")
 
                         # *** ORGANIZE AND ALIGN 3D TEXTS ***
                         try:
                             bpy.ops.bim.arrange_schedule_texts()
-                            print("✅ 3D texts arranged and aligned")
+                            print("[DEBUG] 3D texts arranged and aligned")
                         except Exception as arrange_e:
-                            print(f"⚠️ Could not arrange 3D texts: {arrange_e}")
+                            print(f"[WARNING] Could not arrange 3D texts: {arrange_e}")
 
                     else:
-                        print("⚠️ No active work schedule for 3D texts")
+                        print("[WARNING] No active work schedule for 3D texts")
                 else:
-                    print("✅ 3D texts already exist")
+                    print("[DEBUG] 3D texts already exist")
 
             except Exception as hud_e:
-                print(f"⚠️ Could not create 3D HUD components: {hud_e}")
+                print(f"[WARNING] Could not create 3D HUD components: {hud_e}")
 
             self.report({'INFO'}, f"Snapshot camera aligned and 3D HUD components updated")
             return {'FINISHED'}
@@ -831,7 +831,7 @@ class AddAnimationCamera(bpy.types.Operator):
                 camera_props.active_animation_camera = cam_obj.name
                 print(f"📹 Animation camera selector updated: {cam_obj.name}")
             except Exception as e:
-                print(f"⚠️ Could not update animation camera selector: {e}")
+                print(f"[WARNING] Could not update animation camera selector: {e}")
 
             self.report({'INFO'}, f"Animation camera '{cam_obj.name}' created and set as active")
             return {'FINISHED'}
@@ -894,21 +894,21 @@ class UpdateCameraOnly(bpy.types.Operator): # type: ignore
                 selected_camera['orbit_path_method'] = camera_props.orbit_path_method
                 selected_camera['interpolation_mode'] = camera_props.interpolation_mode
 
-                print(f"✅ SAVED: height={camera_props.orbit_height}, angle={camera_props.orbit_start_angle_deg}, direction={camera_props.orbit_direction}")
+                print(f"[DEBUG] SAVED: height={camera_props.orbit_height}, angle={camera_props.orbit_start_angle_deg}, direction={camera_props.orbit_direction}")
 
                 # 2. Update basic camera properties
                 if hasattr(selected_camera, 'data') and selected_camera.data:
                     selected_camera.data.lens = camera_props.camera_focal_mm
                     selected_camera.data.clip_start = camera_props.camera_clip_start
                     selected_camera.data.clip_end = camera_props.camera_clip_end
-                    print(f"✅ Updated camera data: focal={camera_props.camera_focal_mm}mm")
+                    print(f"[DEBUG] Updated camera data: focal={camera_props.camera_focal_mm}mm")
 
                 # 3. Update camera using same logic as Update Animation (but no animation creation)
                 tool.Sequence.update_animation_camera(selected_camera)
-                print(f"✅ Camera '{selected_camera_name}' updated with new orbit configuration")
+                print(f"[DEBUG] Camera '{selected_camera_name}' updated with new orbit configuration")
 
             except Exception as e:
-                print(f"❌ Camera update failed: {e}")
+                print(f"[ERROR] Camera update failed: {e}")
                 self.report({'ERROR'}, f"Camera update failed: {e}")
                 return {'CANCELLED'}
 
@@ -921,7 +921,7 @@ class UpdateCameraOnly(bpy.types.Operator): # type: ignore
 
         except Exception as e:
             self.report({'ERROR'}, f"Update failed: {e}")
-            print(f"❌ Update error: {e}")
+            print(f"[ERROR] Update error: {e}")
             return {'CANCELLED'}
 
 
@@ -953,11 +953,11 @@ class AddCameraByMode(bpy.types.Operator): # type: ignore
 
             else:
                 self.report({'WARNING'}, f"Unknown orbit mode: {orbit_mode}")
-                print(f"⚠️ Unknown orbit mode: {orbit_mode}")
+                print(f"[WARNING] Unknown orbit mode: {orbit_mode}")
 
             return {'FINISHED'}
 
         except Exception as e:
             self.report({'ERROR'}, f"Failed to add camera: {e}")
-            print(f"❌ Add camera error: {e}")
+            print(f"[ERROR] Add camera error: {e}")
             return {'CANCELLED'}

@@ -2,19 +2,19 @@
 ColorType Cache Module - Ultra-fast Task-to-ColorProfile Mapping
 ==============================================================
 
-PROBLEMA SOLUCIONADO:
-La lógica de ColorTypes es computacionalmente costosa cuando se ejecuta para 8,000 objetos.
-Para cada objeto, debe buscar el grupo activo, revisar asignaciones personalizadas,
-recurrir al PredefinedType, etc. Esto se convierte en el cuello de botella principal.
+PROBLEM SOLVED:
+ColorType logic is computationally expensive when executed for 8,000 objects.
+For each object, it must search the active group, check custom assignments,
+fall back to PredefinedType, etc. This becomes the main bottleneck.
 
-SOLUCIÓN:
-Pre-calcular la lógica compleja de ColorTypes una sola vez por TAREA (no por objeto).
-Crear un mapa instantáneo: task_id -> color_profile_final.
+SOLUTION:
+Pre-calculate the complex ColorType logic once per TASK (not per object).
+Create an instant map: task_id -> color_profile_final.
 
-BENEFICIO:
-- Pre-cálculo: ~1 segundo
-- Consultas posteriores: instantáneas
-- Acelera: Creación de Animación + Cálculo de Varianza
+BENEFIT:
+- Pre-calculation: ~1 second
+- Subsequent queries: instantaneous
+- Accelerates: Animation Creation + Variance Calculation
 
 USAGE:
     cache = ColorTypeCache()
@@ -67,14 +67,14 @@ class ColorTypeCache:
             # Get task tree properties
             tprops = tool.Sequence.get_task_tree_props()
             if not tprops or not hasattr(tprops, 'tasks'):
-                print("⚠️ ColorTypeCache: No tasks found")
+                print("[WARNING] ColorTypeCache: No tasks found")
                 return 0.0
 
             # Get animation properties for active group
             anim_props = tool.Sequence.get_animation_props()
             active_group = getattr(anim_props, 'ColorType_groups', '') or 'DEFAULT'
 
-            print(f"🔄 ColorTypeCache: Building cache for {len(tprops.tasks)} tasks with group '{active_group}'...")
+            print(f"[INFO] ColorTypeCache: Building cache for {len(tprops.tasks)} tasks with group '{active_group}'...")
 
             # Process each task once
             for task in tprops.tasks:
@@ -92,11 +92,11 @@ class ColorTypeCache:
             self._cache_built = True
             self._build_time = time.time() - start_time
 
-            print(f"✅ ColorTypeCache: Built cache in {self._build_time:.3f}s for {self._stats['tasks_processed']} tasks")
+            print(f"[INFO] ColorTypeCache: Built cache in {self._build_time:.3f}s for {self._stats['tasks_processed']} tasks")
             return self._build_time
 
         except Exception as e:
-            print(f"❌ ColorTypeCache: Build failed: {e}")
+            print(f"[ERROR] ColorTypeCache: Build failed: {e}")
             import traceback
             traceback.print_exc()
             return 0.0
@@ -169,7 +169,7 @@ class ColorTypeCache:
             return profile
 
         except Exception as e:
-            print(f"⚠️ ColorTypeCache: Error calculating profile for task {task.ifc_definition_id}: {e}")
+            print(f"[WARNING] ColorTypeCache: Error calculating profile for task {task.ifc_definition_id}: {e}")
             return profile
 
     def _get_colortype_color(self, colortype_name: str, group_name: str, context) -> Optional[Tuple[float, float, float, float]]:
@@ -202,7 +202,7 @@ class ColorTypeCache:
             return None
 
         except Exception as e:
-            print(f"⚠️ ColorTypeCache: Error getting color for {colortype_name}: {e}")
+            print(f"[WARNING] ColorTypeCache: Error getting color for {colortype_name}: {e}")
             return None
 
     def get_task_color_profile(self, task_id: int) -> Optional[Dict[str, Any]]:
@@ -211,7 +211,7 @@ class ColorTypeCache:
         Ultra-fast O(1) lookup.
         """
         if not self._cache_built:
-            print("⚠️ ColorTypeCache: Cache not built. Call build_cache() first.")
+            print("[WARNING] ColorTypeCache: Cache not built. Call build_cache() first.")
             self._stats['cache_misses'] += 1
             return None
 
@@ -255,7 +255,7 @@ class ColorTypeCache:
         self._cache_built = False
         self._build_time = 0.0
         self._stats = {'tasks_processed': 0, 'cache_hits': 0, 'cache_misses': 0}
-        print("🔄 ColorTypeCache: Cache cleared")
+        print("[INFO] ColorTypeCache: Cache cleared")
 
 
 # Global cache instance

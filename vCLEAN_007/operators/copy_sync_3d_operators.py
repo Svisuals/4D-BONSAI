@@ -149,9 +149,9 @@ class SnapshotWithcolortypes(tool.Ifc.Operator, bpy.types.Operator):
         print("🔄 DEBUG: Calling snapshot_all_ui_state...")
         try:
             snapshot_all_ui_state(context)
-            print("✅ DEBUG: snapshot_all_ui_state completed")
+            print("[DEBUG] DEBUG: snapshot_all_ui_state completed")
         except Exception as e:
-            print(f"❌ DEBUG: snapshot_all_ui_state failed: {e}")
+            print(f"[ERROR] DEBUG: snapshot_all_ui_state failed: {e}")
             import traceback
             traceback.print_exc()
 
@@ -170,7 +170,7 @@ class SnapshotWithcolortypes(tool.Ifc.Operator, bpy.types.Operator):
 
             # Set snapshot mode flag for Timeline HUD
             context.scene["is_snapshot_mode"] = True
-            print("✅ DEBUG: Set is_snapshot_mode flag")
+            print("[DEBUG] DEBUG: Set is_snapshot_mode flag")
             
             # CRITICAL: Register HUD handler for snapshots
             from .. import hud
@@ -178,7 +178,7 @@ class SnapshotWithcolortypes(tool.Ifc.Operator, bpy.types.Operator):
                 print("🎬 SNAPSHOT: Registering HUD handler for Timeline display")
                 hud_overlay.register_hud_handler()
             else:
-                print("✅ SNAPSHOT: HUD handler already active")
+                print("[DEBUG] SNAPSHOT: HUD handler already active")
             
             # Force HUD refresh for snapshot mode
             hud_overlay.refresh_hud()
@@ -193,7 +193,7 @@ class SnapshotWithcolortypes(tool.Ifc.Operator, bpy.types.Operator):
             try:
                 snapshot_date = tool.Sequence.parse_isodate_datetime(snapshot_date_str)
                 if not snapshot_date: raise ValueError("Invalid date format")
-                print(f"✅ DEBUG: Using snapshot date: {snapshot_date}")
+                print(f"[DEBUG] DEBUG: Using snapshot date: {snapshot_date}")
             except Exception as e:
                 self.report({'ERROR'}, f"Invalid snapshot date: {snapshot_date_str}. Error: {e}")
                 return {'CANCELLED'}
@@ -213,11 +213,11 @@ class SnapshotWithcolortypes(tool.Ifc.Operator, bpy.types.Operator):
             print("🔍 DEBUG: Checking 3D texts after snapshot...")
             texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
             if texts_collection:
-                print(f"✅ DEBUG: Found Schedule_Display_Texts collection with {len(texts_collection.objects)} objects")
+                print(f"[DEBUG] DEBUG: Found Schedule_Display_Texts collection with {len(texts_collection.objects)} objects")
                 for obj in texts_collection.objects:
                     print(f"  - Text object: {obj.name}, visible: {not obj.hide_viewport}")
             else:
-                print("❌ DEBUG: No Schedule_Display_Texts collection found")
+                print("[ERROR] DEBUG: No Schedule_Display_Texts collection found")
 
             self.report({'INFO'}, f"Snapshot created for date {snapshot_date.strftime('%Y-%m-%d')}")
             return {'FINISHED'}
@@ -235,7 +235,7 @@ class SnapshotWithcolortypes(tool.Ifc.Operator, bpy.types.Operator):
         try:
             return self._execute(context)
         except Exception as e:
-            print(f"❌❌❌ DEBUG: SnapshotWithcolortypes.execute() FAILED: {e}")
+            print(f"[ERROR][ERROR][ERROR] DEBUG: SnapshotWithcolortypes.execute() FAILED: {e}")
             import traceback
             traceback.print_exc()
             self.report({'ERROR'}, f"Unexpected error: {e}")
@@ -250,11 +250,11 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
     def _execute(self, context):
         print("🚀🚀🚀 DEBUG: SnapshotWithcolortypesFixed._execute() STARTED")
         snapshot_all_ui_state(context)
-        print("✅ DEBUG: snapshot_all_ui_state completed")
+        print("[DEBUG] DEBUG: snapshot_all_ui_state completed")
         _save_3d_texts_state()
-        print("✅ DEBUG: _save_3d_texts_state completed")
+        print("[DEBUG] DEBUG: _save_3d_texts_state completed")
         context.scene["is_snapshot_mode"] = True
-        print("✅ DEBUG: is_snapshot_mode set to True")
+        print("[DEBUG] DEBUG: is_snapshot_mode set to True")
         
         # NO registrar HUD handler en snapshots - debe ser estático
         print("🎬 SNAPSHOT: No Timeline HUD registration (static mode)") # Do not register HUD handler in snapshots - it must be static
@@ -291,7 +291,7 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
             work_schedule, snapshot_date, date_source=date_source
         )
         tool.Sequence.show_snapshot(product_states)
-        print("✅ DEBUG: show_snapshot completed")
+        print("[DEBUG] DEBUG: show_snapshot completed")
         
         # --- APPLY VISIBILITY AND REFRESH EXISTING 3D TEXTS ---
         print("🔄 DEBUG: Updating 3D texts visibility and content...")
@@ -312,14 +312,14 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
             if texts_collection:
                 texts_collection.hide_viewport = should_hide
                 texts_collection.hide_render = should_hide
-                print(f"✅ DEBUG: 3D texts visibility updated (hidden: {should_hide})")
+                print(f"[DEBUG] DEBUG: 3D texts visibility updated (hidden: {should_hide})")
                 
             # Also apply to 3D Legend HUD collection
             legend_collection = bpy.data.collections.get("Schedule_Display_3D_Legend")
             if legend_collection:
                 legend_collection.hide_viewport = should_hide
                 legend_collection.hide_render = should_hide
-                print(f"✅ DEBUG: 3D Legend collection visibility updated (hidden: {should_hide})")
+                print(f"[DEBUG] DEBUG: 3D Legend collection visibility updated (hidden: {should_hide})")
             
             # Force viewport update to ensure everything is ready
             bpy.context.view_layer.update()
@@ -331,25 +331,25 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
                 if texts_collection and len(texts_collection.objects) > 0:
                     print("📸 DEBUG: Refreshing existing 3D texts for snapshot date")
                     bpy.ops.bim.refresh_snapshot_texts()
-                    print("✅ DEBUG: 3D texts refreshed for snapshot date")
+                    print("[DEBUG] DEBUG: 3D texts refreshed for snapshot date")
                 else:
                     print("📸 DEBUG: No 3D texts found - they should have been created with snapshot camera")
 
             except Exception as e:
-                print(f"⚠️ DEBUG: Failed to refresh snapshot texts: {e}")
+                print(f"[WARNING] DEBUG: Failed to refresh snapshot texts: {e}")
 
         except Exception as e:
-            print(f"⚠️ DEBUG: Could not handle 3D texts: {e}")
+            print(f"[WARNING] DEBUG: Could not handle 3D texts: {e}")
         
         # Check 3D texts after snapshot
         print("🔍 DEBUG: Checking 3D texts after snapshot...")
         texts_collection = bpy.data.collections.get("Schedule_Display_Texts")
         if texts_collection:
-            print(f"✅ DEBUG: Found Schedule_Display_Texts collection with {len(texts_collection.objects)} objects")
+            print(f"[DEBUG] DEBUG: Found Schedule_Display_Texts collection with {len(texts_collection.objects)} objects")
             for obj in texts_collection.objects:
                 print(f"  - Text object: {obj.name}, visible: {not obj.hide_viewport}")
         else:
-            print("❌ DEBUG: No Schedule_Display_Texts collection found")
+            print("[ERROR] DEBUG: No Schedule_Display_Texts collection found")
         
         if context.screen.is_animation_playing:
             bpy.ops.screen.animation_cancel(restore_frame=False)
@@ -361,5 +361,5 @@ class SnapshotWithcolortypesFixed(tool.Ifc.Operator, bpy.types.Operator):
             if area.type in ['PROPERTIES', 'VIEW_3D']:
                 area.tag_redraw()
 
-        print("✅ DEBUG: UI redraw forced")
+        print("[DEBUG] DEBUG: UI redraw forced")
         return {'FINISHED'}

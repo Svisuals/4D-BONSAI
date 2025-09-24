@@ -65,8 +65,8 @@ def update_variance_calculation(self, context):
 
 def update_active_work_schedule_id(self, context):
     """
-    Callback que se ejecuta cuando cambia el cronograma activo.
-    Guarda automáticamente los perfiles del cronograma anterior y carga los del nuevo.
+    Callback que se ejecuta cuando cambia el schedule activo.
+    Guarda automáticamente los perfiles del schedule anterior y carga los del nuevo.
     """
     try:
         import bonsai.tool as tool
@@ -81,22 +81,22 @@ def update_active_work_schedule_id(self, context):
         
         # Save current state
         context.scene['_previous_work_schedule_id'] = current_ws_id
-        print(f"✅ DEBUG: _previous_work_schedule_id guardado: {current_ws_id}")
+        print(f"[DEBUG] DEBUG: _previous_work_schedule_id guardado: {current_ws_id}")
         
         # Defer the heavy loading operations
         def deferred_load():
             try:
                 print(f"🔄 Loading tasks for work schedule: {current_ws_id}")
                 core.load_task_tree(tool.Sequence, work_schedule=tool.Ifc.get().by_id(current_ws_id))
-                print(f"✅ Tasks loaded for work schedule: {current_ws_id}")
+                print(f"[DEBUG] Tasks loaded for work schedule: {current_ws_id}")
             except Exception as e:
-                print(f"❌ Error loading tasks for work schedule {current_ws_id}: {e}")
+                print(f"[ERROR] Error loading tasks for work schedule {current_ws_id}: {e}")
             return None
         
         bpy.app.timers.register(deferred_load, first_interval=0.1)
         
     except Exception as e:
-        print(f"❌ Error in update_active_work_schedule_id: {e}")
+        print(f"[ERROR] Error in update_active_work_schedule_id: {e}")
 
 def update_active_task_index(self, context):
     """
@@ -129,16 +129,16 @@ def update_active_task_index(self, context):
         user_groups = UnifiedColorTypeManager.get_user_created_groups(context)
         if not user_groups:
             UnifiedColorTypeManager.sync_default_group_to_predefinedtype(context, task)
-            print(f"✅ Task {task.ifc_definition_id}: DEFAULT group synchronized")
+            print(f"[DEBUG] Task {task.ifc_definition_id}: DEFAULT group synchronized")
         
         # Load active animation colortype group colortypes (only if selected)
         anim_props = tool.Sequence.get_animation_props()
         selected_group = getattr(anim_props, "task_colortype_group_selector", "")
         if selected_group and selected_group != "DEFAULT":
             UnifiedColorTypeManager.load_colortypes_into_collection(anim_props, context, selected_group)
-            print(f"✅ Animation colortypes loaded for group: {selected_group}")
+            print(f"[DEBUG] Animation colortypes loaded for group: {selected_group}")
     except Exception as e:
-        print(f"⚠️ Error in automatic colortype synchronization: {e}")
+        print(f"[WARNING] Error in automatic colortype synchronization: {e}")
     
     # --- 3D SELECTION LOGIC FOR SINGLE CLICK ---
     props = tool.Sequence.get_work_schedule_props()
@@ -175,7 +175,7 @@ def update_active_task_index(self, context):
                     bpy.context.view_layer.objects.active = objects_to_select[0]
                     print(f"🎯 3D Task: Selected {len(objects_to_select)} objects for task '{task_ifc.Name or task_ifc.id()}'")
         except Exception as e:
-            print(f"⚠️ Error in 3D selection: {e}")
+            print(f"[WARNING] Error in 3D selection: {e}")
 
 def get_schedule_predefined_types(self, context):
     if not SequenceData.is_loaded:
@@ -183,13 +183,13 @@ def get_schedule_predefined_types(self, context):
     return SequenceData.data["schedule_predefined_types_enum"]
 
 def update_work_schedule_predefined_type(self: "BIMWorkScheduleProperties", context: bpy.types.Context) -> None:
-    """Se ejecuta cuando cambia el tipo de cronograma - NO limpiar automáticamente"""
+    """Se ejecuta cuando cambia el tipo de schedule - NO limpiar automáticamente"""
     try:
         print(f"🔄 Work schedule predefined type changed to: {self.work_schedule_predefined_types}")
         print("ℹ️ Variance colors will remain active - use Clear Variance button to reset")
             
     except Exception as e:
-        print(f"⚠️ Error in update_work_schedule_predefined_type: {e}")
+        print(f"[WARNING] Error in update_work_schedule_predefined_type: {e}")
 
 def update_visualisation_start(self: "BIMWorkScheduleProperties", context: bpy.types.Context) -> None:
     update_visualisation_start_finish(self, context, "visualisation_start")
@@ -227,9 +227,9 @@ def update_visualisation_start_finish(
                 # Set reasonable frame range based on duration
                 frame_end = max(250, min(duration_days * 10, 10000))
                 context.scene.frame_end = frame_end
-                print(f"✅ Updated frame range to {frame_end} frames for {duration_days} day duration")
+                print(f"[DEBUG] Updated frame range to {frame_end} frames for {duration_days} day duration")
         except Exception as e:
-            print(f"⚠️ Error updating frame range: {e}")
+            print(f"[WARNING] Error updating frame range: {e}")
 
 def update_sort_reversed(self: "BIMWorkScheduleProperties", context: bpy.types.Context) -> None:
     if self.active_work_schedule_id:
@@ -283,10 +283,10 @@ def update_date_source_type(self, context):
                 previous_finish_date=previous_finish
             )
         except Exception as e:
-            print(f"⚠️ Animation sync failed: {e}")
+            print(f"[WARNING] Animation sync failed: {e}")
                 
     except Exception as e:
-        print(f"❌ update_date_source_type: Error: {e}")
+        print(f"[ERROR] update_date_source_type: Error: {e}")
         import traceback
         traceback.print_exc()
 

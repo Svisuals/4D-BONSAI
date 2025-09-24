@@ -38,7 +38,9 @@ except Exception:
         from ..prop.filter import update_filter_column
         from .. import prop
     except Exception:
-        def update_filter_column(*args, **kwargs): pass
+        def update_filter_column(*args, **kwargs):
+            """Fallback filter column update function"""
+            return
         class PropFallback:
             @staticmethod
             def safe_set_selected_colortype_in_active_group(task_obj, value, skip_validation=False):
@@ -49,9 +51,9 @@ except Exception:
 # =====================================
 # COMPLETE SNAPSHOT/RESTORE SYSTEM
 # =====================================
-# ⚠️ WARNING: THESE FUNCTIONS ARE DUPLICATED - USE operator.py INSTEAD
-# ⚠️ All imports should point to operator.py, not this file
-# ⚠️ These functions are kept only for legacy compatibility
+# [WARNING] WARNING: THESE FUNCTIONS ARE DUPLICATED - USE operator.py INSTEAD
+# [WARNING] All imports should point to operator.py, not this file
+# [WARNING] These functions are kept only for legacy compatibility
 
 # Global variable for task state cache (used by filters)
 _persistent_task_state = {}
@@ -161,7 +163,7 @@ def snapshot_all_ui_state(context):
                                 "is_expanded": False,
                             }
         except Exception as e:
-            print(f"Bonsai WARNING: Error capturando todas las tareas: {e}")
+            print(f"Bonsai WARNING: Error capturando todas las tasks: {e}")
             # Fallback: only visible tasks
             for t in getattr(tprops, "tasks", []):
                 tid = str(getattr(t, "ifc_definition_id", 0))
@@ -196,7 +198,7 @@ def snapshot_all_ui_state(context):
         context.scene[snap_key_specific] = json.dumps(task_snap)
         context.scene[cache_key] = json.dumps(task_snap)  # Also update cache
         
-        print(f"📸 Snapshot guardado: {len(task_snap)} tareas en clave {snap_key_specific}")
+        print(f"📸 Snapshot guardado: {len(task_snap)} tasks en clave {snap_key_specific}")
         
     except Exception as e:
         print(f"Bonsai WARNING: snapshot_all_ui_state falló: {e}")
@@ -315,11 +317,11 @@ def restore_all_ui_state(context):
             try:
                 snap_data = json.loads(snap_raw) or {}
                 union.update(snap_data)
-                print(f"📥 Restaurando de clave {snap_key_specific} - {len(snap_data)} tareas")
+                print(f"📥 Restaurando de clave {snap_key_specific} - {len(snap_data)} tasks")
             except Exception:
                 pass
         else:
-            print(f"❌ No se encontró clave {snap_key_specific}")
+            print(f"[ERROR] No se encontró clave {snap_key_specific}")
 
         if union:
             tprops = getattr(context.scene, 'BIMTaskTreeProperties', None)
@@ -360,7 +362,7 @@ def restore_all_ui_state(context):
                     t.is_expanded = cfg.get("is_expanded", False)
                     
                 except Exception as e:
-                    print(f"❌ Error setting colortype for task {tid}: {e}")
+                    print(f"[ERROR] Error setting colortype for task {tid}: {e}")
                 
                 # Restore color groups
                 try:
@@ -384,9 +386,9 @@ def restore_all_ui_state(context):
                         item.enabled = g_data.get("enabled", False)
                         
                 except Exception as e:
-                    print(f"❌ Error setting groups for task {tid}: {e}")
+                    print(f"[ERROR] Error setting groups for task {tid}: {e}")
         
-        print(f"🔄 Restauración completada: {len(union)} tareas procesadas")
+        print(f"🔄 Restauración completada: {len(union)} tasks procesadas")
         
     except Exception as e:
         print(f"Bonsai WARNING: restore_all_ui_state falló: {e}")
@@ -420,12 +422,12 @@ def populate_persistent_task_state_from_snapshot(context):
                         "use_active_colortype_group": task_data.get("active", False),
                         "selected_colortype_in_active_group": task_data.get("selected_active_colortype", ""),
                     }
-                print(f"📥 Sincronizado _persistent_task_state desde snapshot: {len(data)} tareas")
+                print(f"📥 Sincronizado _persistent_task_state desde snapshot: {len(data)} tasks")
             except Exception as e:
-                print(f"⚠️ Error sincronizando desde snapshot: {e}")
+                print(f"[WARNING] Error sincronizando desde snapshot: {e}")
                 
     except Exception as e:
-        print(f"⚠️ Error poblando _persistent_task_state: {e}")
+        print(f"[WARNING] Error poblando _persistent_task_state: {e}")
 
 def restore_persistent_task_state(context):
     """Starts the state restoration in a deferred manner."""
@@ -452,7 +454,7 @@ class ClearTaskStateCache(bpy.types.Operator):
             import ifcopenshell.util.sequence
             work_schedule = tool.Ifc.get().by_id(self.work_schedule_id)
             if not work_schedule:
-                print(f"⚠️ Cronograma {self.work_schedule_id} no encontrado para limpieza selectiva")
+                print(f"[WARNING] Cronograma {self.work_schedule_id} no encontrado para cleanup selectiva")
                 return {'FINISHED'}
             
             # Get all tasks from the specified schedule
@@ -475,10 +477,10 @@ class ClearTaskStateCache(bpy.types.Operator):
                     del _persistent_task_state[task_id]
                     removed_count += 1
             
-            print(f"🧹 Cache selectivo: {removed_count} tareas removidas del cronograma '{work_schedule.Name or 'Sin nombre'}'")
+            print(f"🧹 Cache selectivo: {removed_count} tasks removidas del schedule '{work_schedule.Name or 'Sin nombre'}'")
             
         except Exception as e:
-            print(f"❌ Error en limpieza selectiva: {e}. Fallback a limpieza global.")
+            print(f"[ERROR] Error en cleanup selectiva: {e}. Fallback a cleanup global.")
             _persistent_task_state.clear()
         
         return {'FINISHED'}
@@ -714,7 +716,7 @@ class ApplyTaskFilters(bpy.types.Operator):
             if not tool.Sequence.has_variance_calculation_in_tasks(): 
                 tool.Sequence.clear_variance_colors_only()
         except Exception as e: 
-            print(f"⚠️ Error in variance color check: {e}")
+            print(f"[WARNING] Error in variance color check: {e}")
         
         return {'FINISHED'}
 

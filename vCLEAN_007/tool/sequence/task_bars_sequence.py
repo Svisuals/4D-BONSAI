@@ -33,8 +33,8 @@ class TaskBarsSequence:
     @classmethod
     def get_task_bar_list(cls) -> list[int]:
         """
-        Obtiene la lista de IDs de tareas que deben mostrar barra visual.
-        Retorna una lista de IDs de tareas.
+        Obtiene la lista de IDs de tasks que deben mostrar barra visual.
+        Retorna una lista de IDs de tasks.
         """
         props = tool.Sequence.get_work_schedule_props()
         try:
@@ -45,7 +45,7 @@ class TaskBarsSequence:
 
     @classmethod
     def add_task_bar(cls, task_id: int) -> None:
-        """Agrega una tarea a la lista de barras visuales."""
+        """Agrega una task a la lista de barras visuales."""
         props = tool.Sequence.get_work_schedule_props()
         try:
             task_bars = json.loads(props.task_bars)
@@ -57,7 +57,7 @@ class TaskBarsSequence:
 
     @classmethod
     def remove_task_bar(cls, task_id: int) -> None:
-        """Remueve una tarea de la lista de barras visuales."""
+        """Remueve una task de la lista de barras visuales."""
         props = tool.Sequence.get_work_schedule_props()
         try:
             task_bars = json.loads(props.task_bars)
@@ -69,7 +69,7 @@ class TaskBarsSequence:
 
     @classmethod
     def get_animation_bar_tasks(cls) -> list:
-        """Obtiene las tareas IFC que tienen barras visuales habilitadas."""
+        """Obtiene las tasks IFC que tienen barras visuales habilitadas."""
         task_ids = cls.get_task_bar_list()
         tasks = []
         ifc_file = tool.Ifc.get()
@@ -113,11 +113,11 @@ class TaskBarsSequence:
     @classmethod
     def clear_task_bars(cls) -> None:
         """
-        Limpia y elimina todas las barras de tareas 3D y resetea el estado en la UI.
+        Limpia y elimina todas las barras de tasks 3D y resetea el estado en la UI.
         """
         import bpy
 
-        # 1. Limpiar la lista de tareas marcadas para tener barras.
+        # 1. Limpiar la lista de tasks marcadas para tener barras.
         props = tool.Sequence.get_work_schedule_props()
         props.task_bars = "[]"  # Reset to an empty JSON list.
 
@@ -218,7 +218,7 @@ class TaskBarsSequence:
 
             if not (schedule_start and schedule_finish):
                 # Fallback: if there are no schedule dates, show message and abort
-                print("[ERROR] No se pueden crear Task Bars: fechas del cronograma no disponibles")
+                print("[ERROR] No se pueden crear Task Bars: fechas del schedule no disponibles")
                 return None
 
             settings = {
@@ -229,7 +229,7 @@ class TaskBarsSequence:
                 "end_frame": bpy.context.scene.frame_end,
             }
 
-            print(f"🎯 Task Bars usando fechas del cronograma:")
+            print(f"🎯 Task Bars usando fechas del schedule:")
             print(f"   Schedule Start: {schedule_start.strftime('%Y-%m-%d')}")
             print(f"   Schedule Finish: {schedule_finish.strftime('%Y-%m-%d')}")
             print(f"   Timeline: frames {settings['start_frame']} to {settings['end_frame']}")

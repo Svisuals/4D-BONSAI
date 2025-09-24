@@ -205,10 +205,10 @@ def get_task_colortype_items(self, context):
             for i, name in enumerate(sorted(colortypes.keys())):
                 items.append((name, name, f"colortype from {selected_group}", i))
             
-            print(f"✅ Found {len(items)} colortypes in group '{selected_group}'")
+            print(f"[DEBUG] Found {len(items)} colortypes in group '{selected_group}'")
 
     except Exception as e:
-        print(f"❌ Error getting custom group colortypes: {e}")
+        print(f"[ERROR] Error getting custom group colortypes: {e}")
         items = [("", "<error loading colortypes>", "", 0)]
 
     if not items:

@@ -83,7 +83,7 @@ class ClearPreviousAnimation(bpy.types.Operator, tool.Ifc.Operator):
                     invalidate_legend_hud_cache()
                     print("🧹 Active colortype group cleared from HUD Legend.")
             except Exception as legend_e:
-                print(f"⚠️ Could not clear colortype group: {legend_e}")
+                print(f"[WARNING] Could not clear colortype group: {legend_e}")
             
             self.report({'INFO'}, "Previous animation cleared.")
             context.scene.frame_set(context.scene.frame_start)
@@ -121,16 +121,16 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
         try:
             if bpy.context.screen.is_animation_playing:
                 bpy.ops.screen.animation_cancel(restore_frame=False)
-                print(f"✅ Animation playback stopped")
+                print(f"[DEBUG] Animation playback stopped")
         except Exception as e:
-            print(f"❌ Could not stop animation: {e}")
+            print(f"[ERROR] Could not stop animation: {e}")
 
         # Complete cleanup of snapshot AND animation
         try:
             # CRITICAL: Reset ALL objects to their original state
             print(f"🔄 Clearing previous animation and snapshot...")
             _clear_previous_animation(context)
-            print(f"✅ Previous animation and snapshot cleared")
+            print(f"[DEBUG] Previous animation and snapshot cleared")
             
             # Clear temporary snapshot data
             if hasattr(bpy.context.scene, 'snapshot_data'):
@@ -167,7 +167,7 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
                     invalidate_legend_hud_cache()
                     print("🧹 Active colortype group cleared from HUD Legend")
             except Exception as legend_e:
-                print(f"⚠️ Could not clear colortype group: {legend_e}")
+                print(f"[WARNING] Could not clear colortype group: {legend_e}")
             
             # --- SNAPSHOT 3D TEXTS RESTORATION ---
             # Clear snapshot mode and restore previous state

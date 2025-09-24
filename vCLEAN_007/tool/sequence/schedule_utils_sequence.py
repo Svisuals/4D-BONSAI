@@ -189,14 +189,14 @@ class ScheduleUtilsSequence:
     @classmethod
     def validate_task_object(cls, task, operation_name="operation"):
         """
-        Valida que un objeto tarea sea válido antes de procesarlo.
+        Valida que un object task sea válido antes de procesarlo.
 
         Args:
-            task: El objeto tarea a validar
+            task: El object task a validar
             operation_name: Nombre de la operación para logging
 
         Returns:
-            bool: True si la tarea es válida, False en caso contrario
+            bool: True si la task es válida, False en caso contrario
         """
         if task is None:
             print(f"[WARNING]️ Warning: None task in {operation_name}")
@@ -220,10 +220,10 @@ class ScheduleUtilsSequence:
     @classmethod
     def get_work_schedule_products(cls, work_schedule: ifcopenshell.entity_instance) -> list[ifcopenshell.entity_instance]:
         """
-        Obtiene todos los productos asociados a un cronograma de trabajo.
+        Obtiene todos los productos asociados a un schedule de trabajo.
 
         Args:
-            work_schedule: El cronograma de trabajo IFC
+            work_schedule: El schedule de trabajo IFC
 
         Returns:
             Lista de productos IFC (puede ser vacía)
@@ -231,7 +231,7 @@ class ScheduleUtilsSequence:
         try:
             products: list[ifcopenshell.entity_instance] = []
 
-            # Obtener todas las tareas del cronograma
+            # Obtener todas las tasks del schedule
             if hasattr(work_schedule, 'Controls') and work_schedule.Controls:
                 for rel in work_schedule.Controls:
                     for task in rel.RelatedObjects:
@@ -265,10 +265,10 @@ class ScheduleUtilsSequence:
     @classmethod
     def select_work_schedule_products(cls, work_schedule: ifcopenshell.entity_instance) -> str:
         """
-        Selecciona todos los productos asociados a un cronograma de trabajo.
+        Selecciona todos los productos asociados a un schedule de trabajo.
 
         Args:
-            work_schedule: El cronograma de trabajo IFC
+            work_schedule: El schedule de trabajo IFC
 
         Returns:
             Mensaje de resultado
@@ -291,7 +291,7 @@ class ScheduleUtilsSequence:
     @classmethod
     def select_unassigned_work_schedule_products(cls) -> str:
         """
-        Selecciona productos que no están asignados a ningún cronograma de trabajo.
+        Selecciona productos que no están asignados a ningún schedule de trabajo.
 
         Returns:
             Mensaje de resultado
@@ -304,7 +304,7 @@ class ScheduleUtilsSequence:
             # Obtener todos los productos
             all_products = list(ifc_file.by_type("IfcProduct"))
 
-            # Obtener productos asignados a cronogramas
+            # Obtener productos asignados a schedules
             schedule_products: set[int] = set()
             for work_schedule in ifc_file.by_type("IfcWorkSchedule"):
                 ws_products = cls.get_work_schedule_products(work_schedule) or []
@@ -351,36 +351,36 @@ class ScheduleUtilsSequence:
     @classmethod
     def get_tasks_for_product(cls, product, work_schedule=None):
         """
-        Obtiene las tareas de entrada y salida para un producto específico.
+        Obtiene las tasks de entrada y salida para un producto específico.
 
         Args:
             product: El producto IFC
-            work_schedule: El cronograma de trabajo (opcional)
+            work_schedule: El schedule de trabajo (opcional)
 
         Returns:
             tuple: (task_inputs, task_outputs)
         """
         try:
-            # Usar los métodos existentes para encontrar tareas relacionadas
+            # Usar los métodos existentes para encontrar tasks relacionadas
             input_tasks = cls.find_related_input_tasks(product)
             output_tasks = cls.find_related_output_tasks(product)
 
-            # Si se proporciona work_schedule, filtrar solo las tareas de ese cronograma
+            # Si se proporciona work_schedule, filtrar solo las tasks de ese schedule
             if work_schedule:
-                # Obtener todas las tareas controladas por el work_schedule
+                # Obtener todas las tasks controladas por el work_schedule
                 controlled_task_ids = set()
                 for rel in work_schedule.Controls or []:
                     for obj in rel.RelatedObjects:
                         if obj.is_a("IfcTask"):
                             controlled_task_ids.add(obj.id())
 
-                # Filtrar las tareas de entrada
+                # Filtrar las tasks de entrada
                 filtered_input_tasks = []
                 for task in input_tasks:
                     if task.id() in controlled_task_ids:
                         filtered_input_tasks.append(task)
 
-                # Filtrar las tareas de salida
+                # Filtrar las tasks de salida
                 filtered_output_tasks = []
                 for task in output_tasks:
                     if task.id() in controlled_task_ids:
@@ -397,13 +397,13 @@ class ScheduleUtilsSequence:
     @classmethod
     def load_product_related_tasks(cls, product):
         """
-        Carga las tareas relacionadas con un producto y las muestra en la UI.
+        Carga las tasks relacionadas con un producto y las muestra en la UI.
 
         Args:
-            product: El producto IFC para el cual buscar tareas
+            product: El producto IFC para el cual buscar tasks
 
         Returns:
-            str: Mensaje de resultado o lista de tareas
+            str: Mensaje de resultado o lista de tasks
         """
         try:
             props = tool.Sequence.get_work_schedule_props()
@@ -420,13 +420,13 @@ class ScheduleUtilsSequence:
             props.product_input_tasks.clear()
             props.product_output_tasks.clear()
 
-            # Cargar tareas de entrada
+            # Cargar tasks de entrada
             for task in task_inputs:
                 new_input = props.product_input_tasks.add()
                 new_input.ifc_definition_id = task.id()
                 new_input.name = task.Name or "Unnamed"
 
-            # Cargar tareas de salida
+            # Cargar tasks de salida
             for task in task_outputs:
                 new_output = props.product_output_tasks.add()
                 new_output.ifc_definition_id = task.id()

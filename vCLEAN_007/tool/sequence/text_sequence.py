@@ -85,118 +85,12 @@ class TextSequence:
 
     @classmethod
     def add_text_animation_handler(cls, settings):
-            """Creates multiple animated text objects to display schedule information"""
-            print("🚀🚀 [DEBUG] add_text_animation_handler: METHOD STARTED")
-            print(f"[DEBUG] add_text_animation_handler: Received settings type: {type(settings)}")
-
-            from datetime import timedelta
-
-            collection_name = "Schedule_Display_Texts"
-            if collection_name in bpy.data.collections:
-                collection = bpy.data.collections[collection_name]
-                # Limpiar objetos anteriores
-                # Clear previous objects
-                for obj in list(collection.objects):
-                    try:
-                        bpy.data.objects.remove(obj, do_unlink=True)
-                    except Exception:
-                        pass
-            else:
-                collection = bpy.data.collections.new(collection_name)
-                try:
-                    bpy.context.scene.collection.children.link(collection)
-                except Exception:
-                    pass
-
-            # Get schedule name for the Schedule_Name text
-            schedule_name = "Unknown Schedule"
-            try:
-                import bonsai.tool as tool
-                ws_props = tool.Sequence.get_work_schedule_props()
-                if ws_props and hasattr(ws_props, 'active_work_schedule_id'):
-                    ws_id = ws_props.active_work_schedule_id
-                    if ws_id:
-                        work_schedule = tool.Ifc.get().by_id(ws_id)
-                        if work_schedule and hasattr(work_schedule, 'Name'):
-                            schedule_name = work_schedule.Name or "Unnamed Schedule"
-            except Exception as e:
-                print(f"⚠️ Could not get schedule name: {e}")
-
-            print(f"[DEBUG] add_text_animation_handler: About to create 3D texts with schedule_name: {schedule_name}")
-
-            text_configs = [
-                {"name": "Schedule_Name", "position": (0, 10, 6), "size": 1.4, "align": "CENTER", "color": (1, 1, 1, 1), "type": "schedule_name", "content": f"Schedule: {schedule_name}"},
-                {"name": "Schedule_Date", "position": (0, 10, 5), "size": 1.2, "align": "CENTER", "color": (1, 1, 1, 1), "type": "date"},
-                {"name": "Schedule_Week", "position": (0, 10, 4), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "week"},
-                {"name": "Schedule_Day_Counter", "position": (0, 10, 3), "size": 0.8, "align": "CENTER", "color": (1, 1, 1, 1), "type": "day_counter"},
-                {"name": "Schedule_Progress", "position": (0, 10, 2), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "progress"},
-            ]
-
-            created_texts = []
-            for config in text_configs:
-                try:
-                    print(f"[DEBUG] Creating 3D text: {config['name']} (type: {config['type']})")
-                    text_obj = cls._create_animated_text(config, settings, collection)
-                    created_texts.append(text_obj)
-                    print(f"[DEBUG] ✅ Successfully created: {config['name']}")
-                except Exception as e:
-                    print(f"[DEBUG] ❌ Failed to create {config['name']}: {e}")
-
-            print(f"[DEBUG] Total 3D texts created: {len(created_texts)} out of {len(text_configs)}")
-
-            # Auto-configure HUD if there is an active 4D camera
-            try:
-                scene = bpy.context.scene
-                if scene.camera and "4D_Animation_Camera" in scene.camera.name:
-                    anim_props = tool.Sequence.get_animation_props()
-                    camera_props = anim_props.camera_orbit
-
-                    # Only auto-enable if not already configured
-                    if not getattr(camera_props, "enable_text_hud", False):
-                        print("🎯 Auto-enabling HUD for new schedule texts...")
-                        camera_props.enable_text_hud = True
-
-                        # Setup diferido para asegurar que los textos estén completamente creados
-                        def setup_hud_deferred():
-                            try:
-                                bpy.ops.bim.setup_text_hud()
-                                print("[OK] Deferred HUD setup completed")
-                            except Exception as e:
-                                print(f"Deferred HUD setup failed: {e}")
-
-                        bpy.app.timers.register(setup_hud_deferred, first_interval=0.3)
-                    else:
-                        # If already enabled, just update positions
-                        def update_hud_deferred():
-                            try:
-                                bpy.ops.bim.update_text_hud_positions()
-                            except Exception as e:
-                                print(f"HUD position update failed: {e}")
-
-                        bpy.app.timers.register(update_hud_deferred, first_interval=0.1)
-
-            except Exception as e:
-                print(f"Error in auto-HUD setup: {e}")
-
-            print("[DEBUG] Registering 3D text animation handler...")
-            try:
-                cls._register_multi_text_handler(settings)
-                print("[DEBUG] ✅ 3D text animation handler registered successfully")
-            except Exception as e:
-                print(f"[DEBUG] ❌ Failed to register 3D text handler: {e}")
-
-            return created_texts
-
-    @classmethod
-    def create_text_objects_static(cls, settings):
-        """Creates static 3D text objects for snapshot mode (NO animation handler registration)"""
+        """Creates multiple animated text objects to display schedule information"""
         from datetime import timedelta
-        print("📸 Creating STATIC 3D text objects for snapshot mode")
 
         collection_name = "Schedule_Display_Texts"
         if collection_name in bpy.data.collections:
             collection = bpy.data.collections[collection_name]
-            # Clear previous objects
             for obj in list(collection.objects):
                 try:
                     bpy.data.objects.remove(obj, do_unlink=True)
@@ -209,7 +103,6 @@ class TextSequence:
             except Exception:
                 pass
 
-        # Get schedule name for the Schedule_Name text
         schedule_name = "Unknown Schedule"
         try:
             import bonsai.tool as tool
@@ -220,44 +113,121 @@ class TextSequence:
                     work_schedule = tool.Ifc.get().by_id(ws_id)
                     if work_schedule and hasattr(work_schedule, 'Name'):
                         schedule_name = work_schedule.Name or "Unnamed Schedule"
-        except Exception as e:
-            print(f"[WARNING]️ Could not get schedule name: {e}")
+        except Exception:
+            pass
 
-        # ✅ FIXED: Proper Z-stacked positioning matching v117_P stable layout
         text_configs = [
-                {"name": "Schedule_Name", "position": (0, 10, 6), "size": 1.4, "align": "CENTER", "color": (1, 1, 1, 1), "type": "schedule_name", "content": f"Schedule: {schedule_name}"},
-                {"name": "Schedule_Date", "position": (0, 10, 5), "size": 1.2, "align": "CENTER", "color": (1, 1, 1, 1), "type": "date"},
-                {"name": "Schedule_Week", "position": (0, 10, 4), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "week"},
-                {"name": "Schedule_Day_Counter", "position": (0, 10, 3), "size": 0.8, "align": "CENTER", "color": (1, 1, 1, 1), "type": "day_counter"},
-                {"name": "Schedule_Progress", "position": (0, 10, 2), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "progress"},
-            ]
+            {"name": "Schedule_Name", "position": (0, 10, 6), "size": 1.4, "align": "CENTER", "color": (1, 1, 1, 1), "type": "schedule_name", "content": f"Schedule: {schedule_name}"},
+            {"name": "Schedule_Date", "position": (0, 10, 5), "size": 1.2, "align": "CENTER", "color": (1, 1, 1, 1), "type": "date"},
+            {"name": "Schedule_Week", "position": (0, 10, 4), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "week"},
+            {"name": "Schedule_Day_Counter", "position": (0, 10, 3), "size": 0.8, "align": "CENTER", "color": (1, 1, 1, 1), "type": "day_counter"},
+            {"name": "Schedule_Progress", "position": (0, 10, 2), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "progress"},
+        ]
+
+        created_texts = []
+        for config in text_configs:
+            try:
+                text_obj = cls._create_animated_text(config, settings, collection)
+                created_texts.append(text_obj)
+            except Exception:
+                pass
+
+        try:
+            scene = bpy.context.scene
+            if scene.camera and "4D_Animation_Camera" in scene.camera.name:
+                anim_props = tool.Sequence.get_animation_props()
+                camera_props = anim_props.camera_orbit
+
+                if not getattr(camera_props, "enable_text_hud", False):
+                    camera_props.enable_text_hud = True
+
+                    def setup_hud_deferred():
+                        try:
+                            bpy.ops.bim.setup_text_hud()
+                        except Exception:
+                            pass
+
+                    bpy.app.timers.register(setup_hud_deferred, first_interval=0.3)
+                else:
+                    def update_hud_deferred():
+                        try:
+                            bpy.ops.bim.update_text_hud_positions()
+                        except Exception:
+                            pass
+
+                    bpy.app.timers.register(update_hud_deferred, first_interval=0.1)
+
+        except Exception:
+            pass
+
+        try:
+            cls._register_multi_text_handler(settings)
+        except Exception:
+            pass
+
+        return created_texts
+
+    @classmethod
+    def create_text_objects_static(cls, settings):
+        """Creates static 3D text objects for snapshot mode (NO animation handler registration)"""
+        from datetime import timedelta
+
+        collection_name = "Schedule_Display_Texts"
+        if collection_name in bpy.data.collections:
+            collection = bpy.data.collections[collection_name]
+            for obj in list(collection.objects):
+                try:
+                    bpy.data.objects.remove(obj, do_unlink=True)
+                except Exception:
+                    pass
+        else:
+            collection = bpy.data.collections.new(collection_name)
+            try:
+                bpy.context.scene.collection.children.link(collection)
+            except Exception:
+                pass
+
+        schedule_name = "Unknown Schedule"
+        try:
+            import bonsai.tool as tool
+            ws_props = tool.Sequence.get_work_schedule_props()
+            if ws_props and hasattr(ws_props, 'active_work_schedule_id'):
+                ws_id = ws_props.active_work_schedule_id
+                if ws_id:
+                    work_schedule = tool.Ifc.get().by_id(ws_id)
+                    if work_schedule and hasattr(work_schedule, 'Name'):
+                        schedule_name = work_schedule.Name or "Unnamed Schedule"
+        except Exception:
+            pass
+
+        text_configs = [
+            {"name": "Schedule_Name", "position": (0, 10, 6), "size": 1.4, "align": "CENTER", "color": (1, 1, 1, 1), "type": "schedule_name", "content": f"Schedule: {schedule_name}"},
+            {"name": "Schedule_Date", "position": (0, 10, 5), "size": 1.2, "align": "CENTER", "color": (1, 1, 1, 1), "type": "date"},
+            {"name": "Schedule_Week", "position": (0, 10, 4), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "week"},
+            {"name": "Schedule_Day_Counter", "position": (0, 10, 3), "size": 0.8, "align": "CENTER", "color": (1, 1, 1, 1), "type": "day_counter"},
+            {"name": "Schedule_Progress", "position": (0, 10, 2), "size": 1.0, "align": "CENTER", "color": (1, 1, 1, 1), "type": "progress"},
+        ]
         created_texts = []
         for config in text_configs:
             text_obj = cls._create_static_text(config, settings, collection)
             created_texts.append(text_obj)
 
-        # ✅ ENSURE PARENT EMPTY EXISTS for proper organization
         parent_name = "Schedule_Display_Parent"
         parent_empty = bpy.data.objects.get(parent_name)
         if not parent_empty:
-            print(f"📝 Creating {parent_name} for text organization")
             parent_empty = bpy.data.objects.new(parent_name, None)
             collection.objects.link(parent_empty)
             parent_empty.empty_display_type = 'PLAIN_AXES'
             parent_empty.empty_display_size = 2
             parent_empty.location = (0, 0, 0)
 
-        # ✅ PARENT ALL TEXTS to the empty for organized control
         for text_obj in created_texts:
             if text_obj and text_obj.parent != parent_empty:
                 try:
                     text_obj.parent = parent_empty
-                    print(f"📝 Text '{text_obj.name}' parented to {parent_name}")
-                except Exception as e:
-                    print(f"[WARNING]️ Could not parent text '{text_obj.name}': {e}")
+                except Exception:
+                    pass
 
-        print(f"[OK] Created {len(created_texts)} static 3D text objects for snapshot mode")
-        print(f"[OK] All texts organized under parent: {parent_name}")
         return created_texts
 
     @classmethod
@@ -310,7 +280,6 @@ class TextSequence:
         collection.objects.link(text_obj)
 
         # NOTE: Parenting is handled in the main create_text_objects_static method
-        print(f"📝 Created static text: {config['name']} = '{text_curve.body}'")
         return text_obj
 
     @classmethod
@@ -335,8 +304,7 @@ class TextSequence:
                 week_number = max(1, (delta_days // 7) + 1)
 
             return f"Week {week_number}"
-        except Exception as e:
-            print(f"[ERROR] Error calculating static week: {e}")
+        except Exception:
             return "Week --"
 
     @classmethod
@@ -361,8 +329,7 @@ class TextSequence:
                 day_number = max(1, delta_days + 1)
 
             return f"Day {day_number}"
-        except Exception as e:
-            print(f"[ERROR] Error calculating static day: {e}")
+        except Exception:
             return "Day --"
 
 
@@ -397,36 +364,28 @@ class TextSequence:
                     progress_pct = max(0, min(100, progress_pct))
 
             return f"Progress: {progress_pct}%"
-        except Exception as e:
-            print(f"[ERROR] Error calculating static progress: {e}")
+        except Exception:
             return "Progress: --%"
 
 
     @classmethod
     def _create_animated_text(cls, config, settings, collection):
-        print(f"[DEBUG] _create_animated_text: Starting creation of {config['name']} (type: {config['type']})")
-
         try:
             text_curve = bpy.data.curves.new(name=config["name"], type='FONT')
-            print(f"[DEBUG] _create_animated_text: ✅ Created text_curve for {config['name']}")
             text_curve.size = config["size"]
             text_curve.align_x = config["align"]
             text_curve.align_y = 'CENTER'
 
             text_curve["text_type"] = config["type"]
-            print(f"[DEBUG] _create_animated_text: ✅ Set basic properties for {config['name']}")
 
-            # Save content for schedule_name type (static content)
             if config["type"] == "schedule_name" and "content" in config:
                 text_curve["content"] = config["content"]
 
-            # Save some primitive fields (not complex objects)
             try:
                 start = settings.get("start") if isinstance(settings, dict) else getattr(settings, "start", None)
                 finish = settings.get("finish") if isinstance(settings, dict) else getattr(settings, "finish", None)
                 start_frame = int(settings.get("start_frame", 1)) if isinstance(settings, dict) else int(getattr(settings, "start_frame", 1))
                 total_frames = int(settings.get("total_frames", 250)) if isinstance(settings, dict) else int(getattr(settings, "total_frames", 250))
-                # Convert datetime to ISO if necessary
                 if hasattr(start, "isoformat"):
                     start_iso = start.isoformat()
                 else:
@@ -435,8 +394,7 @@ class TextSequence:
                     finish_iso = finish.isoformat()
                 else:
                     finish_iso = str(finish)
-            except Exception as e:
-                print(f"[DEBUG] _create_animated_text: ⚠️ Warning setting animation_settings for {config['name']}: {e}")
+            except Exception:
                 start_iso = ""
                 finish_iso = ""
 
@@ -446,36 +404,25 @@ class TextSequence:
                 "start_date": start_iso,
                 "finish_date": finish_iso,
             }
-            print(f"[DEBUG] _create_animated_text: ✅ Set animation_settings for {config['name']}")
 
             text_obj = bpy.data.objects.new(name=config["name"], object_data=text_curve)
-            print(f"[DEBUG] _create_animated_text: ✅ Created text_obj for {config['name']}")
             try:
                 collection.objects.link(text_obj)
-                print(f"[DEBUG] _create_animated_text: ✅ Linked {config['name']} to collection")
-            except Exception as e:
+            except Exception:
                 try:
                     bpy.context.scene.collection.objects.link(text_obj)
-                    print(f"[DEBUG] _create_animated_text: ⚠️ Linked {config['name']} to scene collection (fallback)")
-                except Exception as e2:
-                    print(f"[DEBUG] _create_animated_text: ❌ Failed to link {config['name']}: {e2}")
+                except Exception:
+                    pass
 
             text_obj.location = config["position"]
-            print(f"[DEBUG] _create_animated_text: ✅ Set location for {config['name']}")
 
             cls._setup_text_material_colored(text_obj, config["color"], config["name"])
-            print(f"[DEBUG] _create_animated_text: ✅ Set material for {config['name']}")
 
             cls._animate_text_by_type(text_obj, config["type"], settings)
-            print(f"[DEBUG] _create_animated_text: ✅ Animated {config['name']} by type")
 
-            print(f"[DEBUG] _create_animated_text: ✅✅ COMPLETED creation of {config['name']}")
             return text_obj
 
         except Exception as e:
-            print(f"[DEBUG] _create_animated_text: 💥💥 EXCEPTION creating {config['name']}: {e}")
-            import traceback
-            traceback.print_exc()
             raise
 
     @classmethod
@@ -501,9 +448,7 @@ class TextSequence:
 
     @classmethod
     def _animate_text_by_type(cls, text_obj, text_type, settings):
-        print(f"[DEBUG] _animate_text_by_type: Starting animation setup for {text_obj.name} (type: {text_type})")
         try:
-
             from datetime import timedelta, datetime as _dt
 
             start_date = settings.get("start") if isinstance(settings, dict) else getattr(settings, "start", None)
@@ -556,12 +501,7 @@ class TextSequence:
                 if current_date > finish_date and current_date - timedelta(days=step_days) < finish_date:
                     current_date = finish_date
 
-            print(f"[DEBUG] _animate_text_by_type: ✅✅ COMPLETED animation setup for {text_obj.name} (type: {text_type})")
-
         except Exception as e:
-            print(f"[DEBUG] _animate_text_by_type: 💥💥 EXCEPTION animating {text_obj.name} (type: {text_type}): {e}")
-            import traceback
-            traceback.print_exc()
             raise
 
 
@@ -590,10 +530,9 @@ class TextSequence:
                         else:
                             week_number = max(1, (delta_days // 7) + 1)
                         
-                        print(f"[STATS] 3D Week: current={cd_d}, schedule_start={fss_d}, week={week_number}")
                         return f"Week {week_number}"
-                except Exception as e:
-                    print(f"[WARNING]️ 3D Week: Could not get schedule dates, using animation range: {e}")
+                except Exception:
+                    pass
                 
                 # Fallback: use animation range
                 days_elapsed = (current_date - start_date).days
@@ -620,10 +559,9 @@ class TextSequence:
                         else:
                             day_from_schedule = max(1, delta_days + 1)
                         
-                        print(f"[STATS] 3D Day: current={cd_d}, schedule_start={fss_d}, day={day_from_schedule}")
                         return f"Day {day_from_schedule}"
-                except Exception as e:
-                    print(f"[WARNING]️ 3D Day: Could not get schedule dates, using animation range: {e}")
+                except Exception:
+                    pass
                 
                 # Fallback: use animation range
                 days_elapsed = (current_date - start_date).days + 1
@@ -657,10 +595,9 @@ class TextSequence:
                                 progress_pct = round(progress_pct)
                                 progress_pct = max(0, min(100, progress_pct))
                         
-                        print(f"[STATS] 3D Progress: current={cd_d}, schedule_start={fss_d}, end={fse_d}, progress={progress_pct}%")
                         return f"Progress: {progress_pct}%"
-                except Exception as e:
-                    print(f"[WARNING]️ 3D Progress: Could not get schedule dates, using animation range: {e}")
+                except Exception:
+                    pass
                 
                 # Fallback: use animation range
                 total = (finish_date - start_date).days
@@ -680,13 +617,10 @@ class TextSequence:
             cls._unregister_frame_change_handler()
 
             def update_all_schedule_texts(scene):
-                print("[ANIM] 3D Text Handler (main): Starting update...")
                 collection_name = "Schedule_Display_Texts"
                 coll = bpy.data.collections.get(collection_name)
                 if not coll:
-                    print("[WARNING]️ 3D Text Handler (main): No 'Schedule_Display_Texts' collection found")
                     return
-                print(f"📝 3D Text Handler (main): Found collection with {len(coll.objects)} objects")
                 current_frame = int(scene.frame_current)
                 for text_obj in list(coll.objects):
                     anim_settings = text_obj.data.get("animation_settings") if getattr(text_obj, "data", None) else None

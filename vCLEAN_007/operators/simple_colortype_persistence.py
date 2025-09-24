@@ -43,10 +43,10 @@ def save_colortypes_simple():
                 if colortype_value:  # Only save if not empty
                     _simple_colortype_backup[task_id] = colortype_value
         
-        print(f"✅ Simple: Saved {len(_simple_colortype_backup)} ColorTypes")
+        print(f"[DEBUG] Simple: Saved {len(_simple_colortype_backup)} ColorTypes")
         
     except Exception as e:
-        print(f"❌ Simple save failed: {e}")
+        print(f"[ERROR] Simple save failed: {e}")
 
 def restore_colortypes_simple():
     """Restore ONLY animation_color_schemes - SIMPLE like v60"""
@@ -67,9 +67,9 @@ def restore_colortypes_simple():
                     task.animation_color_schemes = _simple_colortype_backup[task_id]
                     restored_count += 1
                 except Exception as e:
-                    print(f"❌ Failed to restore task {task_id}: {e}")
+                    print(f"[ERROR] Failed to restore task {task_id}: {e}")
         
-        print(f"✅ Simple: Restored {restored_count} ColorTypes")
+        print(f"[DEBUG] Simple: Restored {restored_count} ColorTypes")
         
     except Exception as e:
-        print(f"❌ Simple restore failed: {e}")
+        print(f"[ERROR] Simple restore failed: {e}")

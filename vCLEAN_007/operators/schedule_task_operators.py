@@ -53,12 +53,12 @@ except Exception:
                 try:
                     setattr(task_obj, "selected_colortype_in_active_group", value)
                 except Exception as e:
-                    print(f"❌ Fallback safe_set failed: {e}")
+                    print(f"[ERROR] Fallback safe_set failed: {e}")
         prop = PropFallback()
 
-# ⚠️ WARNING: THESE FUNCTIONS ARE DUPLICATED - USE operator.py INSTEAD
-# ⚠️ All imports should point to operator.py, not this file
-# ⚠️ These functions are kept only for legacy compatibility
+# [WARNING] WARNING: THESE FUNCTIONS ARE DUPLICATED - USE operator.py INSTEAD
+# [WARNING] All imports should point to operator.py, not this file
+# [WARNING] These functions are kept only for legacy compatibility
 
 def snapshot_all_ui_state(context):
     """
@@ -155,7 +155,7 @@ def snapshot_all_ui_state(context):
                                 "groups": [],
                             }
         except Exception as e:
-            print(f"Bonsai WARNING: Error capturando todas las tareas: {e}")
+            print(f"Bonsai WARNING: Error capturando todas las tasks: {e}")
             # Fallback to the original method with only visible tasks
             for t in getattr(tprops, "tasks", []):
                 tid = str(getattr(t, "ifc_definition_id", 0))
@@ -206,7 +206,7 @@ def snapshot_all_ui_state(context):
         
         # Save to specific key (for Copy 3D)
         context.scene[snap_key_specific] = json.dumps(task_snap)
-        print(f"💾 DEBUG SNAPSHOT: Guardado en clave {snap_key_specific} - {len(task_snap)} tareas")
+        print(f"💾 DEBUG SNAPSHOT: Guardado en clave {snap_key_specific} - {len(task_snap)} tasks")
         
         # ALSO save to generic key (for normal system)
         context.scene[snap_key_generic] = json.dumps(task_snap)
@@ -295,11 +295,11 @@ def restore_all_ui_state(context):
             try:
                 snap_data = json.loads(snap_raw) or {}
                 union.update(snap_data)
-                print(f"📥 DEBUG RESTORE: Cargando de clave {snap_key_specific} - {len(snap_data)} tareas")
+                print(f"📥 DEBUG RESTORE: Cargando de clave {snap_key_specific} - {len(snap_data)} tasks")
             except Exception:
                 pass
         else:
-            print(f"❌ DEBUG RESTORE: No se encontró clave {snap_key_specific}")
+            print(f"[ERROR] DEBUG RESTORE: No se encontró clave {snap_key_specific}")
 
         if union:
             tprops = tool.Sequence.get_task_tree_props()
@@ -346,7 +346,7 @@ def restore_all_ui_state(context):
                             first_valid = valid_items[0][0] if valid_items else ""
                             safe_set_animation_color_schemes(t, first_valid)
                         except Exception as e:
-                            print(f"⚠️ Could not determine valid enum options for task {tid}: {e}")
+                            print(f"[WARNING] Could not determine valid enum options for task {tid}: {e}")
                             # Skip setting if we can't determine valid options
                     else:
                         # If the task DOES have an active group, synchronize animation_color_schemes with the group's value
@@ -361,7 +361,7 @@ def restore_all_ui_state(context):
                     
                     print(f"🔧 DEBUG RESTORE: Task {tid} - active={cfg.get('active')}, selected_colortype='{selected_active_colortype}'")
                 except Exception as e:
-                    print(f"❌ DEBUG RESTORE: Error setting colortype for task {tid}: {e}")
+                    print(f"[ERROR] DEBUG RESTORE: Error setting colortype for task {tid}: {e}")
                 # Task groups
                 try:
                     t.colortype_group_choices.clear()
@@ -417,11 +417,11 @@ def restore_all_ui_state(context):
                                 print(f"  - Assignment successful: {val == actual_val}")
                                 
                             except Exception as e:
-                                print(f"❌ DEBUG RESTORE: Error setting {sel_attr} for task {tid} group {g_data.get('group_name')}: {e}")
+                                print(f"[ERROR] DEBUG RESTORE: Error setting {sel_attr} for task {tid} group {g_data.get('group_name')}: {e}")
                                 print(f"  - Failed value: '{val}' (type: {type(val)})")
                                 print(f"  - Error type: {type(e).__name__}")
                 except Exception as e:
-                    print(f"❌ DEBUG RESTORE: Error restoring groups for task {tid}: {e}")
+                    print(f"[ERROR] DEBUG RESTORE: Error restoring groups for task {tid}: {e}")
 
         # 2. Restore configuration of the animation group selectors
         anim_raw = context.scene.get("_anim_state_snapshot_json")
@@ -450,7 +450,7 @@ def restore_all_ui_state(context):
                         item.enabled = bool(item_data.get("enabled", False))
 
             except Exception as e:
-                print(f"Bonsai WARNING: Error restaurando selectores de animación: {e}")
+                print(f"Bonsai WARNING: Error restaurando selectores de animation: {e}")
 
         # 3. Restore active selection/index of the task tree
         try:
@@ -483,7 +483,7 @@ def restore_all_ui_state(context):
                             except Exception:
                                 pass
         except Exception as e:
-            print(f"Bonsai WARNING: Error restaurando selección de tareas: {e}")
+            print(f"Bonsai WARNING: Error restaurando selección de tasks: {e}")
 
     except Exception as e:
         print(f"Bonsai WARNING: No se pudo restaurar el estado de la UI: {e}")
@@ -766,18 +766,18 @@ def _save_3d_texts_state():
         print(f"💾 Saved state for {len(state_data)} 3D text objects")
         
     except Exception as e:
-        print(f"❌ Error saving 3D texts state: {e}")
+        print(f"[ERROR] Error saving 3D texts state: {e}")
 
 def _restore_3d_texts_state():
     """Restore previous state of all 3D text objects after snapshot reset"""
     try:
         if "3d_texts_previous_state" not in bpy.context.scene:
-            print("⚠️ No previous 3D texts state found to restore")
+            print("[WARNING] No previous 3D texts state found to restore")
             return
         
         coll = bpy.data.collections.get("Schedule_Display_Texts")
         if not coll:
-            print("⚠️ No 'Schedule_Display_Texts' collection found for restoration")
+            print("[WARNING] No 'Schedule_Display_Texts' collection found for restoration")
             return
         
         state_data = json.loads(bpy.context.scene["3d_texts_previous_state"])
@@ -793,4 +793,4 @@ def _restore_3d_texts_state():
         print(f"🔄 Restored state for {restored_count} 3D text objects")
         
     except Exception as e:
-        print(f"❌ Error restoring 3D texts state: {e}")
+        print(f"[ERROR] Error restoring 3D texts state: {e}")

@@ -40,11 +40,11 @@ class LegendHUD:
         self._cache_timestamp = 0
         self._last_active_group = None
         
-        print(f"🎨 LegendHUD initialized with font_id={font_id}")
+        print(f"[INFO] LegendHUD initialized with font_id={font_id}")
     
     def invalidate_legend_cache(self):
         """Invalidates the legend data cache to force an update"""
-        print("🔄 Invalidating legend cache")
+        print("[INFO] Invalidating legend cache")
         self._legend_data_cache = None
         self._cached_animation_groups = None
         self._cache_timestamp = 0
@@ -52,18 +52,18 @@ class LegendHUD:
     
     def draw(self, data, settings, viewport_width, viewport_height):
         """Draws the Legend HUD with active animation profiles and their dynamic colors"""
-        print(f"\n🎨 === LEGEND HUD DRAW START ===")
-        print(f"🎨 Viewport: {viewport_width}x{viewport_height}")
-        print(f"🎨 Settings enabled: {settings.get('enabled', False)}")
+        print(f"\n[INFO] === LEGEND HUD DRAW START ===")
+        print(f"[INFO] Viewport: {viewport_width}x{viewport_height}")
+        print(f"[INFO] Settings enabled: {settings.get('enabled', False)}")
         
         try:
             # Get active profiles from animation system
             legend_data = self.get_active_colortype_legend_data()
             if not legend_data:
-                print("❌ Legend HUD: No active colortype data available")
+                print("[ERROR] Legend HUD: No active colortype data available")
                 return
             
-            print(f"🎨 Legend data: {len(legend_data)} ColorTypes found")
+            print(f"[INFO] Legend data: {len(legend_data)} ColorTypes found")
             
             # Configuration
             position = settings.get('position', 'BOTTOM_LEFT')
@@ -78,10 +78,10 @@ class LegendHUD:
                 legend_data, settings, base_x, base_y, align_x, align_y, viewport_width, viewport_height
             )
             
-            print("✅ Legend HUD drawn successfully")
+            print("[INFO] Legend HUD drawn successfully")
             
         except Exception as e:
-            print(f"❌ Error drawing legend HUD: {e}")
+            print(f"[ERROR] Error drawing legend HUD: {e}")
             import traceback
             traceback.print_exc()
     
@@ -138,8 +138,8 @@ class LegendHUD:
             show_active_title = settings.get('show_active_title', False)
             show_end_title = settings.get('show_end_title', False)
             
-            print(f"🎨 COLUMN VISIBILITY: start={show_start}, active={show_active}, end={show_end}")
-            print(f"🎨 TITLE VISIBILITY: start_title={show_start_title}, active_title={show_active_title}, end_title={show_end_title}")
+            print(f"[INFO] COLUMN VISIBILITY: start={show_start}, active={show_active}, end={show_end}")
+            print(f"[INFO] TITLE VISIBILITY: start_title={show_start_title}, active_title={show_active_title}, end_title={show_end_title}")
             
             scale = settings.get('scale', 1.0)
             font_size = int(14 * scale)
@@ -294,7 +294,7 @@ class LegendHUD:
                     current_y -= item_spacing
             
         except Exception as e:
-            print(f"❌ Error drawing legend elements: {e}")
+            print(f"[ERROR] Error drawing legend elements: {e}")
             import traceback
             traceback.print_exc()
     
@@ -330,7 +330,7 @@ class LegendHUD:
                 blf.draw(self.font_id, "E")
                 
         except Exception as e:
-            print(f"❌ Error drawing column titles: {e}")
+            print(f"[ERROR] Error drawing column titles: {e}")
     
     def draw_colortype_row(self, legend_item: dict, base_x: float, y: float, indicator_size: float, column_spacing: float,
                          show_start: bool, show_active: bool, show_end: bool, settings: dict):
@@ -370,7 +370,7 @@ class LegendHUD:
             blf.draw(self.font_id, legend_item['name'])
             
         except Exception as e:
-            print(f"❌ Error drawing colortype row: {e}")
+            print(f"[ERROR] Error drawing colortype row: {e}")
     
     def draw_color_indicator(self, x: float, y: float, size: float, color: tuple):
         """Draws a color indicator circle"""
@@ -398,7 +398,7 @@ class LegendHUD:
             gpu.state.blend_set('NONE')
 
         except Exception as e:
-            print(f"❌ Error drawing color indicator: {e}")
+            print(f"[ERROR] Error drawing color indicator: {e}")
     
     def draw_legend_background(self, x: float, y: float, width: float, height: float, settings: dict):
         """Draws the legend background with configurable effects"""
@@ -412,7 +412,7 @@ class LegendHUD:
                 self.draw_gpu_rect(x, y, width, height, background_color)
                 
         except Exception as e:
-            print(f"❌ Error drawing legend background: {e}")
+            print(f"[ERROR] Error drawing legend background: {e}")
 
     def draw_gpu_rect(self, x, y, w, h, color):
         """Draws a simple rectangle"""
@@ -513,7 +513,7 @@ class LegendHUD:
                 return animation_props.camera_orbit
             return None
         except Exception as e:
-            print(f"❌ Error getting camera props: {e}")
+            print(f"[ERROR] Error getting camera props: {e}")
             return None
     
     def get_active_colortype_legend_data(self, include_hidden=False):
@@ -524,31 +524,31 @@ class LegendHUD:
             # Get animation properties
             anim_props = tool.Sequence.get_animation_props()
             if not hasattr(anim_props, 'animation_group_stack') or not anim_props.animation_group_stack:
-                print("🎨 No animation group stack found")
+                print("[INFO] No animation group stack found")
                 self._legend_data_cache = []
                 return []
             
             # Find the first enabled group (active group)
             current_active_group = None
-            print("🔍 HUD: Checking animation group stack for the active group:")
+            print("[INFO] HUD: Checking animation group stack for the active group:")
             for i, group_item in enumerate(anim_props.animation_group_stack):
                 enabled = getattr(group_item, 'enabled', False)
                 group_name = getattr(group_item, 'group', '')
                 print(f"  {i}: Group '{group_name}' enabled={enabled}") # This line is fine
                 if enabled and current_active_group is None:
                     current_active_group = group_name
-                    print(f"🎯 HUD: Selected active group: {current_active_group}")
+                    print(f"[INFO] HUD: Selected active group: {current_active_group}")
                     break
                     
             # FALLBACK: If no group is enabled, default to "DEFAULT"
             if current_active_group is None:
-                print("❌ HUD: No active group found (no groups enabled)")
+                print("[ERROR] HUD: No active group found (no groups enabled)")
                 current_active_group = "DEFAULT"
-                print("🔄 HUD: Falling back to 'DEFAULT' group.")
+                print("[INFO] HUD: Falling back to 'DEFAULT' group.")
             
             # AUTOMATIC DETECTION: If the active group changed, clear hidden profiles
             if self._last_active_group != current_active_group:
-                print(f"🔄 AUTO-DETECTION: Active group changed from '{self._last_active_group}' to '{current_active_group}'")
+                print(f"[INFO] AUTO-DETECTION: Active group changed from '{self._last_active_group}' to '{current_active_group}'")
                 self._last_active_group = current_active_group
                 
                 # Auto-clear hidden profiles to show the new active group
@@ -556,9 +556,9 @@ class LegendHUD:
                     camera_props = self.get_camera_props()
                     if camera_props:
                         camera_props.legend_hud_visible_colortypes = ""
-                        print("✅ AUTO-CLEARED: legend_hud_visible_colortypes (showing all colortypes from new active group)")
+                        print("[INFO] AUTO-CLEARED: legend_hud_visible_colortypes (showing all colortypes from new active group)")
                 except Exception as e:
-                    print(f"⚠️ Could not auto-clear visible colortypes: {e}")
+                    print(f"[WARNING] Could not auto-clear visible colortypes: {e}")
             
             current_timestamp = time.time()
             
@@ -574,7 +574,7 @@ class LegendHUD:
                 current_timestamp - self._cache_timestamp < 1.0):
                 return self._legend_data_cache
             
-            print(f"🎨 Refreshing legend data cache for active group: {current_active_group} (include_hidden={include_hidden})")
+            print(f"[INFO] Refreshing legend data cache for active group: {current_active_group} (include_hidden={include_hidden})")
             
             hidden_colortypes = set()
             if not include_hidden:
@@ -585,12 +585,12 @@ class LegendHUD:
             
             # The active group should never be None at this point due to FALLBACK
             if not current_active_group:
-                print("❌ CRITICAL: No active group after FALLBACK - this should not happen")
+                print("[ERROR] CRITICAL: No active group after FALLBACK - this should not happen")
                 self._legend_data_cache = []
                 return []
             
             active_group = current_active_group
-            print(f"🎨 Found active group (first enabled): {active_group}")
+            print(f"[INFO] Found active group (first enabled): {active_group}")
             
             # Get colortype data with visibility filtering
             legend_data = self._extract_colortype_data(active_group, include_hidden, hidden_colortypes)
@@ -600,11 +600,11 @@ class LegendHUD:
             self._cached_animation_groups = cache_key
             self._cache_timestamp = current_timestamp
             
-            print(f"✅ Legend cache updated for group '{active_group}': {len(legend_data)} items")
+            print(f"[INFO] Legend cache updated for group '{active_group}': {len(legend_data)} items")
             return legend_data
             
         except Exception as e:
-            print(f"❌ Error getting legend data: {e}")
+            print(f"[ERROR] Error getting legend data: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -627,19 +627,19 @@ class LegendHUD:
             
             # SPECIAL CASE: For DEFAULT group, ensure ALL colortypes are loaded
             if active_group == "DEFAULT":
-                print(f"🎨 Processing DEFAULT group - ensuring all colortypes loaded")
+                print(f"[INFO] Processing DEFAULT group - ensuring all colortypes loaded")
                 try:
                     UnifiedColorTypeManager.ensure_default_colortypes(context)
                     # Force reload to get complete list
                     UnifiedColorTypeManager._invalidate_cache(context)
                 except Exception as e:
-                    print(f"⚠️ Could not ensure DEFAULT colortypes: {e}")
+                    print(f"[WARNING] Could not ensure DEFAULT colortypes: {e}")
             
             # Get colortypes for the active group
             group_colortypes = UnifiedColorTypeManager.get_group_colortypes(context, active_group)
             
             if not group_colortypes:
-                print(f"❌ No colortypes found for group '{active_group}'")
+                print(f"[ERROR] No colortypes found for group '{active_group}'")
                 self._legend_data_cache = []
                 return []
             
@@ -669,14 +669,14 @@ class LegendHUD:
             # Sort alphabetically for consistent display
             legend_data.sort(key=lambda x: x['name'])
             
-            print(f"🎨 Processed {len(legend_data)} colortypes from active group '{active_group}'")
+            print(f"[INFO] Processed {len(legend_data)} colortypes from active group '{active_group}'")
             if hidden_colortypes:
                 print(f"🙈 Hidden colortypes: {list(hidden_colortypes)}")
             
             return legend_data
             
         except Exception as e:
-            print(f"❌ Error extracting colortype data: {e}")
+            print(f"[ERROR] Error extracting colortype data: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -716,5 +716,5 @@ class LegendHUD:
             return fallback_colors.get(state, (0.5, 0.5, 0.5, 1.0))  # Gray fallback
             
         except Exception as e:
-            print(f"❌ Error getting colortype color for state '{state}': {e}")
+            print(f"[ERROR] Error getting colortype color for state '{state}': {e}")
             return (0.5, 0.5, 0.5, 1.0)  # Gray fallback

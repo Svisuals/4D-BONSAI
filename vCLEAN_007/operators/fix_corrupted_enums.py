@@ -60,9 +60,9 @@ class FixCorruptedEnums(bpy.types.Operator):
                             # Try to trigger enum callback to reload items
                             task.use_active_colortype_group = task.use_active_colortype_group
                             fixed_count += 1
-                            print(f"✅ Fixed selected_colortype_in_active_group for task {task_id}")
+                            print(f"[DEBUG] Fixed selected_colortype_in_active_group for task {task_id}")
                         except Exception as reset_e:
-                            print(f"❌ Failed to reset selected_colortype_in_active_group: {reset_e}")
+                            print(f"[ERROR] Failed to reset selected_colortype_in_active_group: {reset_e}")
                     
                 except Exception as e:
                     print(f"🔧 Task {task_id} ({task_name}): Error accessing selected_colortype_in_active_group: {e}")
@@ -70,9 +70,9 @@ class FixCorruptedEnums(bpy.types.Operator):
                         task.property_unset("selected_colortype_in_active_group")
                         task.use_active_colortype_group = task.use_active_colortype_group
                         fixed_count += 1
-                        print(f"✅ Reset selected_colortype_in_active_group for task {task_id}")
+                        print(f"[DEBUG] Reset selected_colortype_in_active_group for task {task_id}")
                     except:
-                        print(f"❌ Failed to reset selected_colortype_in_active_group for task {task_id}")
+                        print(f"[ERROR] Failed to reset selected_colortype_in_active_group for task {task_id}")
                 
                 # Check and fix animation_color_schemes
                 try:
@@ -86,9 +86,9 @@ class FixCorruptedEnums(bpy.types.Operator):
                             task.property_unset("animation_color_schemes")
                             task.use_active_colortype_group = task.use_active_colortype_group
                             fixed_count += 1
-                            print(f"✅ Fixed animation_color_schemes for task {task_id}")
+                            print(f"[DEBUG] Fixed animation_color_schemes for task {task_id}")
                         except Exception as reset_e:
-                            print(f"❌ Failed to reset animation_color_schemes: {reset_e}")
+                            print(f"[ERROR] Failed to reset animation_color_schemes: {reset_e}")
                     
                 except Exception as e:
                     print(f"🔧 Task {task_id} ({task_name}): Error accessing animation_color_schemes: {e}")
@@ -96,9 +96,9 @@ class FixCorruptedEnums(bpy.types.Operator):
                         task.property_unset("animation_color_schemes")
                         task.use_active_colortype_group = task.use_active_colortype_group
                         fixed_count += 1
-                        print(f"✅ Reset animation_color_schemes for task {task_id}")
+                        print(f"[DEBUG] Reset animation_color_schemes for task {task_id}")
                     except:
-                        print(f"❌ Failed to reset animation_color_schemes for task {task_id}")
+                        print(f"[ERROR] Failed to reset animation_color_schemes for task {task_id}")
                 
                 # Check groups
                 groups = getattr(task, 'colortype_group_choices', [])
@@ -115,23 +115,23 @@ class FixCorruptedEnums(bpy.types.Operator):
                                 group.property_unset("selected_colortype")
                                 group.enabled = group.enabled  # Trigger refresh
                                 fixed_count += 1
-                                print(f"✅ Fixed selected_colortype for group '{group_name}' in task {task_id}")
+                                print(f"[DEBUG] Fixed selected_colortype for group '{group_name}' in task {task_id}")
                             except Exception as reset_e:
-                                print(f"❌ Failed to reset selected_colortype: {reset_e}")
+                                print(f"[ERROR] Failed to reset selected_colortype: {reset_e}")
                     except Exception as e:
                         print(f"🔧 Task {task_id}, Group '{group_name}': Error accessing selected_colortype: {e}")
                         try:
                             group.property_unset("selected_colortype") 
                             group.enabled = group.enabled
                             fixed_count += 1
-                            print(f"✅ Reset selected_colortype for group '{group_name}' in task {task_id}")
+                            print(f"[DEBUG] Reset selected_colortype for group '{group_name}' in task {task_id}")
                         except:
-                            print(f"❌ Failed to reset selected_colortype for group '{group_name}' in task {task_id}")
+                            print(f"[ERROR] Failed to reset selected_colortype for group '{group_name}' in task {task_id}")
             
-            print(f"✅ Fixed {fixed_count} corrupted enum properties")
+            print(f"[DEBUG] Fixed {fixed_count} corrupted enum properties")
             
         except Exception as e:
-            print(f"❌ Error in fix_corrupted_enums: {e}")
+            print(f"[ERROR] Error in fix_corrupted_enums: {e}")
             import traceback
             traceback.print_exc()
         

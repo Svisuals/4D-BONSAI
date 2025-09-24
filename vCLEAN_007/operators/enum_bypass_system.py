@@ -47,7 +47,7 @@ class EnumBypassSystem:
             print(f"🔄 BYPASS: Stored {property_name}='{value}' for task {task_id}")
             
         except Exception as e:
-            print(f"❌ BYPASS: Error storing {property_name}: {e}")
+            print(f"[ERROR] BYPASS: Error storing {property_name}: {e}")
     
     @staticmethod
     def get_colortype_value(task_id, property_name, default=""):
@@ -63,7 +63,7 @@ class EnumBypassSystem:
                     print(f"📥 BYPASS: Retrieved {property_name}='{value}' for task {task_id}")
                 return value
         except Exception as e:
-            print(f"❌ BYPASS: Error retrieving {property_name}: {e}")
+            print(f"[ERROR] BYPASS: Error retrieving {property_name}: {e}")
         
         return default
     
@@ -114,10 +114,10 @@ class EnumBypassSystem:
         try:
             if not EnumBypassSystem.is_enum_corrupted(task_item, property_name):
                 setattr(task_item, property_name, value)
-                print(f"✅ DIRECT: Set {property_name}='{value}' for task {task_id}")
+                print(f"[DEBUG] DIRECT: Set {property_name}='{value}' for task {task_id}")
                 return True
         except Exception as e:
-            print(f"⚠️ DIRECT FAILED: {property_name}='{value}' for task {task_id}: {e}")
+            print(f"[WARNING] DIRECT FAILED: {property_name}='{value}' for task {task_id}: {e}")
         
         print(f"🔄 BYPASS ONLY: {property_name}='{value}' for task {task_id}")
         return False
@@ -151,11 +151,11 @@ class EnumBypassSystem:
                             if not EnumBypassSystem.is_enum_corrupted(task, 'selected_colortype_in_active_group'):
                                 task.selected_colortype_in_active_group = bypass_value
                                 repaired_count += 1
-                                print(f"✅ REPAIRED: selected_colortype_in_active_group={bypass_value} for task {task_id}")
+                                print(f"[DEBUG] REPAIRED: selected_colortype_in_active_group={bypass_value} for task {task_id}")
                             else:
                                 bypass_count += 1
                         except Exception as e:
-                            print(f"❌ REPAIR FAILED: selected_colortype_in_active_group for task {task_id}: {e}")
+                            print(f"[ERROR] REPAIR FAILED: selected_colortype_in_active_group for task {task_id}: {e}")
                             bypass_count += 1
                 
                 # Check animation_color_schemes
@@ -171,18 +171,18 @@ class EnumBypassSystem:
                             if not EnumBypassSystem.is_enum_corrupted(task, 'animation_color_schemes'):
                                 task.animation_color_schemes = bypass_value
                                 repaired_count += 1
-                                print(f"✅ REPAIRED: animation_color_schemes={bypass_value} for task {task_id}")
+                                print(f"[DEBUG] REPAIRED: animation_color_schemes={bypass_value} for task {task_id}")
                             else:
                                 bypass_count += 1
                         except Exception as e:
-                            print(f"❌ REPAIR FAILED: animation_color_schemes for task {task_id}: {e}")
+                            print(f"[ERROR] REPAIR FAILED: animation_color_schemes for task {task_id}: {e}")
                             bypass_count += 1
             
             print(f"🔧 REPAIR SUMMARY: {repaired_count} repaired, {bypass_count} using bypass")
             return repaired_count, bypass_count
             
         except Exception as e:
-            print(f"❌ Error in repair_all_corrupted_enums: {e}")
+            print(f"[ERROR] Error in repair_all_corrupted_enums: {e}")
             return 0, 0
 
 

@@ -91,10 +91,10 @@ def update_date_source_type(self, context):
                 previous_finish_date=previous_finish
             )
         except Exception as e:
-            print(f"⚠️ Animation sync failed: {e}")
+            print(f"[WARNING] Animation sync failed: {e}")
                 
     except Exception as e:
-        print(f"❌ update_date_source_type: Error: {e}")
+        print(f"[ERROR] update_date_source_type: Error: {e}")
         import traceback
         traceback.print_exc()
 
@@ -183,7 +183,7 @@ def update_legend_3d_hud_constraint(context):
     print(f"🔍 DEBUG: 3D Legend HUD found: {hud_empty.name if hud_empty else 'None'}")
 
     if not hud_empty:
-        print("❌ DEBUG: 3D Legend HUD not found")
+        print("[ERROR] DEBUG: 3D Legend HUD not found")
         return
 
     # --- WORLD ORIGIN ANCHOR (Snapshot / Forced) for Legend HUD ---
@@ -264,9 +264,9 @@ def update_legend_3d_hud_constraint(context):
         if rotation_target:
             rot_constraint = hud_empty.constraints.new(type='COPY_ROTATION')
             rot_constraint.target = rotation_target
-            print(f"✅ Rotation constraint created on '{hud_empty.name}' pointing to '{rotation_target.name}'")
+            print(f"[DEBUG] Rotation constraint created on '{hud_empty.name}' pointing to '{rotation_target.name}'")
         else:
-            print(f"⚠️ Rotation checkbox checked but no target for '{hud_empty.name}'")
+            print(f"[WARNING] Rotation checkbox checked but no target for '{hud_empty.name}'")
 
     # Add location constraint ONLY if the checkbox is checked
     if use_custom_loc_target:
@@ -274,9 +274,9 @@ def update_legend_3d_hud_constraint(context):
         if location_target:
             loc_constraint = hud_empty.constraints.new(type='COPY_LOCATION')
             loc_constraint.target = location_target
-            print(f"✅ Location constraint created on '{hud_empty.name}' pointing to '{location_target.name}'")
+            print(f"[DEBUG] Location constraint created on '{hud_empty.name}' pointing to '{location_target.name}'")
         else:
-            print(f"⚠️ Location checkbox checked but no target for '{hud_empty.name}'")
+            print(f"[WARNING] Location checkbox checked but no target for '{hud_empty.name}'")
 
     # If no checkbox is checked, no constraints are created
     if not use_custom_rot_target and not use_custom_loc_target:
@@ -335,7 +335,7 @@ def update_task_checkbox_selection(self, context):
                 anim_props = tool.Sequence.get_animation_props()
                 is_animation_active = getattr(anim_props, 'is_animation_created', False)
                 if is_animation_active:
-                    print("⚠️ Skipping checkbox update during active animation to prevent crashes")
+                    print("[WARNING] Skipping checkbox update during active animation to prevent crashes")
                     return None
             except Exception:
                 pass  # If it cannot be verified, continue normally
@@ -369,7 +369,7 @@ def update_variance_color_mode(self, context):
         tool.Sequence.update_individual_variance_colors()
             
     except Exception as e:
-        print(f"❌ Error in variance color mode update: {e}")
+        print(f"[ERROR] Error in variance color mode update: {e}")
         import traceback
         traceback.print_exc()
 
@@ -388,10 +388,10 @@ def update_variance_color_mode(self, context):
             for task in tprops.tasks:
                 UnifiedColorTypeManager.sync_default_group_to_predefinedtype(context, task)
             
-            print(f"✅ Synchronized {len(tprops.tasks)} tasks with the DEFAULT profile.")
+            print(f"[DEBUG] Synchronized {len(tprops.tasks)} tasks with the DEFAULT profile.")
             return True
         except Exception as e:
-            print(f"❌ Error initializing DEFAULT profiles for all tasks: {e}")
+            print(f"[ERROR] Error initializing DEFAULT profiles for all tasks: {e}")
             return False
 
     @staticmethod
@@ -479,7 +479,7 @@ def update_variance_color_mode(self, context):
             colortypes_data = UnifiedColorTypeManager.get_group_colortypes(context, group_name)
             return sorted(list(colortypes_data.keys()))
         except Exception as e:
-            print(f"❌ Error getting colortypes from group '{group_name}': {e}")
+            print(f"[ERROR] Error getting colortypes from group '{group_name}': {e}")
             return []
 
     @staticmethod
@@ -523,7 +523,7 @@ def update_variance_color_mode(self, context):
             
             print("=== END DEBUG ===")
         except Exception as e:
-            print(f"❌ Debug failed: {e}")
+            print(f"[ERROR] Debug failed: {e}")
 
 
     @staticmethod
@@ -603,7 +603,7 @@ def update_variance_color_mode(self, context):
             # Always load DEFAULT profiles when explicitly loading DEFAULT group
             UnifiedColorTypeManager.ensure_default_group_has_predefined_types(context)
             if user_groups:
-                print("⚠️ Custom groups detected - but DEFAULT group is being explicitly loaded with full profiles")
+                print("[WARNING] Custom groups detected - but DEFAULT group is being explicitly loaded with full profiles")
         
         colortypes_data = UnifiedColorTypeManager.get_group_colortypes(context, group_name)
 
@@ -767,10 +767,10 @@ def update_active_work_schedule_id(self, context):
                 snapshot_all_ui_state(context)
                 self.active_work_schedule_id = old_id
                 
-                print(f"✅ DEBUG: Profiles for WS {previous_ws_id} saved")
+                print(f"[DEBUG] DEBUG: Profiles for WS {previous_ws_id} saved")
                 
             except Exception as e:
-                print(f"❌ DEBUG: Error saving profiles for WS {previous_ws_id}: {e}")
+                print(f"[ERROR] DEBUG: Error saving profiles for WS {previous_ws_id}: {e}")
             finally:
                 context.scene['_updating_work_schedule_id'] = False
         
@@ -782,7 +782,7 @@ def update_active_work_schedule_id(self, context):
         print("ℹ️ Variance colors will remain active - use Clear Variance button to reset")
                 
     except Exception as e:
-        print(f"❌ DEBUG: Error en update_active_work_schedule_id: {e}")
+        print(f"[ERROR] DEBUG: Error en update_active_work_schedule_id: {e}")
 
 
 def update_active_task_index(self, context):
@@ -858,7 +858,7 @@ def update_active_task_index(self, context):
 
                         # <-- STEP 2: Select the object
                         obj.select_set(True)
-                        print(f"  ✅ [CALLBACK] Selected: {obj.name}")
+                        print(f"  [DEBUG] [CALLBACK] Selected: {obj.name}")
 
                     # <-- STEP 3: Set the first object as active
                     context.view_layer.objects.active = objects_to_select[0]
@@ -869,13 +869,13 @@ def update_active_task_index(self, context):
                             bpy.ops.view3d.view_selected()
                             print("🔍 [CALLBACK DEBUG] View centered on objects")
                         else:
-                            print("⚠️ [CALLBACK DEBUG] No active 3D view, skipping centering")
+                            print("[WARNING] [CALLBACK DEBUG] No active 3D view, skipping centering")
                     except Exception as view_error:
-                        print(f"⚠️ [CALLBACK DEBUG] Error centrando vista (ignorado): {view_error}")
+                        print(f"[WARNING] [CALLBACK DEBUG] Error centrando vista (ignorado): {view_error}")
                 else:
-                    print("❌ [CALLBACK DEBUG] No se encontraron objetos 3D para los productos IFC")
+                    print("[ERROR] [CALLBACK DEBUG] No se encontraron objects 3D para los productos IFC")
             else:
-                print("❌ [CALLBACK DEBUG] No products associated with this task")
+                print("[ERROR] [CALLBACK DEBUG] No products associated with this task")
                     
         except Exception as e:
             print(f"Error selecting 3D objects for task: {e}")
@@ -1084,7 +1084,7 @@ def update_work_schedule_predefined_type(self: "BIMWorkScheduleProperties", cont
         print("ℹ️ Variance colors will remain active - use Clear Variance button to reset")
             
     except Exception as e:
-        print(f"⚠️ Error in update_work_schedule_predefined_type: {e}")
+        print(f"[WARNING] Error in update_work_schedule_predefined_type: {e}")
 
 
 def update_visualisation_start(self: "BIMWorkScheduleProperties", context: bpy.types.Context) -> None:
@@ -1219,13 +1219,13 @@ def update_task_colortype_group_selector(self, context):
                     # Force enum update to refresh profile dropdown
                     task.selected_colortype_in_active_group = task.selected_colortype_in_active_group
                     
-                    print(f"✅ colortypes automatically loaded for group: {self.task_colortype_group_selector}")
+                    print(f"[DEBUG] colortypes automatically loaded for group: {self.task_colortype_group_selector}")
             except Exception as e:
                 print(f"⚠ Error syncing task colortypes: {e}")
 
 
     except Exception as e:
-        print(f"❌ Error in update_task_colortype_group_selector: {e}")
+        print(f"[ERROR] Error in update_task_colortype_group_selector: {e}")
 
 
 def monitor_predefined_type_change(context):
@@ -1259,7 +1259,7 @@ def update_ColorType_group(self, context):
 
     # When switching groups, the editor content would overwrite the wrong group
     # Users must manually save groups with "Save Group" button
-    print(f"⚠️  Group switched to '{self.ColorType_groups}' - use 'Save Group' to persist changes")
+    print(f"[WARNING]  Group switched to '{self.ColorType_groups}' - use 'Save Group' to persist changes")
 
     # Clean up invalid mappings
     UnifiedColorTypeManager.cleanup_invalid_mappings(context)
@@ -1313,7 +1313,7 @@ def update_task_bar_list(self: "Task", context: bpy.types.Context) -> None:
     try:
         tool.Sequence.refresh_task_bars()
     except Exception as e:
-        print(f"⚠️ Error refreshing task bars: {e}")
+        print(f"[WARNING] Error refreshing task bars: {e}")
 
 
 
@@ -1330,7 +1330,7 @@ def update_use_active_colortype_group(self: "Task", context):
                 entry.enabled = bool(self.use_active_colortype_group)
                 print(f"📄 Task {self.ifc_definition_id}: Group {selected_group} enabled = {entry.enabled}")
     except Exception as e:
-        print(f"❌ Error updating use_active_colortype_group: {e}")
+        print(f"[ERROR] Error updating use_active_colortype_group: {e}")
 
 
 def safe_set_animation_color_schemes(task_obj, value):
@@ -1339,7 +1339,7 @@ def safe_set_animation_color_schemes(task_obj, value):
         # Try to set the value directly first
         try:
             task_obj.animation_color_schemes = value
-            print(f"✅ Successfully set animation_color_schemes to '{value}'")
+            print(f"[DEBUG] Successfully set animation_color_schemes to '{value}'")
             return
         except Exception as enum_error:
             # If the value is not valid for the current enum, try fallback options
@@ -1357,15 +1357,15 @@ def safe_set_animation_color_schemes(task_obj, value):
                         task_obj.animation_color_schemes = fallback_value
                         print(f"🔄 Used fallback value '{fallback_value}' instead of '{value}' for animation_color_schemes")
                     else:
-                        print(f"⚠️ No valid enum options available for animation_color_schemes, skipping assignment")
+                        print(f"[WARNING] No valid enum options available for animation_color_schemes, skipping assignment")
                 except Exception as fallback_error:
-                    print(f"❌ Fallback assignment for animation_color_schemes also failed: {fallback_error}")
+                    print(f"[ERROR] Fallback assignment for animation_color_schemes also failed: {fallback_error}")
                     pass
             else:
                 raise enum_error
         
     except Exception as e:
-        print(f"❌ Error in safe_set_animation_color_schemes: {e}")
+        print(f"[ERROR] Error in safe_set_animation_color_schemes: {e}")
         try:
             # Final fallback - try empty string or first available option
             valid_items = get_animation_color_schemes_items(task_obj, bpy.context)
@@ -1374,7 +1374,7 @@ def safe_set_animation_color_schemes(task_obj, value):
                 task_obj.animation_color_schemes = fallback_value
                 print(f"🔄 Final fallback for animation_color_schemes: using '{fallback_value}'")
         except:
-            print("❌ All fallback attempts failed for animation_color_schemes, skipping assignment")
+            print("[ERROR] All fallback attempts failed for animation_color_schemes, skipping assignment")
             pass
 
 def safe_set_selected_colortype_in_active_group(task_obj, value, skip_validation=False):
@@ -1408,10 +1408,10 @@ def safe_set_selected_colortype_in_active_group(task_obj, value, skip_validation
             
             print(f"🔧 About to setattr selected_colortype_in_active_group = '{value}'")
             setattr(task_obj, "selected_colortype_in_active_group", value)
-            print(f"✅ Successfully set selected_colortype_in_active_group = '{value}'")
+            print(f"[DEBUG] Successfully set selected_colortype_in_active_group = '{value}'")
             
         except Exception as enum_error:
-            print(f"❌ setattr failed with error: {enum_error}")
+            print(f"[ERROR] setattr failed with error: {enum_error}")
             # If the value is not valid for the current enum, try fallback options
             if "enum" in str(enum_error).lower():
                 # Get current valid items to find a fallback
@@ -1430,18 +1430,18 @@ def safe_set_selected_colortype_in_active_group(task_obj, value, skip_validation
                             print(f"🔄 Empty string failed, trying first ColorType: '{fallback_value}'")
                         
                         setattr(task_obj, "selected_colortype_in_active_group", fallback_value)
-                        print(f"✅ Successfully set fallback value '{fallback_value}'")
+                        print(f"[DEBUG] Successfully set fallback value '{fallback_value}'")
                     else:
-                        print(f"⚠️ No valid enum options available, skipping assignment")
+                        print(f"[WARNING] No valid enum options available, skipping assignment")
                 except Exception as fallback_error:
-                    print(f"❌ Fallback assignment also failed: {fallback_error}")
+                    print(f"[ERROR] Fallback assignment also failed: {fallback_error}")
                     # Last resort - don't assign anything
                     pass
             else:
                 raise enum_error
         
     except Exception as e:
-        print(f"❌ Error in safe_set_selected_colortype_in_active_group: {e}")
+        print(f"[ERROR] Error in safe_set_selected_colortype_in_active_group: {e}")
         # Try to get any valid fallback instead of forcing empty string
         try:
             valid_items = get_custom_group_colortype_items(task_obj, bpy.context)
@@ -1450,7 +1450,7 @@ def safe_set_selected_colortype_in_active_group(task_obj, value, skip_validation
                 setattr(task_obj, "selected_colortype_in_active_group", fallback_value)
                 print(f"🔄 Final fallback: using '{fallback_value}'")
         except:
-            print("❌ All fallback attempts failed, skipping assignment")
+            print("[ERROR] All fallback attempts failed, skipping assignment")
             pass
 
 def update_selected_colortype_in_active_group(self: "Task", context):
@@ -1465,7 +1465,7 @@ def update_selected_colortype_in_active_group(self: "Task", context):
         
         # Check for invalid values
         if current_value and (current_value.isdigit() or current_value not in valid_values):
-            print(f"⚠️ Invalid enum value '{current_value}' detected for selected_colortype_in_active_group, resetting to empty")
+            print(f"[WARNING] Invalid enum value '{current_value}' detected for selected_colortype_in_active_group, resetting to empty")
             # Don't recursively call the update function - directly access the property
             self.__dict__["selected_colortype_in_active_group"] = ""
             return
@@ -1480,7 +1480,7 @@ def update_selected_colortype_in_active_group(self: "Task", context):
                 entry.selected_colortype = self.selected_colortype_in_active_group
                 print(f"📄 Task {self.ifc_definition_id}: Selected colortype = {entry.selected_colortype} in group {selected_group}")
     except Exception as e:
-        print(f"❌ Error updating selected_colortype_in_active_group: {e}")
+        print(f"[ERROR] Error updating selected_colortype_in_active_group: {e}")
 
 
 
@@ -1540,11 +1540,11 @@ def update_gpu_hud_visibility(self, context):
                 if is_any_hud_enabled:
                     if not hud_overlay.is_hud_enabled():
                         hud_overlay.register_hud_handler()
-                        print("✅ GPU HUD handler registered")
+                        print("[DEBUG] GPU HUD handler registered")
                 else:
                     if hud_overlay.is_hud_enabled():
                         hud_overlay.unregister_hud_handler()
-                        print("❌ GPU HUD handler unregistered")
+                        print("[ERROR] GPU HUD handler unregistered")
 
                 # Handle 3D Legend HUD toggle specifically 
                 enable_3d_legend = getattr(self, "enable_3d_legend_hud", False)
@@ -1558,7 +1558,7 @@ def update_gpu_hud_visibility(self, context):
                             bpy.ops.bim.setup_3d_legend_hud()
                             print("🟢 3D Legend HUD auto-created on enable")
                         except Exception as e:
-                            print(f"⚠️ Failed to auto-create 3D Legend HUD: {e}")
+                            print(f"[WARNING] Failed to auto-create 3D Legend HUD: {e}")
                     else:
                         # Just show existing HUD
                         legend_collection = bpy.data.collections.get("Schedule_Display_3D_Legend")
@@ -1578,7 +1578,7 @@ def update_gpu_hud_visibility(self, context):
                             bpy.ops.bim.clear_3d_legend_hud()
                             print("🔴 3D Legend HUD auto-cleared on disable")
                         except Exception as e:
-                            print(f"⚠️ Failed to auto-clear 3D Legend HUD: {e}")
+                            print(f"[WARNING] Failed to auto-clear 3D Legend HUD: {e}")
                             # Fallback: just hide
                             legend_collection = bpy.data.collections.get("Schedule_Display_3D_Legend")
                             if legend_collection:
@@ -1594,10 +1594,10 @@ def update_gpu_hud_visibility(self, context):
                 try:
                     force_hud_refresh(self, context)
                 except Exception as refresh_e:
-                    print(f"⚠️ HUD refresh failed: {refresh_e}")
+                    print(f"[WARNING] HUD refresh failed: {refresh_e}")
 
             except Exception as e:
-                print(f"❌ Deferred HUD update failed: {e}")
+                print(f"[ERROR] Deferred HUD update failed: {e}")
                 import traceback
                 traceback.print_exc()
             return None
@@ -1608,7 +1608,7 @@ def update_gpu_hud_visibility(self, context):
             print("⏱️ Safe HUD update timer scheduled")
 
     except Exception as main_e:
-        print(f"❌ CRITICAL: HUD callback failed: {main_e}")
+        print(f"[ERROR] CRITICAL: HUD callback failed: {main_e}")
         import traceback
         traceback.print_exc()
         # Ensure we don't crash Blender
@@ -1733,13 +1733,13 @@ def force_hud_refresh(self, context):
                         if hud_exists:
                             print("🔄 AUTO-UPDATING 3D Legend HUD due to Legend HUD setting change")
                             bpy.ops.bim.update_3d_legend_hud()
-                            print("✅ 3D Legend HUD auto-update completed")
+                            print("[DEBUG] 3D Legend HUD auto-update completed")
                         else:
-                            print("⚠️ 3D Legend HUD enabled but no 3D HUD found in scene")
+                            print("[WARNING] 3D Legend HUD enabled but no 3D HUD found in scene")
                     else:
                         print("ℹ️ 3D Legend HUD not enabled, skipping auto-update")
                 except Exception as e:
-                    print(f"❌ Failed to auto-update 3D Legend HUD during refresh: {e}")
+                    print(f"[ERROR] Failed to auto-update 3D Legend HUD during refresh: {e}")
                     import traceback
                     traceback.print_exc()
                 hud_overlay.ensure_hud_handlers()
@@ -1752,14 +1752,14 @@ def force_hud_refresh(self, context):
                         area.tag_redraw()
                         
             except Exception as e:
-                print(f"⚠️ Delayed HUD refresh failed: {e}")
+                print(f"[WARNING] Delayed HUD refresh failed: {e}")
             return None  # Do not repeat
         
         # Register timer for delayed update
         bpy.app.timers.register(delayed_refresh, first_interval=0.1)
         
     except Exception as e:
-        print(f"❌ Force HUD refresh failed: {e}")
+        print(f"[ERROR] Force HUD refresh failed: {e}")
 
 # === END HUD CALLBACKS (GPU) ================================================
 
@@ -1775,7 +1775,7 @@ def update_active_animation_camera(self, context):
     print(f"🔄 CALLBACK: camera_obj type = {type(camera_obj)}")
 
     if not camera_obj:
-        print(f"⚠️ CALLBACK: No camera object, returning")
+        print(f"[WARNING] CALLBACK: No camera object, returning")
         return
 
     print(f"🔄 CALLBACK: Will load values from camera '{camera_obj.name}'")
@@ -1791,19 +1791,19 @@ def update_active_animation_camera(self, context):
             if (camera_obj.get('camera_type') == 'STATIC' or
                 '4D_Camera_Static' in camera_obj.name or
                 camera_obj.get('orbit_mode') == 'NONE'):
-                print(f"✅ Changing to static camera during animation: {camera_obj.name}")
+                print(f"[DEBUG] Changing to static camera during animation: {camera_obj.name}")
             else:
-                print(f"⚠️ Cannot change to orbit camera ({camera_obj.name}) during animation. Only static cameras allowed.")
+                print(f"[WARNING] Cannot change to orbit camera ({camera_obj.name}) during animation. Only static cameras allowed.")
                 return
     except Exception as e:
-        print(f"⚠️ Could not check animation status: {e}")
+        print(f"[WARNING] Could not check animation status: {e}")
 
     def set_camera_deferred():
         print(f"🔄 TIMER: set_camera_deferred called for '{camera_obj.name}'")
         try:
             if camera_obj and bpy.context.scene:
                 bpy.context.scene.camera = camera_obj
-                print(f"✅ TIMER: Animation camera '{camera_obj.name}' set as active")
+                print(f"[DEBUG] TIMER: Animation camera '{camera_obj.name}' set as active")
 
                 # NEW: Load values from the selected camera to the panel
                 try:
@@ -1824,7 +1824,7 @@ def update_active_animation_camera(self, context):
                         camera_props.camera_focal_mm = camera_obj.data.lens
                         camera_props.camera_clip_start = camera_obj.data.clip_start
                         camera_props.camera_clip_end = camera_obj.data.clip_end
-                        print(f"✅ LOADED: camera data: focal={camera_obj.data.lens}mm")
+                        print(f"[DEBUG] LOADED: camera data: focal={camera_obj.data.lens}mm")
 
                     # Load orbit properties from the camera
                     old_height = camera_props.orbit_height
@@ -1838,11 +1838,11 @@ def update_active_animation_camera(self, context):
                     camera_props.orbit_path_method = camera_obj.get('orbit_path_method', 'FOLLOW_PATH')
                     camera_props.interpolation_mode = camera_obj.get('interpolation_mode', 'LINEAR')
 
-                    print(f"✅ LOADED: orbit settings: {camera_props.orbit_mode}, radius={camera_props.orbit_radius}, height={old_height} -> {camera_props.orbit_height}")
-                    print(f"✅ LOADED: angle/direction: {camera_props.orbit_start_angle_deg}°, {camera_props.orbit_direction}")
+                    print(f"[DEBUG] LOADED: orbit settings: {camera_props.orbit_mode}, radius={camera_props.orbit_radius}, height={old_height} -> {camera_props.orbit_height}")
+                    print(f"[DEBUG] LOADED: angle/direction: {camera_props.orbit_start_angle_deg}°, {camera_props.orbit_direction}")
 
                 except Exception as load_error:
-                    print(f"⚠️ Error loading camera values to panel: {load_error}")
+                    print(f"[WARNING] Error loading camera values to panel: {load_error}")
 
                 # Force UI update
                 for window in bpy.context.window_manager.windows:
@@ -1850,7 +1850,7 @@ def update_active_animation_camera(self, context):
                         if area.type == 'VIEW_3D':
                             area.tag_redraw()
         except Exception as e:
-            print(f"❌ Error setting animation camera: {e}")
+            print(f"[ERROR] Error setting animation camera: {e}")
         return None
 
     # Use a timer to avoid context issues
@@ -1870,7 +1870,7 @@ def update_active_snapshot_camera(self, context):
         try:
             if camera_obj and bpy.context.scene:
                 bpy.context.scene.camera = camera_obj
-                print(f"✅ Snapshot camera '{camera_obj.name}' set as active")
+                print(f"[DEBUG] Snapshot camera '{camera_obj.name}' set as active")
                 
                 # Force UI update
                 for window in bpy.context.window_manager.windows:
@@ -1878,7 +1878,7 @@ def update_active_snapshot_camera(self, context):
                         if area.type == 'VIEW_3D':
                             area.tag_redraw()
         except Exception as e:
-            print(f"❌ Error setting snapshot camera: {e}")
+            print(f"[ERROR] Error setting snapshot camera: {e}")
         return None
 
     # Use a timer to avoid context issues
@@ -1900,10 +1900,10 @@ def update_active_4d_camera(self, context):
         is_animation_active = getattr(anim_props, 'is_animation_created', False)
 
         if is_animation_active:
-            print(f"⚠️ Cannot change 4D camera while animation is active. Reset animation first.")
+            print(f"[WARNING] Cannot change 4D camera while animation is active. Reset animation first.")
             return
     except Exception as e:
-        print(f"⚠️ Could not check animation status: {e}")
+        print(f"[WARNING] Could not check animation status: {e}")
 
     def set_camera_deferred():
         try:
@@ -1940,7 +1940,7 @@ def toggle_3d_text_visibility(self, context):
                 camera_props.enable_3d_legend_hud = False
                 
     except Exception as e:
-        print(f"⚠️ Error in auto-disable logic: {e}")
+        print(f"[WARNING] Error in auto-disable logic: {e}")
     
     # Toggle visibility for "Schedule_Display_Texts"
     try:
@@ -1952,9 +1952,9 @@ def toggle_3d_text_visibility(self, context):
             for obj in collection_texts.objects:
                 obj.hide_viewport = should_hide
                 obj.hide_render = should_hide
-            print(f"✅ Schedule_Display_Texts collection and objects visibility set to hide={should_hide}")
+            print(f"[DEBUG] Schedule_Display_Texts collection and objects visibility set to hide={should_hide}")
     except Exception as e:
-        print(f"❌ Error toggling 3D text visibility: {e}")
+        print(f"[ERROR] Error toggling 3D text visibility: {e}")
 
     # Toggle visibility for "Schedule_Display_3D_Legend" (controlled by show_3d_schedule_texts)
     try:
@@ -1970,9 +1970,9 @@ def toggle_3d_text_visibility(self, context):
             for obj in collection_legend.objects:
                 obj.hide_viewport = legend_should_be_hidden
                 obj.hide_render = legend_should_be_hidden
-            print(f"✅ Schedule_Display_3D_Legend visibility set to hide={legend_should_be_hidden}")
+            print(f"[DEBUG] Schedule_Display_3D_Legend visibility set to hide={legend_should_be_hidden}")
     except Exception as e:
-        print(f"❌ Error toggling 3D Legend HUD visibility: {e}")
+        print(f"[ERROR] Error toggling 3D Legend HUD visibility: {e}")
 
     # Force screen refresh
     try:
@@ -2012,7 +2012,7 @@ def toggle_3d_text_visibility(self, context):
                 print(f"🟢 3D Legend HUD enabled: {objects_shown} objects follow main HUD visibility (hide={should_hide})")
                 
     except Exception as e:
-        print(f"❌ Error handling individual 3D Legend HUD visibility: {e}")
+        print(f"[ERROR] Error handling individual 3D Legend HUD visibility: {e}")
 
     # Force refresh of all 3D areas
     try:
@@ -2061,7 +2061,7 @@ def toggle_live_color_updates(self, context):
                 cache_exists = None
 
             if not cache_exists:
-                print("⚠️ Live update cache missing - attempting to create from existing animation...")
+                print("[WARNING] Live update cache missing - attempting to create from existing animation...")
                 try:
                     print("🔧 Creating live update cache inline...")
 
@@ -2097,7 +2097,7 @@ def toggle_live_color_updates(self, context):
                         print(f"[DEBUG] Using {len(animated_objects)} IFC mesh objects for cache")
 
                     if not animated_objects:
-                        print("❌ No animated objects found - cannot create live update cache")
+                        print("[ERROR] No animated objects found - cannot create live update cache")
                         print("   Please create an animation first, then enable Live Color Updates")
                     else:
                         print(f"📋 Found {len(animated_objects)} animated objects")
@@ -2128,14 +2128,14 @@ def toggle_live_color_updates(self, context):
 
                         # Store in scene
                         context.scene['BIM_LiveUpdateProductFrames'] = live_update_props
-                        print(f"✅ Live update cache created with {len(animated_objects)} objects")
+                        print(f"[DEBUG] Live update cache created with {len(animated_objects)} objects")
 
                 except Exception as cache_e:
-                    print(f"❌ Failed to create live update cache: {cache_e}")
+                    print(f"[ERROR] Failed to create live update cache: {cache_e}")
                     import traceback
                     traceback.print_exc()
             else:
-                print("✅ Live update cache already exists")
+                print("[DEBUG] Live update cache already exists")
                 if isinstance(cache_exists, dict):
                     product_count = len(cache_exists.get("product_frames", {}))
                     print(f"   Cache contains {product_count} products")
@@ -2215,21 +2215,21 @@ def update_legend_hud_on_group_change(self, context):
 
                         # Manually trigger the live color update handler (cache is auto-created if missing)
                         tool.Sequence.live_color_update_handler(context.scene)
-                        print("✅ Live Color Update triggered for group change")
+                        print("[DEBUG] Live Color Update triggered for group change")
                     else:
-                        print("❌ Live Color Update handler not found")
+                        print("[ERROR] Live Color Update handler not found")
                 else:
                     print("🔍 Live Color Updates not enabled, skipping color update")
             else:
-                print("❌ Animation properties not found or no live color updates property")
+                print("[ERROR] Animation properties not found or no live color updates property")
         except Exception as live_e:
-            print(f"❌ Error triggering Live Color Update: {live_e}")
+            print(f"[ERROR] Error triggering Live Color Update: {live_e}")
             import traceback
             traceback.print_exc()
 
     except Exception as e:
         import traceback
-        print(f"⚠️ Could not auto-update Legend HUD: {e}")
+        print(f"[WARNING] Could not auto-update Legend HUD: {e}")
         traceback.print_exc()
 
 
@@ -2277,14 +2277,14 @@ def _sync_animation_color_schemes_with_active_groups(context):
                         synced_tasks += 1
                 
             except Exception as e:
-                print(f"❌ Error syncing task {getattr(task, 'ifc_definition_id', '?')}: {e}")
+                print(f"[ERROR] Error syncing task {getattr(task, 'ifc_definition_id', '?')}: {e}")
                 continue
         
         if synced_tasks > 0:
-            print(f"✅ AUTO-SYNC: Updated animation_color_schemes for {synced_tasks} tasks")
+            print(f"[DEBUG] AUTO-SYNC: Updated animation_color_schemes for {synced_tasks} tasks")
     
     except Exception as e:
-        print(f"❌ Error in auto-sync animation_color_schemes: {e}")
+        print(f"[ERROR] Error in auto-sync animation_color_schemes: {e}")
 
 def update_selected_date(self: "DatePickerProperties", context: bpy.types.Context) -> None:
     include_time = True

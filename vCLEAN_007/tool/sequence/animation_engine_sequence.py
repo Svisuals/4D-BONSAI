@@ -61,7 +61,7 @@ class AnimationEngineSequence:
     def get_animation_settings(cls):
         """
         CORRECCIÓN: Asegurar que use las fechas de visualización configuradas,
-        no las fechas derivadas de las tareas.
+        no las fechas derivadas de las tasks.
         """
         def calculate_total_frames(fps):
             if props.speed_types == "FRAME_SPEED":
@@ -188,7 +188,7 @@ class AnimationEngineSequence:
             fps = 24
         total_frames = int(round(calculate_total_frames(fps)))
 
-        print(f"📅 Animation Settings:")
+        print(f"[INFO] Animation Settings:")
         try:
             print(f"   Start Date: {start.strftime('%Y-%m-%d')}")
             print(f"   Finish Date: {finish.strftime('%Y-%m-%d')}")
@@ -245,7 +245,7 @@ class AnimationEngineSequence:
     def get_animation_settings(cls):
         """
         CORRECCIÓN: Asegurar que use las fechas de visualización configuradas,
-        no las fechas derivadas de las tareas.
+        no las fechas derivadas de las tasks.
         """
         def calculate_total_frames(fps):
             if props.speed_types == "FRAME_SPEED":
@@ -372,7 +372,7 @@ class AnimationEngineSequence:
             fps = 24
         total_frames = int(round(calculate_total_frames(fps)))
 
-        print(f"📅 Animation Settings:")
+        print(f"[INFO] Animation Settings:")
         try:
             print(f"   Start Date: {start.strftime('%Y-%m-%d')}")
             print(f"   Finish Date: {finish.strftime('%Y-%m-%d')}")
@@ -693,7 +693,7 @@ class AnimationEngineSequence:
                 tasks_processed += 1
 
             except Exception as e:
-                print(f"[WARNING]️ Error processing task {task.id()}: {e}")
+                print(f"[WARNING] Error processing task {task.id()}: {e}")
                 continue
 
         elapsed = time.time() - start_time
@@ -824,7 +824,7 @@ class AnimationEngineSequence:
 
         # SAFE BASELINE TIMING REPORT
         total_time = time.time() - start_time
-        print(f"⏱️ [SAFE] IFC mapping + Original stable system - Total time: {total_time:.2f}s")
+        print(f"[INFO] IFC mapping + Original stable system - Total time: {total_time:.2f}s")
         print("Reverted aggressive optimizations to prevent crashes")
         print("[ANIM] SAFE BASELINE SYSTEM COMPLETE")
 
@@ -934,7 +934,7 @@ class AnimationEngineSequence:
         if not active_group_name:
             active_group_name = "DEFAULT"
 
-        print(f"🎯 PLANNING ANIMATION: Using ColorType group '{active_group_name}'")
+        print(f"[INFO] PLANNING ANIMATION: Using ColorType group '{active_group_name}'")
 
         # Initialize plan structure
         animation_plan = defaultdict(lambda: defaultdict(list))
@@ -984,7 +984,7 @@ class AnimationEngineSequence:
                 # Plan keyframes for each state
                 cls._plan_object_animation(animation_plan, obj, frame_data, ColorType, original_color)
 
-        print(f"🎯 PLANNING COMPLETE: Plan contains {len(animation_plan)} frames")
+        print(f"[INFO] PLANNING COMPLETE: Plan contains {len(animation_plan)} frames")
         return dict(animation_plan)
 
     @classmethod
@@ -1305,7 +1305,7 @@ class AnimationEngineSequence:
     def get_animation_settings(cls):
         """
         Asegurar que use las fechas de visualización configuradas,
-        no las fechas derivadas de las tareas.
+        no las fechas derivadas de las tasks.
         """
         def calculate_total_frames(fps):
             if props.speed_types == "FRAME_SPEED":
@@ -1432,7 +1432,7 @@ class AnimationEngineSequence:
             fps = 24
         total_frames = int(round(calculate_total_frames(fps)))
 
-        print(f"📅 Animation Settings:")
+        print(f"[INFO] Animation Settings:")
         try:
             print(f"   Start Date: {start.strftime('%Y-%m-%d')}")
             print(f"   Finish Date: {finish.strftime('%Y-%m-%d')}")
@@ -1682,7 +1682,7 @@ class AnimationEngineSequence:
                 from colortype_cache import get_colortype_cache
                 colortype_cache = get_colortype_cache()
                 colortype_cache.build_cache(bpy.context)
-                print("✅ ColorType cache loaded")
+                print("[INFO] ColorType cache loaded")
             except Exception as e:
                 print(f"Warning: ColorType cache not available: {e}")
                 colortype_cache = None
@@ -1691,7 +1691,7 @@ class AnimationEngineSequence:
                 from ... import ifc_lookup
                 lookup = ifc_lookup.get_ifc_lookup()
                 lookup.build_lookup_tables(bpy.context)
-                print("✅ IFC lookup loaded")
+                print("[INFO] IFC lookup loaded")
             except Exception as e:
                 print(f"Warning: IFC lookup not available: {e}")
                 lookup = None
@@ -1700,7 +1700,7 @@ class AnimationEngineSequence:
                 from ... import performance_cache
                 perf_cache = performance_cache.get_performance_cache()
                 perf_cache.build_scene_cache(bpy.context)
-                print("✅ Performance cache loaded")
+                print("[INFO] Performance cache loaded")
             except Exception as e:
                 print(f"Warning: Performance cache not available: {e}")
                 perf_cache = None
@@ -1708,7 +1708,7 @@ class AnimationEngineSequence:
             try:
                 from ... import batch_processor
                 batch_proc = batch_processor.get_batch_processor()
-                print("✅ Batch processor loaded")
+                print("[INFO] Batch processor loaded")
             except Exception as e:
                 print(f"Warning: Batch processor not available: {e}")
                 batch_proc = None
@@ -1755,7 +1755,7 @@ class AnimationEngineSequence:
                     if not element.is_a("IfcSpace"):
                         relevant_objects.append(obj)
 
-        print(f"📊 Filtered {len(relevant_objects)} relevant objects from {len(candidate_objects)} total")
+        print(f"[INFO] Filtered {len(relevant_objects)} relevant objects from {len(candidate_objects)} total")
 
         # Batch color extraction
         print("Extracting original colors (optimized)...")
@@ -1846,7 +1846,7 @@ class AnimationEngineSequence:
                 cls.apply_ColorType_animation(obj, frame_data, ColorType, original_color, settings)
 
         # === EXECUTE BATCH OPERATIONS ===
-        print(f"⚡ Executing batch operations: {len(objects_to_hide)} hide, {len(keyframe_operations)} keyframes")
+        print(f"[INFO] Executing batch operations: {len(objects_to_hide)} hide, {len(keyframe_operations)} keyframes")
 
         # Batch hide objects
         for obj in objects_to_hide:
@@ -1869,7 +1869,7 @@ class AnimationEngineSequence:
                 setattr(obj, data_path, value)
                 obj.keyframe_insert(data_path=data_path, frame=frame)
 
-        print(f"📊 Processed {len(relevant_objects)} objects with {len(colortype_cache_dict)} cached ColorTypes")
+        print(f"[INFO] Processed {len(relevant_objects)} objects with {len(colortype_cache_dict)} cached ColorTypes")
 
 
         # === CONFIGURE VIEWPORT AND SCENE (PRESERVED FUNCTIONALITY) ===
@@ -1886,8 +1886,8 @@ class AnimationEngineSequence:
 
         # === PERFORMANCE SUMMARY ===
         elapsed = time.time() - start_time
-        print(f"🎉 [ULTRA-OPTIMIZED] Animation completed in {elapsed:.2f}s (vs ~25-30s original)")
-        print(f"📈 Performance improvement: {(25/elapsed):.1f}x faster")
+        print(f"[ULTRA-OPTIMIZED] Animation completed in {elapsed:.2f}s (vs ~25-30s original)")
+        print(f"Performance improvement: {(25/elapsed):.1f}x faster")
         print("Optimizations used:")
         print(f"   - ColorType cache: {'OK' if colortype_cache else 'MISSING'}")
         print(f"   - IFC lookup: {'OK' if lookup else 'MISSING'}")
@@ -1990,7 +1990,7 @@ class AnimationEngineSequence:
             ColorType = tool.Sequence._get_best_ColorType_for_task(task, anim_props)
             return getattr(ColorType, 'consider_start', False)
         except Exception as e:
-            print(f"[WARNING]️ Error in _task_has_consider_start_ColorType for task {getattr(task, 'Name', 'N/A')}: {e}")
+            print(f"[WARNING] Error in _task_has_consider_start_ColorType for task {getattr(task, 'Name', 'N/A')}: {e}")
             return False
 
     @classmethod
@@ -2065,7 +2065,7 @@ class AnimationEngineSequence:
         import bpy
         import json
 
-        print("🔄 Iniciando reseteo universal (Animación y/o Snapshot)...")
+        print("[INFO] Starting universal reset (Animation and/or Snapshot)...")
 
         # Desregistrar handlers de actualización por frame para evitar errores
         cls._unregister_frame_change_handler()
@@ -2199,7 +2199,7 @@ class AnimationEngineSequence:
             bpy.context.scene['bonsai_animation_original_colors'] = json.dumps(original_colors)
             bpy.context.scene['BIM_VarianceOriginalObjectColors'] = True
         except Exception as e:
-            print(f"[WARNING]️ Error saving colors: {e}")
+            print(f"[WARNING] Error saving colors: {e}")
 
     @classmethod
     def _get_colortype_optimized(cls, task, animation_props, active_group_name):

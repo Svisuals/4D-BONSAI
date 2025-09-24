@@ -44,10 +44,10 @@ class TaskTreeSequence:
         # 2. APPLY FILTER: Pass the root tasks list to our new filtering function
         filtered_root_tasks = cls.get_filtered_tasks(root_tasks)
 
-        # 3. Ordenar solo las tareas que pasaron el filtro
+        # 3. Ordenar solo las tasks que pasaron el filtro
         related_objects_ids = cls.get_sorted_tasks_ids(filtered_root_tasks)
         
-        # 4. Crear los elementos de la UI solo para las tareas filtradas y ordenadas
+        # 4. Crear los elementos de la UI solo para las tasks filtradas y ordenadas
         for related_object_id in related_objects_ids:
             cls.create_new_task_li(related_object_id, 0)
 

@@ -42,7 +42,7 @@ class IFCLookupOptimizer:
         """Builds all lookup tables at once - 10x faster"""
         start_time = time.time()
 
-        print("🔧 Construyendo lookup tables IFC...")
+        print("[INFO] Building IFC lookup tables...")
 
         # 1. Get all tasks at once
         root_tasks = ifcopenshell.util.sequence.get_root_tasks(work_schedule)
@@ -57,7 +57,7 @@ class IFCLookupOptimizer:
         for root_task in root_tasks:
             collect_all_tasks(root_task)
 
-        print(f"📊 Encontradas {len(self.all_tasks_flat)} tareas")
+        print(f"[INFO] Found {len(self.all_tasks_flat)} tasks")
 
         # 2. Pre-compute ALL relationships at once
         for task in self.all_tasks_flat:
@@ -97,8 +97,8 @@ class IFCLookupOptimizer:
 
         self.lookup_built = True
         elapsed = time.time() - start_time
-        print(f"✅ Lookup tables construidas en {elapsed:.2f}s")
-        print(f"📈 {len(self.product_ids)} productos, {len(self.all_tasks_flat)} tareas")
+        print(f"[INFO] Lookup tables built in {elapsed:.2f}s")
+        print(f"[INFO] {len(self.product_ids)} products, {len(self.all_tasks_flat)} tasks")
 
         # Debug: Show some details
         print(f"[DEBUG] task_to_outputs entries: {len(self.task_to_outputs)}")

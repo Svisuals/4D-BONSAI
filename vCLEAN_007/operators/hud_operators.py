@@ -426,7 +426,7 @@ class Setup3DLegendHUD(bpy.types.Operator):
 
             return legend_data
         except Exception as e:
-            print(f"❌ Exception in _get_active_colortype_data: {e}")
+            print(f"[ERROR] Exception in _get_active_colortype_data: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -477,11 +477,11 @@ class Setup3DLegendHUD(bpy.types.Operator):
         """
         RESTORED from v117_P: Full 3D Legend HUD creation with panels and color dots
         """
-        print("✅ Creating FULL 3D Legend HUD (restored from v117_P)")
+        print("[DEBUG] Creating FULL 3D Legend HUD (restored from v117_P)")
         try:
             self._create_3d_legend_hud_full(camera, legend_data)
         except Exception as e:
-            print(f"❌ Full 3D Legend creation failed: {e}")
+            print(f"[ERROR] Full 3D Legend creation failed: {e}")
             # Fallback: create safe version
             self._create_3d_legend_hud_safe(camera, legend_data)
 
@@ -562,7 +562,7 @@ class Setup3DLegendHUD(bpy.types.Operator):
                 active_color = item_data['active_color']
                 color_empty.color = (*active_color[:3], 1.0) if len(active_color) >= 3 else (1, 1, 1, 1)
 
-        print(f"✅ Enhanced 3D Legend HUD created with {len(legend_data)} text items")
+        print(f"[DEBUG] Enhanced 3D Legend HUD created with {len(legend_data)} text items")
         print(f"   Visibility: {'Hidden' if should_hide else 'Visible'}")
 
     def _create_minimal_3d_placeholder(self):
@@ -584,9 +584,9 @@ class Setup3DLegendHUD(bpy.types.Operator):
                 placeholder.empty_display_size = 1.0
                 placeholder["is_3d_legend_hud"] = True
                 placeholder.location = (0, 0, 0)
-                print("✅ Minimal 3D Legend placeholder created")
+                print("[DEBUG] Minimal 3D Legend placeholder created")
         except Exception as e:
-            print(f"❌ Even minimal placeholder failed: {e}")
+            print(f"[ERROR] Even minimal placeholder failed: {e}")
 
     def _create_3d_legend_hud_full(self, camera, legend_data):
         """
@@ -614,7 +614,7 @@ class Setup3DLegendHUD(bpy.types.Operator):
 
         # The 3D Legend HUD is created INSIDE Schedule_Display_Parent
         root = parent_empty
-        print(f"✅ 3D Legend HUD created as a child of '{parent_name}' - constraints via checkboxes")
+        print(f"[DEBUG] 3D Legend HUD created as a child of '{parent_name}' - constraints via checkboxes")
         total_rows = len(legend_data)
         title_height = settings['font_size_title'] + 0.12 if settings['show_title'] else 0
         column_titles_height = settings['row_height'] * 0.8 if (settings['show_start_title'] or settings['show_active_title'] or settings['show_end_title']) else 0

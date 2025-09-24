@@ -28,7 +28,9 @@ from bonsai.bim.module.sequence.prop import UnifiedColorTypeManager, safe_set_se
 try:
     from .operator import snapshot_all_ui_state
 except ImportError:
-    def snapshot_all_ui_state(*args, **kwargs): pass
+    def snapshot_all_ui_state(*args, **kwargs):
+        """Fallback snapshot function when operator is not available"""
+        return {}
 
 # ============================================================================
 # HELPER FUNCTIONS (Moved from operator.py)
@@ -136,7 +138,7 @@ class RemoveAnimationColorSchemes(bpy.types.Operator):
                                     pass
                 
                 if cleaned > 0:
-                    print(f"✅ Auto-cleaned {cleaned} task references to removed ColorType '{removed_colortype_name}'")
+                    print(f"[DEBUG] Auto-cleaned {cleaned} task references to removed ColorType '{removed_colortype_name}'")
                     
             except Exception as e:
                 print(f"Warning: Auto-cleanup after ColorType removal failed: {e}")

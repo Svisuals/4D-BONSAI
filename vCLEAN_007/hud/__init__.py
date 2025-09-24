@@ -90,7 +90,7 @@ class ScheduleHUD:
                 return animation_props.camera_orbit
             return None
         except Exception as e:
-            print(f"❌ Error getting camera props: {e}")
+            print(f"[ERROR] Error getting camera props: {e}")
             return None
 
     def get_schedule_data(self):
@@ -312,10 +312,10 @@ class ScheduleHUD:
                 if not (full_schedule_start and full_schedule_end):
                     full_schedule_start, full_schedule_end = viz_start, viz_finish
                     if full_schedule_start:
-                         print(f"⚠️ HUD: Usando rango de visualización como fallback para la barra de tiempo.")
+                         print(f"[WARNING] HUD: Usando rango de visualización como fallback para la barra de tiempo.")
 
             except Exception as e:
-                print(f"⚠️ Error obteniendo el rango unificado del cronograma: {e}")
+                print(f"[WARNING] Error obteniendo el rango unificado del schedule: {e}")
                 # Final fallback if everything fails
                 full_schedule_start, full_schedule_end = viz_start, viz_finish
           
@@ -350,7 +350,7 @@ class ScheduleHUD:
                                 print(f"📊 SNAPSHOT: Using unified range {unified_start.strftime('%Y-%m-%d')} → {unified_end.strftime('%Y-%m-%d')}")
                                 full_schedule_start, full_schedule_end = unified_start, unified_end
                             else:
-                                print("⚠️ SNAPSHOT: No unified range found, using fallback")
+                                print("[WARNING] SNAPSHOT: No unified range found, using fallback")
                         
                         if full_schedule_start and full_schedule_end:
                 
@@ -398,7 +398,7 @@ class ScheduleHUD:
                             }
                         # Fallback: ensure unified range is always available for snapshots
                         if not full_schedule_start or not full_schedule_end:
-                            print("⚠️ SNAPSHOT: No unified range found, calculating fallback range")
+                            print("[WARNING] SNAPSHOT: No unified range found, calculating fallback range")
                             # Use current snapshot date as both start and end if no range is available
                             full_schedule_start = current_date
                             full_schedule_end = current_date
@@ -420,7 +420,7 @@ class ScheduleHUD:
                             'is_snapshot': True,
                         }
                     except Exception as e:
-                        print(f"❌ Error procesando snapshot: {e}")
+                        print(f"[ERROR] Error processing snapshot: {e}")
     
             # --- NORMAL ANIMATION LOGIC (if not snapshot) ---
             scene = bpy.context.scene
@@ -440,7 +440,7 @@ class ScheduleHUD:
             else:
                 from datetime import datetime
                 current_date = datetime.now()
-                print("⚠️ No visualization dates configured, using current date")
+                print("[WARNING] No visualization dates configured, using current date")
 
             
             day_from_schedule = 0
@@ -506,7 +506,7 @@ class ScheduleHUD:
                         'is_snapshot': False,
                     }
             else:
-                print(f"⚠️ Sin fechas de cronograma completo, usando fallback")
+                print(f"[WARNING] Sin fechas de schedule completo, usando fallback")
 
                 # FALLBACK: Use logic based only on selected range
                 if viz_start and viz_finish:
@@ -521,7 +521,7 @@ class ScheduleHUD:
                     # No range dates, use default values
                     total_days = 1
                     elapsed_days = 1
-                    print("⚠️ No selected range dates, using default values")
+                    print("[WARNING] No selected range dates, using default values")
 
                 # Calculate week_number and progress_pct
                 if end_frame > start_frame:
@@ -607,13 +607,13 @@ class ScheduleHUD:
                     all_finishes.append(finish_date)
         
         if not all_starts or not all_finishes:
-            print("❌ UNIFIED HUD: No valid dates found across all schedule types")
+            print("[ERROR] UNIFIED HUD: No valid dates found across all schedule types")
             return None, None
         
         unified_start = min(all_starts)
         unified_finish = max(all_finishes)
         
-        print(f"✅ UNIFIED HUD: Timeline range spans {unified_start.strftime('%Y-%m-%d')} to {unified_finish.strftime('%Y-%m-%d')}")
+        print(f"[DEBUG] UNIFIED HUD: Timeline range spans {unified_start.strftime('%Y-%m-%d')} to {unified_finish.strftime('%Y-%m-%d')}")
         return unified_start, unified_finish
     
     def _is_unified_range(self, work_schedule, viz_start, viz_finish):
@@ -636,7 +636,7 @@ class ScheduleHUD:
             return start_match and end_match
             
         except Exception as e:
-            print(f"⚠️ Error checking unified range: {e}")
+            print(f"[WARNING] Error checking unified range: {e}")
             return False
 
     def calculate_position(self, viewport_width, viewport_height, settings):
@@ -941,7 +941,7 @@ class ScheduleHUD:
         unified_start = min(all_starts)
         unified_finish = max(all_finishes)
 
-        print(f"✅ UNIFIED HUD: Timeline range spans {unified_start.strftime('%Y-%m-%d')} to {unified_finish.strftime('%Y-%m-%d')}")
+        print(f"[DEBUG] UNIFIED HUD: Timeline range spans {unified_start.strftime('%Y-%m-%d')} to {unified_finish.strftime('%Y-%m-%d')}")
         return unified_start, unified_finish
         
 
@@ -992,7 +992,7 @@ def register_hud_handler():
             draw_hud_callback, (), 'WINDOW', 'POST_PIXEL'
         )
         _hud_enabled = True
-        print("✅ HUD handler registered successfully")
+        print("[DEBUG] HUD handler registered successfully")
 
         # Force immediate redraw
         for window in bpy.context.window_manager.windows:
@@ -1012,7 +1012,7 @@ def unregister_hud_handler():
     if _hud_draw_handler is not None:
         try:
             bpy.types.SpaceView3D.draw_handler_remove(_hud_draw_handler, 'WINDOW')
-            print("✅ HUD handler unregistered successfully")
+            print("[DEBUG] HUD handler unregistered successfully")
         except Exception as e:
             print(f"🔴 Error removing HUD handler: {e}")
         _hud_draw_handler = None
@@ -1063,7 +1063,7 @@ def auto_manage_hud_handler():
             pass
 
     except Exception as e:
-        print(f"⚠️ Error in auto HUD management: {e}")
+        print(f"[WARNING] Error in auto HUD management: {e}")
 
 
 def invalidate_legend_hud_cache():
@@ -1090,7 +1090,7 @@ def invalidate_legend_hud_cache():
                 print("🔄 Updating 3D Legend HUD due to ColorType change")
                 bpy.ops.bim.update_3d_legend_hud()
     except Exception as e:
-        print(f"⚠️ Failed to auto-update 3D Legend HUD: {e}")
+        print(f"[WARNING] Failed to auto-update 3D Legend HUD: {e}")
     
     ensure_hud_handlers()
 
@@ -1144,7 +1144,7 @@ def draw_current_date_indicator(x, y, height, color):
         gpu.state.blend_set('NONE')
         
     except Exception as e:
-        print(f"❌ Error drawing current date indicator: {e}")
+        print(f"[ERROR] Error drawing current date indicator: {e}")
 
 
 def draw_color_indicator(x, y, size, color):
@@ -1168,7 +1168,7 @@ def draw_color_indicator(x, y, size, color):
         gpu.state.blend_set('NONE')
         
     except Exception as e:
-        print(f"❌ Error drawing color indicator: {e}")
+        print(f"[ERROR] Error drawing color indicator: {e}")
 
 
 def draw_hud_callback():
@@ -1195,7 +1195,7 @@ def register_hud_handler():
             draw_hud_callback, (), 'WINDOW', 'POST_PIXEL'
         )
         _hud_enabled = True
-        print("✅ HUD handler registered successfully")
+        print("[DEBUG] HUD handler registered successfully")
         # Force immediate redraw
         wm = bpy.context.window_manager
         for window in wm.windows:
@@ -1213,7 +1213,7 @@ def unregister_hud_handler():
     if _hud_draw_handler is not None:
         try:
             bpy.types.SpaceView3D.draw_handler_remove(_hud_draw_handler, 'WINDOW')
-            print("✅ HUD handler unregistered successfully")
+            print("[DEBUG] HUD handler unregistered successfully")
         except Exception as e:
             print(f"🔴 Error removing HUD handler: {e}")
         _hud_draw_handler = None
@@ -1252,14 +1252,14 @@ def invalidate_legend_hud_cache():
                 print("🔄 Updating 3D Legend HUD due to ColorType change")
                 bpy.ops.bim.update_3d_legend_hud()
     except Exception as e:
-        print(f"⚠️ Failed to auto-update 3D Legend HUD: {e}")
+        print(f"[WARNING] Failed to auto-update 3D Legend HUD: {e}")
     
     print(f"🔍 Estado actual: _hud_enabled={_hud_enabled}")
     if not _hud_enabled:
         print("🔧 Registering HUD handlers automatically...")
         register_hud_handler()
     else:
-        print("✅ Handlers ya están activos")
+        print("[DEBUG] Handlers ya están activos")
 
 def refresh_hud():
     """Forces a viewport refresh to update the HUD"""

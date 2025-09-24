@@ -91,9 +91,9 @@ class UnifiedColorTypeManager:
                     })
                 data["DEFAULT"] = {"ColorTypes": default_colortypes}
                 scene[key] = json.dumps(data)
-                print("✅ DEFAULT group created with 13 predefined colortypes")
+                print("[DEBUG] DEFAULT group created with 13 predefined colortypes")
             else:
-                print("⚠️ Custom groups detected - DEFAULT group is not created automatically")
+                print("[WARNING] Custom groups detected - DEFAULT group is not created automatically")
         
         # Ensure that DEFAULT has ALL the necessary profiles #
         # ONLY if there are no custom groups (avoids confusion) #
@@ -109,7 +109,7 @@ class UnifiedColorTypeManager:
             for missing_name in required_names - existing_names:
                 missing_colortype = UnifiedColorTypeManager._create_default_colortype_data(missing_name)
                 data["DEFAULT"]["ColorTypes"].append(missing_colortype)
-                print(f"✅ Added missing DEFAULT colortype: {missing_name}")
+                print(f"[DEBUG] Added missing DEFAULT colortype: {missing_name}")
             
             # Save changes if profiles were added #
             if required_names - existing_names:
@@ -205,7 +205,7 @@ class UnifiedColorTypeManager:
             }
             group["ColorTypes"].append(colortype_payload)
             UnifiedColorTypeManager._write_sets_json(context, data)
-            print(f"✅ ColorType '{colortype_name}' added to group '{group_name}' ({len(existing_colortypes)} ColorTypes existed before)")
+            print(f"[DEBUG] ColorType '{colortype_name}' added to group '{group_name}' ({len(existing_colortypes)} ColorTypes existed before)")
     
     @staticmethod
     def ensure_default_group_has_predefined_types(context):
@@ -227,7 +227,7 @@ class UnifiedColorTypeManager:
         for p_type in all_predefined_types:
             UnifiedColorTypeManager.ensure_colortype_in_group(context, "DEFAULT", p_type)
         
-        print(f"✅ Ensured all {len(all_predefined_types)} predefined ColorTypes in DEFAULT group")
+        print(f"[DEBUG] Ensured all {len(all_predefined_types)} predefined ColorTypes in DEFAULT group")
 
     @staticmethod
     def sync_default_group_to_predefinedtype(context, task_pg):
@@ -282,7 +282,7 @@ class UnifiedColorTypeManager:
                     raise prop_error
 
         except Exception as e:
-            print(f"❌ Error synchronizing DEFAULT for the task: {e}")
+            print(f"[ERROR] Error synchronizing DEFAULT for the task: {e}")
 
     @staticmethod
     def initialize_default_for_all_tasks(context) -> bool: #
@@ -298,10 +298,10 @@ class UnifiedColorTypeManager:
             for task in tprops.tasks:
                 UnifiedColorTypeManager.sync_default_group_to_predefinedtype(context, task)
             
-            print(f"✅ Sincronizados {len(tprops.tasks)} tareas con el perfil DEFAULT.")
+            print(f"[DEBUG] Sincronizados {len(tprops.tasks)} tasks con el perfil DEFAULT.")
             return True
         except Exception as e:
-            print(f"❌ Error al inicializar perfiles DEFAULT para todas las tareas: {e}")
+            print(f"[ERROR] Error al inicializar perfiles DEFAULT para todas las tasks: {e}")
             return False
 
     @staticmethod
@@ -389,7 +389,7 @@ class UnifiedColorTypeManager:
             colortypes_data = UnifiedColorTypeManager.get_group_colortypes(context, group_name)
             return sorted(list(colortypes_data.keys()))
         except Exception as e:
-            print(f"❌ Error getting colortypes from group '{group_name}': {e}")
+            print(f"[ERROR] Error getting colortypes from group '{group_name}': {e}")
             return []
 
     @staticmethod
@@ -433,7 +433,7 @@ class UnifiedColorTypeManager:
             
             print("=== END DEBUG ===")
         except Exception as e:
-            print(f"❌ Debug failed: {e}")
+            print(f"[ERROR] Debug failed: {e}")
 
 
     @staticmethod
@@ -513,7 +513,7 @@ class UnifiedColorTypeManager:
             # Always load DEFAULT profiles when explicitly loading DEFAULT group
             UnifiedColorTypeManager.ensure_default_group_has_predefined_types(context)
             if user_groups:
-                print("⚠️ Custom groups detected - but DEFAULT group is being explicitly loaded with full profiles")
+                print("[WARNING] Custom groups detected - but DEFAULT group is being explicitly loaded with full profiles")
         
         colortypes_data = UnifiedColorTypeManager.get_group_colortypes(context, group_name)
 
@@ -838,12 +838,12 @@ def update_task_colortype_group_selector(self, context):
                     # Force enum update to refresh profile dropdown
                     task.selected_colortype_in_active_group = task.selected_colortype_in_active_group
                     
-                    print(f"✅ colortypes automatically loaded for group: {self.task_colortype_group_selector}")
+                    print(f"[DEBUG] colortypes automatically loaded for group: {self.task_colortype_group_selector}")
             except Exception as e:
                 print(f"⚠ Error syncing task colortypes: {e}")
 
     except Exception as e:
-        print(f"❌ Error in update_task_colortype_group_selector: {e}")
+        print(f"[ERROR] Error in update_task_colortype_group_selector: {e}")
 
 def update_ColorType_group(self, context):
     """Updates active colortype group - FIXED: No auto-sync to prevent data corruption""" #
@@ -855,7 +855,7 @@ def update_ColorType_group(self, context):
     # sync_active_group_to_json() - This was causing data corruption #
     # When switching groups, the editor content would overwrite the wrong group #
     # Users must manually save groups with "Save Group" button #
-    print(f"⚠️  Group switched to '{self.ColorType_groups}' - use 'Save Group' to persist changes")
+    print(f"[WARNING]  Group switched to '{self.ColorType_groups}' - use 'Save Group' to persist changes")
 
     # Clean up invalid mappings #
     UnifiedColorTypeManager.cleanup_invalid_mappings(context)
@@ -875,7 +875,7 @@ def safe_set_animation_color_schemes(task_obj, value):
         # Try to set the value directly first #
         try:
             task_obj.animation_color_schemes = value
-            print(f"✅ Successfully set animation_color_schemes to '{value}'")
+            print(f"[DEBUG] Successfully set animation_color_schemes to '{value}'")
             return
         except Exception as enum_error:
             # If the value is not valid for the current enum, try fallback options #
@@ -893,15 +893,15 @@ def safe_set_animation_color_schemes(task_obj, value):
                         task_obj.animation_color_schemes = fallback_value
                         print(f"🔄 Used fallback value '{fallback_value}' instead of '{value}' for animation_color_schemes")
                     else:
-                        print(f"⚠️ No valid enum options available for animation_color_schemes, skipping assignment")
+                        print(f"[WARNING] No valid enum options available for animation_color_schemes, skipping assignment")
                 except Exception as fallback_error:
-                    print(f"❌ Fallback assignment for animation_color_schemes also failed: {fallback_error}")
+                    print(f"[ERROR] Fallback assignment for animation_color_schemes also failed: {fallback_error}")
                     pass
             else:
                 raise enum_error
         
     except Exception as e:
-        print(f"❌ Error in safe_set_animation_color_schemes: {e}")
+        print(f"[ERROR] Error in safe_set_animation_color_schemes: {e}")
         try: #
             # Final fallback - try empty string or first available option #
             valid_items = get_animation_color_schemes_items(task_obj, bpy.context)
@@ -910,7 +910,7 @@ def safe_set_animation_color_schemes(task_obj, value):
                 task_obj.animation_color_schemes = fallback_value
                 print(f"🔄 Final fallback for animation_color_schemes: using '{fallback_value}'")
         except:
-            print("❌ All fallback attempts failed for animation_color_schemes, skipping assignment")
+            print("[ERROR] All fallback attempts failed for animation_color_schemes, skipping assignment")
             pass
 
 def safe_set_selected_colortype_in_active_group(task_obj, value, skip_validation=False):
@@ -944,10 +944,10 @@ def safe_set_selected_colortype_in_active_group(task_obj, value, skip_validation
             
             print(f"🔧 About to setattr selected_colortype_in_active_group = '{value}'")
             setattr(task_obj, "selected_colortype_in_active_group", value)
-            print(f"✅ Successfully set selected_colortype_in_active_group = '{value}'")
+            print(f"[DEBUG] Successfully set selected_colortype_in_active_group = '{value}'")
             
         except Exception as enum_error:
-            print(f"❌ setattr failed with error: {enum_error}")
+            print(f"[ERROR] setattr failed with error: {enum_error}")
             # If the value is not valid for the current enum, try fallback options #
             if "enum" in str(enum_error).lower():
                 # Get current valid items to find a fallback #
@@ -966,18 +966,18 @@ def safe_set_selected_colortype_in_active_group(task_obj, value, skip_validation
                             print(f"🔄 Empty string failed, trying first ColorType: '{fallback_value}'")
                         
                         setattr(task_obj, "selected_colortype_in_active_group", fallback_value)
-                        print(f"✅ Successfully set fallback value '{fallback_value}'")
+                        print(f"[DEBUG] Successfully set fallback value '{fallback_value}'")
                     else:
-                        print(f"⚠️ No valid enum options available, skipping assignment")
+                        print(f"[WARNING] No valid enum options available, skipping assignment")
                 except Exception as fallback_error: #
-                    print(f"❌ Fallback assignment also failed: {fallback_error}")
+                    print(f"[ERROR] Fallback assignment also failed: {fallback_error}")
                     # Last resort - don't assign anything
                     pass
             else:
                 raise enum_error
         
     except Exception as e: #
-        print(f"❌ Error in safe_set_selected_colortype_in_active_group: {e}")
+        print(f"[ERROR] Error in safe_set_selected_colortype_in_active_group: {e}")
         # Try to get any valid fallback instead of forcing empty string
         try:
             valid_items = get_custom_group_colortype_items(task_obj, bpy.context)
@@ -986,7 +986,7 @@ def safe_set_selected_colortype_in_active_group(task_obj, value, skip_validation
                 setattr(task_obj, "selected_colortype_in_active_group", fallback_value)
                 print(f"🔄 Final fallback: using '{fallback_value}'")
         except:
-            print("❌ All fallback attempts failed, skipping assignment")
+            print("[ERROR] All fallback attempts failed, skipping assignment")
             pass
 
 def update_legend_hud_on_group_change(self, context):
@@ -1037,15 +1037,15 @@ def update_legend_hud_on_group_change(self, context):
 
                         # Manually trigger the live color update handler #
                         tool.Sequence.live_color_update_handler(context.scene)
-                        print("✅ Live Color Update triggered for group change")
+                        print("[DEBUG] Live Color Update triggered for group change")
                     else:
-                        print("⚠️ Live Color Update handler not available")
+                        print("[WARNING] Live Color Update handler not available")
                 else:
                     print("📋 Live Color Updates disabled by user, skipping color refresh")
             else:
-                print("⚠️ Animation props or live_color_updates property not available")
+                print("[WARNING] Animation props or live_color_updates property not available")
         except Exception as live_e:
-            print(f"❌ Could not trigger Live Color Update: {live_e}")
+            print(f"[ERROR] Could not trigger Live Color Update: {live_e}")
             import traceback
             traceback.print_exc()
 
@@ -1056,7 +1056,7 @@ def update_legend_hud_on_group_change(self, context):
         print("🔄 Legend HUD cache invalidated and viewport refreshed")
     except Exception as e:
         import traceback
-        print(f"⚠️ Could not auto-update Legend HUD: {e}")
+        print(f"[WARNING] Could not auto-update Legend HUD: {e}")
         traceback.print_exc()
 
 def _sync_animation_color_schemes_with_active_groups(context):
@@ -1103,14 +1103,14 @@ def _sync_animation_color_schemes_with_active_groups(context):
                         synced_tasks += 1
                 
             except Exception as e: #
-                print(f"❌ Error syncing task {getattr(task, 'ifc_definition_id', '?')}: {e}")
+                print(f"[ERROR] Error syncing task {getattr(task, 'ifc_definition_id', '?')}: {e}")
                 continue
         
         if synced_tasks > 0:
-            print(f"✅ AUTO-SYNC: Updated animation_color_schemes for {synced_tasks} tasks")
+            print(f"[DEBUG] AUTO-SYNC: Updated animation_color_schemes for {synced_tasks} tasks")
     
     except Exception as e:
-        print(f"❌ Error in auto-sync animation_color_schemes: {e}")
+        print(f"[ERROR] Error in auto-sync animation_color_schemes: {e}")
 
 def get_saved_color_schemes(self, context):
     """Gets saved color schemes (legacy - maintain for compatibility)"""
@@ -1148,7 +1148,7 @@ def toggle_live_color_updates(self, context):
                 cache_exists = None
 
             if not cache_exists:
-                print("⚠️ Live update cache missing - attempting to create from existing animation...")
+                print("[WARNING] Live update cache missing - attempting to create from existing animation...")
                 try:
                     import bonsai.tool as tool
                     print("[DEBUG] Tool module imported successfully")
@@ -1158,18 +1158,18 @@ def toggle_live_color_updates(self, context):
                         success = tool.Sequence.create_live_update_cache_from_existing(context)
                         print(f"[DEBUG] Cache creation result: {success}")
                         if success:
-                            print("✅ Live update cache created from existing animation")
+                            print("[DEBUG] Live update cache created from existing animation")
                         else:
-                            print("❌ Failed to create cache from existing animation")
+                            print("[ERROR] Failed to create cache from existing animation")
                     else:
-                        print("❌ Cannot create cache - method not found")
+                        print("[ERROR] Cannot create cache - method not found")
                         print("   Please create an animation first, then enable Live Color Updates")
                 except Exception as cache_e:
-                    print(f"❌ Failed to create live update cache: {cache_e}")
+                    print(f"[ERROR] Failed to create live update cache: {cache_e}")
                     import traceback
                     traceback.print_exc()
             else:
-                print("✅ Live update cache already exists")
+                print("[DEBUG] Live update cache already exists")
                 if isinstance(cache_exists, dict):
                     product_count = len(cache_exists.get("product_frames", {}))
                     print(f"   Cache contains {product_count} products")

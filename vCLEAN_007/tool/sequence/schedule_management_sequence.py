@@ -204,7 +204,7 @@ class ScheduleManagementSequence:
                                                         work_schedule=new_parent,
                                                         parent_task=None)
                     else:
-                        # Para tareas anidadas, usar la API con parent_task
+                        # Para tasks anidadas, usar la API con parent_task
                         work_schedule = ifcopenshell.util.sequence.get_task_work_schedule(new_parent)
                         new_task = ifcopenshell.api.run("sequence.add_task", file,
                                                         work_schedule=work_schedule,
@@ -268,7 +268,7 @@ class ScheduleManagementSequence:
                 cls.last_duplication_mapping[old_task.id()] = new_task.id()
 
                 # 3. Relationships were already created automatically with the API
-                # Copiar productos y recursos a la nueva tarea
+                # Copiar productos y recursos a la nueva task
                 for product in ifcopenshell.util.sequence.get_task_outputs(old_task):
                     ifcopenshell.api.run("sequence.assign_product", file, relating_product=product, related_object=new_task)
                 for product_input in ifcopenshell.util.sequence.get_task_inputs(old_task):

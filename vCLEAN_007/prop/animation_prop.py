@@ -147,7 +147,7 @@ class BIMAnimationProperties(PropertyGroup):
     active_ColorType_index: IntProperty(name="Active ColorType Index")
     ColorType_groups: EnumProperty(name="ColorType Group", items=enums.get_internal_ColorType_sets_enum, update=callbacks.update_ColorType_group)
 
-    # Bandera para controlar si la animación ha sido creada al menos una vez.
+    # Bandera para controlar si la animation ha sido creada al menos una vez.
     is_animation_created: BoolProperty(
         name="Is Animation Created",
         description="Internal flag to check if the main animation has been created at least once",

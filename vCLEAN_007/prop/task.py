@@ -70,9 +70,9 @@ def update_task_checkbox_selection(self, context):
                 ids = tool.Sequence.get_selected_task_ids()
                 if ids:
                     bpy.ops.bim.select_task_related_products(task_ids=list(ids))
-                    print(f"✅ 3D Selection applied for {len(ids)} tasks")
+                    print(f"[DEBUG] 3D Selection applied for {len(ids)} tasks")
         except Exception as e:
-            print(f"❌ Error in 3D selection: {e}")
+            print(f"[ERROR] Error in 3D selection: {e}")
         return None
     
     # Use a timer to ensure this runs safely in the next context update
@@ -238,15 +238,15 @@ def updateTaskPredefinedType(self: "Task", context: bpy.types.Context) -> None:
         user_groups = UnifiedColorTypeManager.get_user_created_groups(context)
         if not user_groups:
             UnifiedColorTypeManager.sync_default_group_to_predefinedtype(context, self)
-            print(f"✅ Task {self.ifc_definition_id} DEFAULT group synced to {current_predefined_type}")
+            print(f"[DEBUG] Task {self.ifc_definition_id} DEFAULT group synced to {current_predefined_type}")
         else:
-            print(f"⚠️ Custom groups detected - DEFAULT sync skipped for task {self.ifc_definition_id}")
+            print(f"[WARNING] Custom groups detected - DEFAULT sync skipped for task {self.ifc_definition_id}")
 
         # 3. Force UI refresh to reflect changes
         refresh_sequence_data()
 
     except Exception as e:
-        print(f"❌ Error in updateTaskPredefinedType: {e}")
+        print(f"[ERROR] Error in updateTaskPredefinedType: {e}")
         import traceback
         traceback.print_exc()
 
@@ -292,7 +292,7 @@ def update_use_active_colortype_group(self: "Task", context):
             entry = UnifiedColorTypeManager.sync_task_colortypes(context, self, selected_group)
             if entry:
                 entry.enabled = bool(self.use_active_colortype_group)
-                print(f"✅ Task {self.ifc_definition_id}: Active group '{selected_group}' enabled = {entry.enabled}")
+                print(f"[DEBUG] Task {self.ifc_definition_id}: Active group '{selected_group}' enabled = {entry.enabled}")
                 
                 # NEW FUNCTIONALITY: Auto-sync animation_color_schemes
                 if entry.enabled and entry.selected_colortype:
@@ -300,11 +300,11 @@ def update_use_active_colortype_group(self: "Task", context):
                     safe_set_animation_color_schemes(self, entry.selected_colortype)
                     print(f"🔄 AUTO-SYNC: animation_color_schemes = '{entry.selected_colortype}'")
             else:
-                print(f"❌ Could not sync task {self.ifc_definition_id} with group '{selected_group}'")
+                print(f"[ERROR] Could not sync task {self.ifc_definition_id} with group '{selected_group}'")
         else:
-            print(f"⚠️ No valid custom group selected: '{selected_group}'")
+            print(f"[WARNING] No valid custom group selected: '{selected_group}'")
     except Exception as e:
-        print(f"❌ Error in update_use_active_colortype_group: {e}")
+        print(f"[ERROR] Error in update_use_active_colortype_group: {e}")
 
 def update_selected_colortype_in_active_group(self: "Task", context):
     """Updates the selected colortype in the active group"""
@@ -327,14 +327,14 @@ def update_selected_colortype_in_active_group(self: "Task", context):
         selected_group = getattr(anim_props, "task_colortype_group_selector", "")
         
         if not selected_group or selected_group == "DEFAULT":
-            print(f"⚠️ No valid custom group selected for task {self.ifc_definition_id}")
+            print(f"[WARNING] No valid custom group selected for task {self.ifc_definition_id}")
             return
         
         # Update the mapping in the task's colortype_group_choices
         entry = UnifiedColorTypeManager.sync_task_colortypes(context, self, selected_group)
         if entry:
             entry.selected_colortype = current_value
-            print(f"✅ Task {self.ifc_definition_id}: Group '{selected_group}' colortype = '{current_value}'")
+            print(f"[DEBUG] Task {self.ifc_definition_id}: Group '{selected_group}' colortype = '{current_value}'")
             
             # NEW FUNCTIONALITY: Auto-sync with animation_color_schemes if the group is active
             if entry.enabled and current_value:
@@ -343,7 +343,7 @@ def update_selected_colortype_in_active_group(self: "Task", context):
                 print(f"🔄 AUTO-SYNC: animation_color_schemes = '{current_value}'")
                 
     except Exception as e:
-        print(f"❌ Error in update_selected_colortype_in_active_group: {e}")
+        print(f"[ERROR] Error in update_selected_colortype_in_active_group: {e}")
 
 def update_variance_color_mode(self, context):
     """Updates variance color mode visualization"""
@@ -355,7 +355,7 @@ def update_variance_color_mode(self, context):
             if str(self.ifc_definition_id) not in wprops.variance_selected_tasks:
                 task_item = wprops.variance_selected_tasks.add()
                 task_item.task_id = str(self.ifc_definition_id)
-                print(f"✅ Added task {self.ifc_definition_id} to variance color selection")
+                print(f"[DEBUG] Added task {self.ifc_definition_id} to variance color selection")
         else:
             # Remove task from variance selection
             to_remove = []
@@ -365,7 +365,7 @@ def update_variance_color_mode(self, context):
             
             for idx in reversed(to_remove):
                 wprops.variance_selected_tasks.remove(idx)
-                print(f"✅ Removed task {self.ifc_definition_id} from variance color selection")
+                print(f"[DEBUG] Removed task {self.ifc_definition_id} from variance color selection")
         
         # Refresh viewport to update colors
         for area in bpy.context.screen.areas:
@@ -373,7 +373,7 @@ def update_variance_color_mode(self, context):
                 area.tag_redraw()
                 
     except Exception as e:
-        print(f"❌ Error in update_variance_color_mode: {e}")
+        print(f"[ERROR] Error in update_variance_color_mode: {e}")
 
 # ============================================================================
 # TASK PROPERTY GROUP CLASSES

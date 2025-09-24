@@ -46,7 +46,7 @@ except Exception:
                 try:
                     setattr(task_obj, "selected_colortype_in_active_group", value)
                 except Exception as e:
-                    print(f"❌ Fallback safe_set failed: {e}")
+                    print(f"[ERROR] Fallback safe_set failed: {e}")
         prop = PropFallback()
 
 try:
@@ -264,7 +264,7 @@ class VisualiseWorkScheduleDate(bpy.types.Operator):
                 print(f"🎬 📸 SNAPSHOT: Stopping animation to enable fixed timeline mode")
                 bpy.ops.screen.animation_cancel(restore_frame=False)
         except Exception as e:
-            print(f"❌ Error stopping animation during snapshot creation: {e}")
+            print(f"[ERROR] Error stopping animation during snapshot creation: {e}")
 
         # Give clear feedback to the user about which group was used
         anim_props = tool.Sequence.get_animation_props()
@@ -386,11 +386,11 @@ class BIM_OT_fix_colortype_hide_at_end_immediate(bpy.types.Operator):
             try:
                 context.scene["BIM_AnimationColorSchemesSets"] = json.dumps(data, ensure_ascii=False)
             except Exception as e:
-                print("⚠️ Failed to save profiles JSON:", e)
+                print("[WARNING] Failed to save profiles JSON:", e)
         for nm in sorted(DEMO_KEYS):
-            print(f"  ✅ {nm}: {'WILL HIDE' if nm in DEMO_KEYS else 'WILL SHOW'} objects at the end")
+            print(f"  [DEBUG] {nm}: {'WILL HIDE' if nm in DEMO_KEYS else 'WILL SHOW'} objects at the end")
         print("\n🔨 STEP 2: Configuring demolition...")
-        print("  ✅ DEMOLITION: Updated to hide")
+        print("  [DEBUG] DEMOLITION: Updated to hide")
         print("\n🔍 STEP 3: Verifying configuration...")
         total, demo_count, missing = _verify_colortype_json_stats(context)
         print("📊 SUMMARY:")
@@ -414,9 +414,9 @@ class BIM_OT_fix_colortype_hide_at_end_immediate(bpy.types.Operator):
                 bpy.ops.bim.create_animation()
         except Exception:
             pass
-        print("   ✅ Animation successfully regenerated (if the API allows it)")
+        print("   [DEBUG] Animation successfully regenerated (if the API allows it)")
         print("="*60)
-        self.report({'INFO'}, "✅ FIX APPLIED SUCCESSFULLY")
+        self.report({'INFO'}, "[DEBUG] FIX APPLIED SUCCESSFULLY")
         return {'FINISHED'}
 
 class RefreshSnapshotTexts(bpy.types.Operator):
@@ -483,7 +483,7 @@ class RefreshSnapshotTexts(bpy.types.Operator):
                     # Create the texts collection and objects, but do NOT register animation handler
                     tool.Sequence.create_text_objects_static(snapshot_settings)
 
-                    print("✅ Static 3D texts created for snapshot mode")
+                    print("[DEBUG] Static 3D texts created for snapshot mode")
                 else:
                     # NORMAL MODE: Use animation handler as before
                     print("🎬 Normal mode - using animation handler")
@@ -491,7 +491,7 @@ class RefreshSnapshotTexts(bpy.types.Operator):
 
             except Exception as e:
                 # Fallback: Try the old method if the static method doesn't exist
-                print(f"⚠️ Static method failed, trying fallback: {e}")
+                print(f"[WARNING] Static method failed, trying fallback: {e}")
                 try:
                     # Create texts but immediately unregister the animation handler
                     tool.Sequence.add_text_animation_handler(snapshot_settings)
@@ -503,9 +503,9 @@ class RefreshSnapshotTexts(bpy.types.Operator):
                         try:
                             from .operator import _local_unregister_text_handler
                             _local_unregister_text_handler()
-                            print("✅ Animation handler unregistered for snapshot")
+                            print("[DEBUG] Animation handler unregistered for snapshot")
                         except Exception as unreg_e:
-                            print(f"⚠️ Could not unregister animation handler: {unreg_e}")
+                            print(f"[WARNING] Could not unregister animation handler: {unreg_e}")
 
                 except Exception as fallback_e:
                     self.report({'ERROR'}, f"Failed to rebuild 3D texts: {fallback_e}")
@@ -586,7 +586,7 @@ class CreateStaticSnapshotTexts(bpy.types.Operator):
                     print(f"📸 Static texts visibility set: hidden={should_hide} (checkbox state: {getattr(camera_props, 'show_3d_schedule_texts', False)})")
 
             except Exception as e:
-                print(f"⚠️ Could not apply visibility to static texts: {e}")
+                print(f"[WARNING] Could not apply visibility to static texts: {e}")
 
             # Optional auto-arrange
             try:
@@ -605,7 +605,7 @@ class CreateStaticSnapshotTexts(bpy.types.Operator):
 
         except Exception as e:
             self.report({'ERROR'}, f"Failed to create static texts: {e}")
-            print(f"❌ CreateStaticSnapshotTexts error: {e}")
+            print(f"[ERROR] CreateStaticSnapshotTexts error: {e}")
             return {'CANCELLED'}
 
 
@@ -634,7 +634,7 @@ class BIM_OT_show_performance_stats(bpy.types.Operator):
                 "=" * 50,
                 f"Total optimization calls: {stats['total_optimization_calls']}",
                 f"Total time saved: {stats['total_time_saved_seconds']}s",
-                f"NumPy available: {'✅' if stats['numpy_available'] else '❌'}",
+                f"NumPy available: {'[DEBUG]' if stats['numpy_available'] else '[ERROR]'}",
                 ""
             ]
             

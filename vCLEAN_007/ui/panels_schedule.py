@@ -314,7 +314,7 @@ class BIM_PT_work_schedules(Panel):
         active_filters_count = len([r for r in props.filters.rules if r.is_active])
         if active_filters_count > 0:
             info_row = active_filters_box.row()
-            info_row.label(text=f"ℹ️ {active_filters_count} active filter(s)", icon='INFO')
+            info_row.label(text=f"[INFO] {active_filters_count} active filter(s)", icon='INFO')
 
         # 3. Saved Filters Panel (now collapsible)
         saved_filters_box = main_box.box()
@@ -584,11 +584,11 @@ class BIM_PT_work_schedules(Panel):
                         else:
                             # Show message when no group is selected
                             info_row = box.row()
-                            info_row.label(text="ℹ️ Select a custom group to assign colortypes", icon='INFO')
+                            info_row.label(text="[INFO] Select a custom group to assign colortypes", icon='INFO')
                     else:
                         # Message when there are no custom groups
                         info_row = box.row()
-                        info_row.label(text="ℹ️ No custom groups available. Create one in Animation Color Scheme.", icon='INFO')
+                        info_row.label(text="[INFO] No custom groups available. Create one in Animation Color Scheme.", icon='INFO')
 
                 # Collapsible section of saved profiles (simplified)
                 row_saved = self.layout.row(align=True)

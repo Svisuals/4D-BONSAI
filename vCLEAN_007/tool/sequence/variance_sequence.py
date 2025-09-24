@@ -548,7 +548,7 @@ class VarianceSequence:
             
             variance_colortypes = bpy.context.scene.get('BIM_VarianceColorTypes', {})
             
-            # Crear mapeo de objetos IFC a tareas reales
+            # Crear mapeo de objects IFC a tasks reales
             object_to_task_map = cls._build_object_task_mapping(tprops.tasks)
             
             # Iterate over all objects and apply variance colors

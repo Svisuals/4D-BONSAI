@@ -47,7 +47,7 @@ except Exception:
                 try:
                     setattr(task_obj, "selected_colortype_in_active_group", value)
                 except Exception as e:
-                    print(f"❌ Fallback safe_set failed: {e}")
+                    print(f"[ERROR] Fallback safe_set failed: {e}")
         prop = PropFallback()
 
 import os
@@ -170,7 +170,7 @@ def _local_schedule_texts_update_handler(scene, depsgraph):
 
         coll = bpy.data.collections.get("Schedule_Display_Texts")
         if not coll:
-            print("⚠️ 3D Text Handler: No 'Schedule_Display_Texts' collection found")
+            print("[WARNING] 3D Text Handler: No 'Schedule_Display_Texts' collection found")
             return
         
         print(f"📝 3D Text Handler: Found collection with {len(coll.objects)} objects")
@@ -197,7 +197,7 @@ def _local_schedule_texts_update_handler(scene, depsgraph):
                         snapshot_mode = True
                         print(f"📸 3D Text Handler: SNAPSHOT MODE detected for date {snapshot_date.strftime('%Y-%m-%d')}")
                 except Exception as e:
-                    print(f"⚠️ 3D Text Handler: Error parsing snapshot date: {e}")
+                    print(f"[WARNING] 3D Text Handler: Error parsing snapshot date: {e}")
         
         if snapshot_mode and snapshot_date:
             # SNAPSHOT MODE: Use fixed date, ignore frame-based calculation
@@ -243,7 +243,7 @@ def _local_schedule_texts_update_handler(scene, depsgraph):
             _update_single_3d_text_object(obj, cdata, cur_dt)
             
     except Exception as e:
-        print(f"❌ 3D Text Handler error: {e}")
+        print(f"[ERROR] 3D Text Handler error: {e}")
         import traceback
         traceback.print_exc()
 
@@ -283,7 +283,7 @@ def _update_single_3d_text_object(obj, cdata, cur_dt):
         if sch_start and sch_finish:
             print(f"📊 3D Texts: Using schedule range {sch_start.strftime('%Y-%m-%d')} → {sch_finish.strftime('%Y-%m-%d')}")
         else:
-            print(f"⚠️ 3D Texts: No schedule range available (sch_start={sch_start}, sch_finish={sch_finish})")
+            print(f"[WARNING] 3D Texts: No schedule range available (sch_start={sch_start}, sch_finish={sch_finish})")
 
         ttype = (cdata.get("text_type") or "").lower()
 
@@ -320,10 +320,10 @@ def _update_single_3d_text_object(obj, cdata, cur_dt):
                     print(f"📊 Week calculation: current={cd_d}, start={fss_d}, delta_days={delta_days}, week={week_number}")
                     cdata.body = f"Week {week_number}"
                 else:
-                    print(f"⚠️ Week text: Missing data, showing fallback")
+                    print(f"[WARNING] Week text: Missing data, showing fallback")
                     cdata.body = "Week --"
             except Exception as e:
-                print(f"❌ Week text error: {e}")
+                print(f"[ERROR] Week text error: {e}")
                 cdata.body = "Week --"
 
         elif ttype == "day_counter":
@@ -343,10 +343,10 @@ def _update_single_3d_text_object(obj, cdata, cur_dt):
                     print(f"📊 Day calculation: current={cd_d}, start={fss_d}, delta_days={delta_days}, day={day_from_schedule}")
                     cdata.body = f"Day {day_from_schedule}"
                 else:
-                    print(f"⚠️ Day text: Missing data, showing fallback")
+                    print(f"[WARNING] Day text: Missing data, showing fallback")
                     cdata.body = "Day --"
             except Exception as e:
-                print(f"❌ Day text error: {e}")
+                print(f"[ERROR] Day text error: {e}")
                 cdata.body = "Day --"
 
         elif ttype == "progress":
@@ -376,14 +376,14 @@ def _update_single_3d_text_object(obj, cdata, cur_dt):
                     cdata.body = f"Progress: {progress_pct}%"
                 else:
                     # Fallback: show percentage based on time
-                    print(f"⚠️ Progress text: Missing schedule data, showing fallback")
+                    print(f"[WARNING] Progress text: Missing schedule data, showing fallback")
                     cdata.body = "Progress: --%"
             except Exception as e:
-                print(f"❌ Progress text error: {e}")
+                print(f"[ERROR] Progress text error: {e}")
                 cdata.body = "Progress: --%"
                 
     except Exception as e:
-        print(f"❌ Error updating 3D text object: {e}")
+        print(f"[ERROR] Error updating 3D text object: {e}")
     except Exception:
         pass
 
@@ -826,7 +826,7 @@ class ClearPreviousAnimation(bpy.types.Operator, tool.Ifc.Operator):
                     invalidate_legend_hud_cache()
                     print("🧹 Active colortype group cleared from HUD Legend")
             except Exception as legend_e:
-                print(f"⚠️ Could not clear colortype group: {legend_e}")
+                print(f"[WARNING] Could not clear colortype group: {legend_e}")
             
             self.report({'INFO'}, "Previous animation cleared.")
             context.scene.frame_set(context.scene.frame_start)
@@ -853,16 +853,16 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
         try:
             if bpy.context.screen.is_animation_playing:
                 bpy.ops.screen.animation_cancel(restore_frame=False)
-                print(f"✅ Animation playback stopped")
+                print(f"[DEBUG] Animation playback stopped")
         except Exception as e:
-            print(f"❌ Could not stop animation: {e}")
+            print(f"[ERROR] Could not stop animation: {e}")
 
         # Complete cleanup of previous snapshot
         try:
             # Reset all objects to their original state (use existing function)
             print(f"🔄 Clearing previous animation...")
             _clear_previous_animation(context)
-            print(f"✅ Previous animation cleared")
+            print(f"[DEBUG] Previous animation cleared")
             
             # Clear temporary snapshot data
             if hasattr(bpy.context.scene, 'snapshot_data'):
@@ -899,7 +899,7 @@ class ClearPreviousSnapshot(bpy.types.Operator, tool.Ifc.Operator):
                     invalidate_legend_hud_cache()
                     print("🧹 Active colortype group cleared from HUD Legend")
             except Exception as legend_e:
-                print(f"⚠️ Could not clear colortype group: {legend_e}")
+                print(f"[WARNING] Could not clear colortype group: {legend_e}")
             
             # --- SNAPSHOT 3D TEXTS RESTORATION ---
             # Clear snapshot mode and restore previous state
@@ -1016,7 +1016,7 @@ def snapshot_all_ui_state(context):
                                 "groups": [],
                             }
         except Exception as e:
-            print(f"Bonsai WARNING: Error capturando todas las tareas: {e}")
+            print(f"Bonsai WARNING: Error capturando todas las tasks: {e}")
             # Fallback to the original method with only visible tasks
             for t in getattr(tprops, "tasks", []):
                 tid = str(getattr(t, "ifc_definition_id", 0))
@@ -1067,7 +1067,7 @@ def snapshot_all_ui_state(context):
         
         # Save to specific key (for Copy 3D)
         context.scene[snap_key_specific] = json.dumps(task_snap)
-        print(f"💾 DEBUG SNAPSHOT: Guardado en clave {snap_key_specific} - {len(task_snap)} tareas")
+        print(f"💾 DEBUG SNAPSHOT: Guardado en clave {snap_key_specific} - {len(task_snap)} tasks")
         
         # ALSO save to generic key (for normal system)
         context.scene[snap_key_generic] = json.dumps(task_snap)
@@ -1195,7 +1195,7 @@ def restore_all_ui_state(context):
             except Exception:
                 pass
         else:
-            print(f"❌ DEBUG RESTORE: Key {snap_key_specific} not found")
+            print(f"[ERROR] DEBUG RESTORE: Key {snap_key_specific} not found")
 
         if union:
             tprops = tool.Sequence.get_task_tree_props()
@@ -1242,7 +1242,7 @@ def restore_all_ui_state(context):
                             first_valid = valid_items[0][0] if valid_items else ""
                             safe_set_animation_color_schemes(t, first_valid)
                         except Exception as e: 
-                            print(f"⚠️ Could not determine valid enum options for task {tid}: {e}")
+                            print(f"[WARNING] Could not determine valid enum options for task {tid}: {e}")
                             # Skip setting if we can't determine valid options
                     else:
                         # If the task DOES have an active group, synchronize animation_color_schemes with the group's value
@@ -1257,7 +1257,7 @@ def restore_all_ui_state(context):
                     
                     print(f"🔧 DEBUG RESTORE: Task {tid} - active={cfg.get('active')}, selected_colortype='{selected_active_colortype}'")
                 except Exception as e:
-                    print(f"❌ DEBUG RESTORE: Error setting colortype for task {tid}: {e}")
+                    print(f"[ERROR] DEBUG RESTORE: Error setting colortype for task {tid}: {e}")
                 # Task groups
                 try:
                     t.colortype_group_choices.clear()
@@ -1312,7 +1312,7 @@ def restore_all_ui_state(context):
                                 print(f"  - Assignment successful: {val == actual_val}")
                                 
                             except Exception as e:
-                                print(f"❌ DEBUG RESTORE: Error setting {sel_attr} for task {tid} group {g_data.get('group_name')}: {e}")
+                                print(f"[ERROR] DEBUG RESTORE: Error setting {sel_attr} for task {tid} group {g_data.get('group_name')}: {e}")
                                 print(f"  - Failed value: '{val}' (type: {type(val)})")
                                 print(f"  - Error type: {type(e).__name__}")
                                 

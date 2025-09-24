@@ -50,7 +50,7 @@ except Exception:
                 try:
                     setattr(task_obj, "selected_colortype_in_active_group", value)
                 except Exception as e:
-                    print(f"❌ Fallback safe_set failed: {e}")
+                    print(f"[ERROR] Fallback safe_set failed: {e}")
         prop = PropFallback()
         
         def snapshot_all_ui_state(context):
@@ -349,7 +349,7 @@ class SelectTaskRelatedProducts(bpy.types.Operator, tool.Ifc.Operator):
                     tasks_to_process.append(task)
 
             if not tasks_to_process:
-                print("❌ [SELECT DEBUG] No tasks found to process!")
+                print("[ERROR] [SELECT DEBUG] No tasks found to process!")
                 return
 
             print(f"🔥 [SELECT DEBUG] {len(tasks_to_process)} valid tasks found")
@@ -372,7 +372,7 @@ class SelectTaskRelatedProducts(bpy.types.Operator, tool.Ifc.Operator):
             print(f"🔥 [SELECT DEBUG] Total unique products: {len(all_products)}")
 
             if not all_products:
-                print("❌ [SELECT DEBUG] No products to select!")
+                print("[ERROR] [SELECT DEBUG] No products to select!")
                 return
 
             # CLEAR PREVIOUS SELECTION
@@ -388,9 +388,9 @@ class SelectTaskRelatedProducts(bpy.types.Operator, tool.Ifc.Operator):
                 if obj:
                     obj.select_set(True)
                     selected_count += 1
-                    print(f"  ✅ Seleccionado: {obj.name}")
+                    print(f"  [DEBUG] Seleccionado: {obj.name}")
             
-            print(f"✅ [SELECT DEBUG] Selection complete! {selected_count}/{len(all_products)} objects selected")
+            print(f"[DEBUG] [SELECT DEBUG] Selection complete! {selected_count}/{len(all_products)} objects selected")
 
             # OPTIONAL: Only focus if a 3D view is available
             try:
@@ -398,10 +398,10 @@ class SelectTaskRelatedProducts(bpy.types.Operator, tool.Ifc.Operator):
                     bpy.ops.view3d.view_selected()
                     print("🔍 [SELECT DEBUG] View focused on selected objects")
             except Exception as e:
-                print(f"⚠️ [SELECT DEBUG] Could not focus view (normal if no 3D view is active): {e}")
+                print(f"[WARNING] [SELECT DEBUG] Could not focus view (normal if no 3D view is active): {e}")
 
         except Exception as e:
-            print(f"❌ [SELECT DEBUG] ERROR: {e}")
+            print(f"[ERROR] [SELECT DEBUG] ERROR: {e}")
             import traceback
             traceback.print_exc()
 

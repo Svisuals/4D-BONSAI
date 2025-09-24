@@ -92,7 +92,7 @@ class BlenderBatchProcessor:
                 total_ops += len(batch)
 
         elapsed = time.time() - start_time
-        print(f"🚀 BATCH: {total_ops} visibility ops in {elapsed:.2f}s")
+        print(f"[INFO] BATCH: {total_ops} visibility ops in {elapsed:.2f}s")
         self.visibility_operations.clear()
 
     def execute_color_batch(self):
@@ -122,7 +122,7 @@ class BlenderBatchProcessor:
                 total_ops += len(batch)
 
         elapsed = time.time() - start_time
-        print(f"🚀 BATCH: {total_ops} color ops in {elapsed:.2f}s")
+        print(f"[INFO] BATCH: {total_ops} color ops in {elapsed:.2f}s")
         self.color_operations.clear()
 
     def execute_keyframe_batch(self):
@@ -165,10 +165,10 @@ class BlenderBatchProcessor:
                         obj.keyframe_insert(data_path=data_path, frame=frame)
                         total_ops += 1
                     except Exception as e:
-                        print(f"⚠️ Keyframe error {obj_name}.{data_path}@{frame}: {e}")
+                        print(f"[WARNING] Keyframe error {obj_name}.{data_path}@{frame}: {e}")
 
         elapsed = time.time() - start_time
-        print(f"🚀 BATCH: {total_ops} keyframes in {elapsed:.2f}s")
+        print(f"[INFO] BATCH: {total_ops} keyframes in {elapsed:.2f}s")
         self.keyframe_operations.clear()
 
     def execute_all_batches(self):
@@ -204,7 +204,7 @@ class VisibilityBatchOptimizer:
 
         elapsed = time.time() - start_time
         total = len(objects_to_hide) + len(objects_to_show)
-        print(f"🚀 VISIBILITY BATCH: {total} objects in {elapsed:.2f}s")
+        print(f"[INFO] VISIBILITY BATCH: {total} objects in {elapsed:.2f}s")
 
     @staticmethod
     def batch_set_colors(objects_with_colors: List[Tuple]):
@@ -215,4 +215,4 @@ class VisibilityBatchOptimizer:
             obj.color = color
 
         elapsed = time.time() - start_time
-        print(f"🚀 COLOR BATCH: {len(objects_with_colors)} colors set in {elapsed:.2f}s")
+        print(f"[INFO] COLOR BATCH: {len(objects_with_colors)} colors set in {elapsed:.2f}s")

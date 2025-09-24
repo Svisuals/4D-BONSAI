@@ -61,7 +61,7 @@ def update_follow_path_offset_factor(self, context):
                     target_camera = bpy.data.objects.get(str(selected_camera))
                     print(f"🎯 CALLBACK: Found camera object by name: {target_camera}")
                 except Exception as e:
-                    print(f"❌ CALLBACK: Error getting camera object: {e}")
+                    print(f"[ERROR] CALLBACK: Error getting camera object: {e}")
                     target_camera = None
         else:
             print(f"🎯 CALLBACK: No camera selected, using fallback")
@@ -115,7 +115,7 @@ def update_follow_path_offset_factor(self, context):
         print(f"    Constraint target path: {follow_path_constraint.target.name if follow_path_constraint.target else 'None'}")
 
     except Exception as e:
-        print(f"❌ Error updating Follow Path offset_factor: {e}")
+        print(f"[ERROR] Error updating Follow Path offset_factor: {e}")
 
 
 class BIMCameraOrbitProperties(PropertyGroup):
@@ -1205,7 +1205,7 @@ class BIMCameraOrbitProperties(PropertyGroup):
     )
     hide_all_animation_cameras: BoolProperty(
         name="Hide All Animation Cameras",
-        description="Alterna la visibilidad de todas las cámaras de animación 4D en la vista",
+        description="Alterna la visibilidad de todas las cámaras de animation 4D en la vista",
         default=False,
         update=callbacks.update_animation_camera_visibility,
     )

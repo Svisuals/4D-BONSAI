@@ -78,9 +78,9 @@ class UnifiedColorTypeManager:
                     })
                 data["DEFAULT"] = {"ColorTypes": default_colortypes}
                 scene[key] = json.dumps(data)
-                print("✅ DEFAULT group created with 13 predefined colortypes")
+                print("[DEBUG] DEFAULT group created with 13 predefined colortypes")
             else:
-                print("⚠️ Custom groups detected - DEFAULT group is not created automatically")
+                print("[WARNING] Custom groups detected - DEFAULT group is not created automatically")
         
         # Ensure that DEFAULT has ALL the necessary profiles
         # ONLY if there are no custom groups (avoids confusion)
@@ -96,7 +96,7 @@ class UnifiedColorTypeManager:
             for missing_name in required_names - existing_names:
                 missing_colortype = UnifiedColorTypeManager._create_default_colortype_data(missing_name)
                 data["DEFAULT"]["ColorTypes"].append(missing_colortype)
-                print(f"✅ Added missing DEFAULT colortype: {missing_name}")
+                print(f"[DEBUG] Added missing DEFAULT colortype: {missing_name}")
             
             # Guardar cambios si se añadieron perfiles
             if required_names - existing_names:
@@ -192,7 +192,7 @@ class UnifiedColorTypeManager:
             }
             group["ColorTypes"].append(colortype_payload)
             UnifiedColorTypeManager._write_sets_json(context, data)
-            print(f"✅ ColorType '{colortype_name}' added to group '{group_name}' ({len(existing_colortypes)} ColorTypes existed before)")
+            print(f"[DEBUG] ColorType '{colortype_name}' added to group '{group_name}' ({len(existing_colortypes)} ColorTypes existed before)")
     @staticmethod
 
     def ensure_default_group_has_predefined_types(context):
@@ -204,7 +204,7 @@ class UnifiedColorTypeManager:
     @staticmethod
     def ensure_default_group_has_all_predefined_types(context):
         """Ensures that the DEFAULT group contains ALL 13 predefined ColorTypes, regardless of tasks."""
-        # Lista completa de todos los PredefinedTypes posibles (13 tipos)
+        # Lista complete de todos los PredefinedTypes posibles (13 tipos)
         all_predefined_types = [
             "CONSTRUCTION", "INSTALLATION", "DEMOLITION", "REMOVAL",
             "DISPOSAL", "DISMANTLE", "OPERATION", "MAINTENANCE", 
@@ -214,7 +214,7 @@ class UnifiedColorTypeManager:
         for p_type in all_predefined_types:
             UnifiedColorTypeManager.ensure_colortype_in_group(context, "DEFAULT", p_type)
         
-        print(f"✅ Ensured all {len(all_predefined_types)} predefined ColorTypes in DEFAULT group")
+        print(f"[DEBUG] Ensured all {len(all_predefined_types)} predefined ColorTypes in DEFAULT group")
 
     @staticmethod
     def sync_default_group_to_predefinedtype(context, task_pg):
@@ -269,11 +269,11 @@ class UnifiedColorTypeManager:
                     raise prop_error
 
         except Exception as e:
-            print(f"❌ Error synchronizing DEFAULT for the task: {e}")
+            print(f"[ERROR] Error synchronizing DEFAULT for the task: {e}")
 
     @staticmethod
     def initialize_default_for_all_tasks(context) -> bool:
-        """Recorre todas las tareas y asegura que su grupo DEFAULT estÃ© inicializado y sincronizado."""
+        """Recorre todas las tasks y asegura que su grupo DEFAULT estÃ© inicializado y sincronizado."""
         try:
             import bonsai.tool as tool
             tprops = tool.Sequence.get_task_tree_props()
@@ -286,10 +286,10 @@ class UnifiedColorTypeManager:
             for task in tprops.tasks:
                 UnifiedColorTypeManager.sync_default_group_to_predefinedtype(context, task)
             
-            print(f"✅ Sincronizados {len(tprops.tasks)} tareas con el perfil DEFAULT.")
+            print(f"[DEBUG] Sincronizados {len(tprops.tasks)} tasks con el perfil DEFAULT.")
             return True
         except Exception as e:
-            print(f"❌ Error al inicializar perfiles DEFAULT para todas las tareas: {e}")
+            print(f"[ERROR] Error al inicializar perfiles DEFAULT para todas las tasks: {e}")
             return False
 
     @staticmethod
@@ -377,7 +377,7 @@ class UnifiedColorTypeManager:
             colortypes_data = UnifiedColorTypeManager.get_group_colortypes(context, group_name)
             return sorted(list(colortypes_data.keys()))
         except Exception as e:
-            print(f"❌ Error getting colortypes from group '{group_name}': {e}")
+            print(f"[ERROR] Error getting colortypes from group '{group_name}': {e}")
             return []
 
     @staticmethod
@@ -423,7 +423,7 @@ class UnifiedColorTypeManager:
             
             print("=== END DEBUG ===")
         except Exception as e:
-            print(f"❌ Debug failed: {e}")
+            print(f"[ERROR] Debug failed: {e}")
 
 
     @staticmethod
@@ -504,7 +504,7 @@ class UnifiedColorTypeManager:
             # Always load DEFAULT profiles when explicitly loading DEFAULT group
             UnifiedColorTypeManager.ensure_default_group_has_predefined_types(context)
             if user_groups:
-                print("⚠️ Custom groups detected - but DEFAULT group is being explicitly loaded with full profiles")
+                print("[WARNING] Custom groups detected - but DEFAULT group is being explicitly loaded with full profiles")
         
         colortypes_data = UnifiedColorTypeManager.get_group_colortypes(context, group_name)
 

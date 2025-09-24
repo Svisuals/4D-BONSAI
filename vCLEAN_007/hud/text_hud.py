@@ -65,7 +65,7 @@ class TextHUD:
             )
             
         except Exception as e:
-            print(f"❌ Error in TextHUD.draw: {e}")
+            print(f"[ERROR] Error in TextHUD.draw: {e}")
             import traceback
             traceback.print_exc()
     
@@ -182,7 +182,7 @@ class TextHUD:
                 self.draw_border(bg_x, bg_y, bg_width, bg_height, border_width, border_color)
                 
         except Exception as e:
-            print(f"❌ Error drawing background: {e}")
+            print(f"[ERROR] Error drawing background: {e}")
     
     def draw_text_lines(self, lines, line_dims, base_x, base_y, align_x, align_y, settings, viewport_height):
         """Draw the actual text lines"""
@@ -216,7 +216,7 @@ class TextHUD:
                     current_y -= (spacing + line_dims[i + 1][1])
                     
         except Exception as e:
-            print(f"❌ Error drawing text lines: {e}")
+            print(f"[ERROR] Error drawing text lines: {e}")
     
     def draw_text_with_shadow(self, text, x, y, settings, alignment='LEFT'):
         """Draw text with optional shadow effect"""
@@ -255,7 +255,7 @@ class TextHUD:
             blf.draw(self.font_id, text)
             
         except Exception as e:
-            print(f"❌ Error drawing text with shadow: {e}")
+            print(f"[ERROR] Error drawing text with shadow: {e}")
     
     def draw_solid_background(self, x, y, width, height, color):
         """Draw solid colored background"""
@@ -276,7 +276,7 @@ class TextHUD:
             gpu.state.blend_set('NONE')
             
         except Exception as e:
-            print(f"❌ Error drawing solid background: {e}")
+            print(f"[ERROR] Error drawing solid background: {e}")
     
     def draw_gradient_background(self, x, y, width, height, settings):
         """Draw gradient background"""
@@ -304,7 +304,7 @@ class TextHUD:
                 self.draw_solid_background(x, step_y, width, step_height, color)
                 
         except Exception as e:
-            print(f"❌ Error drawing gradient background: {e}")
+            print(f"[ERROR] Error drawing gradient background: {e}")
     
     def draw_shadow(self, x, y, width, height, settings):
         """Draw drop shadow for background"""
@@ -320,7 +320,7 @@ class TextHUD:
             self.draw_solid_background(shadow_x, shadow_y, width, height, shadow_color)
             
         except Exception as e:
-            print(f"❌ Error drawing shadow: {e}")
+            print(f"[ERROR] Error drawing shadow: {e}")
     
     def draw_border(self, x, y, width, height, border_width, border_color):
         """Draw border around background"""
@@ -349,4 +349,4 @@ class TextHUD:
             gpu.state.blend_set('NONE')
             
         except Exception as e:
-            print(f"❌ Error drawing border: {e}")
+            print(f"[ERROR] Error drawing border: {e}")

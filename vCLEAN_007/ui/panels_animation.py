@@ -114,7 +114,7 @@ class BIM_PT_animation_color_schemes(Panel):
             # NEW: Information about consider_start
             if p.consider_start:
                 info_box = layout.box()
-                info_box.label(text="ℹ️  Start Mode: Elements will maintain start appearance", icon='INFO')
+                info_box.label(text="[INFO]  Start Mode: Elements will maintain start appearance", icon='INFO')
                 info_box.label(text="   throughout the entire animation, ignoring task dates.")
                 info_box.label(text="   Useful for: existing elements, demolition context.")
 
@@ -331,10 +331,10 @@ class BIM_PT_animation_tools(Panel):
                     info_row = box.row()
                     info_row.label(text=f"📅 Schedule: {schedule_start.strftime('%Y-%m-%d')} to {schedule_finish.strftime('%Y-%m-%d')}", icon='TIME')
                     info_row = box.row()
-                    info_row.label(text="ℹ️ Task bars align with schedule dates (independent of animation settings)", icon='INFO')
+                    info_row.label(text="[INFO] Task bars align with schedule dates (independent of animation settings)", icon='INFO')
                 else:
                     info_row = box.row()
-                    info_row.label(text="⚠️ No schedule dates available", icon='ERROR')
+                    info_row.label(text="[WARNING] No schedule dates available", icon='ERROR')
             except Exception:
                 pass
 
@@ -667,7 +667,7 @@ class BIM_PT_animation_tools(Panel):
         row.prop(camera_props, "hide_all_animation_cameras", text="", icon='HIDE_ON' if camera_props.hide_all_animation_cameras else 'HIDE_OFF')
 
     def draw_camera_hud_settings(self, layout):
-        """Dibuja los paneles de configuración para ambos HUDs."""
+        """Dibuja los paneles de configuration para ambos HUDs."""
         camera_props = self.animation_props.camera_orbit
 
         # --- PANEL FOR THE TEXT HUD ---
@@ -914,7 +914,7 @@ class BIM_PT_animation_tools(Panel):
                             active_group = anim_props.animation_group_stack[0].group
                             print(f"🔄 UI: Using FALLBACK to first group: {active_group}")
                         else:
-                            print("❌ UI: No groups available at all")
+                            print("[ERROR] UI: No groups available at all")
                     
                     if active_group:
                         print(f"🎯 UI: Getting colortypes from group: {active_group}")
@@ -951,19 +951,19 @@ class BIM_PT_animation_tools(Panel):
                                             all_colortypes.append(colortype_name)
                                             print(f"🎯 UI: Added custom colortype to list: {colortype_name}")
                         except Exception as e:
-                            print(f"❌ UI: Error getting colortypes from active group {active_group}: {e}")
+                            print(f"[ERROR] UI: Error getting colortypes from active group {active_group}: {e}")
                     else:
                         print("🎯 UI: No active group found (no enabled groups)")
                             
             except Exception as e:
-                print(f"❌ UI: Error getting animation props: {e}")
+                print(f"[ERROR] UI: Error getting animation props: {e}")
                 all_colortypes = []
                 
             print(f"🎯 UI: Total colortypes for settings list: {len(all_colortypes)} - {all_colortypes}")
             
             # Force refresh - make sure we always have the full list
             if not all_colortypes:
-                print("⚠️ UI: No colortypes found, trying alternative method...")
+                print("[WARNING] UI: No colortypes found, trying alternative method...")
                 try:
                     # Fallback: try to get from scene property directly
                     scene = bpy.context.scene
@@ -980,7 +980,7 @@ class BIM_PT_animation_tools(Panel):
                             all_colortypes = [colortype.get('name', '') for colortype in colortype_sets[active_group]['ColorTypes'] if colortype.get('name')]
                             print(f"🎯 UI: Fallback found {len(all_colortypes)} colortypes: {all_colortypes}")
                 except Exception as e:
-                    print(f"❌ UI: Fallback failed: {e}")
+                    print(f"[ERROR] UI: Fallback failed: {e}")
             
             if all_colortypes:
                 # Get current scroll position and hidden colortypes
@@ -1034,7 +1034,7 @@ class BIM_PT_animation_tools(Panel):
                         
                         print(f"🎯 UI: Showing colortype {i}: {colortype_name} (HUD visible: {is_visible_in_hud})")
                     else:
-                        print(f"❌ UI: Index {i} out of range for colortypes list (len: {len(all_colortypes)})")
+                        print(f"[ERROR] UI: Index {i} out of range for colortypes list (len: {len(all_colortypes)})")
                     
             else:
                 colortypes_box.label(text="No colortypes available", icon="INFO")

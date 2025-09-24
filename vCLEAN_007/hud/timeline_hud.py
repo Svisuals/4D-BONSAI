@@ -66,7 +66,7 @@ class TimelineHUD:
         if data.get('is_snapshot', False):
             # Snapshot mode: only need current_date and schedule range
             if not (current_date and full_start and full_end):
-                print("❌ Timeline HUD (Snapshot): Missing current_date or schedule range")
+                print("[ERROR] Timeline HUD (Snapshot): Missing current_date or schedule range")
                 return
             # For snapshot, use full schedule range as display range
             viz_start = full_start
@@ -75,7 +75,7 @@ class TimelineHUD:
         else:
             # Animation mode: need viz range and current_date
             if not (viz_start and viz_finish and current_date):
-                print("❌ Timeline HUD (Animation): Missing required viz_start, viz_finish or current_date")
+                print("[ERROR] Timeline HUD (Animation): Missing required viz_start, viz_finish or current_date")
                 return
         
         # Configuration
@@ -286,7 +286,7 @@ class TimelineHUD:
             gpu.state.blend_set('NONE')
             
         except Exception as e:
-            print(f"❌ Error drawing current date indicator: {e}")
+            print(f"[ERROR] Error drawing current date indicator: {e}")
 
     def draw_synchro_timeline_marks(self, x_start, y_start, bar_w, bar_h, start_date, end_date, zoom_level, color_text, data=None):
         """Draws Synchro 4D Pro style timestamps with lines and texts"""
@@ -343,7 +343,7 @@ class TimelineHUD:
                         
                         # Check if it is within the visible area
                         if x_start <= year_x <= x_start + bar_w:
-                            print(f"🗺️ ✅ Drawing year {year} at x={year_x}")
+                            print(f"🗺️ [DEBUG] Drawing year {year} at x={year_x}")
                             
                             # Vertical year line (full height)
                             year_line_color = (color_text[0], color_text[1], color_text[2], 0.8)
@@ -364,7 +364,7 @@ class TimelineHUD:
                             # Render year text
                             blf.position(self.font_id, text_x, text_y, 0)
                             blf.draw(self.font_id, year_text)
-                            print(f"🗺️ ✅ Year {year} drawn at ({text_x}, {text_y})")
+                            print(f"🗺️ [DEBUG] Year {year} drawn at ({text_x}, {text_y})")
                             years_drawn += 1
                             
                             # Restore original configuration
@@ -372,7 +372,7 @@ class TimelineHUD:
                             blf.color(self.font_id, *color_text)
                             
                         else:
-                            print(f"🗺️ ❌ Year {year} outside visible area (x={year_x})")
+                            print(f"🗺️ [ERROR] Year {year} outside visible area (x={year_x})")
                     else:
                         print(f"🗺️ Year {year} outside time range")
                 
@@ -536,7 +536,7 @@ class TimelineHUD:
                                     week_text = f"W{week_number_display}"
                                     
                             except Exception as e:
-                                print(f"❌ Error calculating synchronized week: {e}")
+                                print(f"[ERROR] Error calculating synchronized week: {e}")
                                 week_text = f"W{week_counter}"
                                 
                             # POSITION EXACTLY ALIGNED with the vertical line
@@ -560,7 +560,7 @@ class TimelineHUD:
                     pass
                     
         except Exception as e:
-            print(f"❌ Error drawing synchro timeline marks: {e}")
+            print(f"[ERROR] Error drawing synchro timeline marks: {e}")
 
     def draw_timeline_line(self, x, y, height, color, width=1.0):
         """Draws a vertical line on the timeline"""
@@ -578,7 +578,7 @@ class TimelineHUD:
             gpu.state.blend_set('NONE')
             
         except Exception as e:
-            print(f"❌ Error drawing timeline line: {e}")
+            print(f"[ERROR] Error drawing timeline line: {e}")
     
     def calculate_timeline_bounds(self, viewport_width, viewport_height, settings):
         """Calculate the bounds of the timeline HUD"""
@@ -638,7 +638,7 @@ class TimelineHUD:
                 self.draw_timeline_border(x, y, width, height, border_color)
                 
         except Exception as e:
-            print(f"❌ Error drawing timeline background: {e}")
+            print(f"[ERROR] Error drawing timeline background: {e}")
     
     def draw_timeline_border(self, x, y, width, height, border_color):
         """Draw border around timeline"""
@@ -661,7 +661,7 @@ class TimelineHUD:
             gpu.state.blend_set('NONE')
             
         except Exception as e:
-            print(f"❌ Error drawing timeline border: {e}")
+            print(f"[ERROR] Error drawing timeline border: {e}")
     
     def draw_timeline_bars(self, data, x, y, width, height, settings):
         """Draw the timeline bars (years, months, weeks)"""
@@ -672,7 +672,7 @@ class TimelineHUD:
             current_date = data.get('current_date')
             
             if not (full_start and full_end):
-                print("⚠️ Timeline: Missing date range data")
+                print("[WARNING] Timeline: Missing date range data")
                 return
             
             # Draw different timeline levels based on settings
@@ -686,7 +686,7 @@ class TimelineHUD:
                 self.draw_week_bars(full_start, full_end, current_date, x, y, width, height, settings)
                 
         except Exception as e:
-            print(f"❌ Error drawing timeline bars: {e}")
+            print(f"[ERROR] Error drawing timeline bars: {e}")
     
     def draw_year_bars(self, full_start, full_end, current_date, x, y, width, height, settings):
         """Draw year-level timeline bars"""
@@ -745,12 +745,12 @@ class TimelineHUD:
                     current_year += 1
                     
                 except Exception as e:
-                    print(f"❌ Error drawing year {current_year}: {e}")
+                    print(f"[ERROR] Error drawing year {current_year}: {e}")
                     current_year += 1
                     continue
                     
         except Exception as e:
-            print(f"❌ Error in draw_year_bars: {e}")
+            print(f"[ERROR] Error in draw_year_bars: {e}")
     
     def draw_month_bars(self, full_start, full_end, current_date, x, y, width, height, settings):
         """Draw month-level timeline bars"""
@@ -812,11 +812,11 @@ class TimelineHUD:
                         current = datetime(current.year, current.month + 1, 1)
                         
                 except Exception as e:
-                    print(f"❌ Error drawing month {current}: {e}")
+                    print(f"[ERROR] Error drawing month {current}: {e}")
                     break
                     
         except Exception as e:
-            print(f"❌ Error in draw_month_bars: {e}")
+            print(f"[ERROR] Error in draw_month_bars: {e}")
     
     def draw_week_bars(self, full_start, full_end, current_date, x, y, width, height, settings):
         """Draw week-level timeline bars"""
@@ -877,13 +877,13 @@ class TimelineHUD:
                     week_number += 1
                     
                 except Exception as e:
-                    print(f"❌ Error drawing week {week_number}: {e}")
+                    print(f"[ERROR] Error drawing week {week_number}: {e}")
                     current += timedelta(days=7)
                     week_number += 1
                     continue
                     
         except Exception as e:
-            print(f"❌ Error in draw_week_bars: {e}")
+            print(f"[ERROR] Error in draw_week_bars: {e}")
     
     def draw_bar(self, x, y, width, height, color):
         """Draw a single timeline bar"""
@@ -907,7 +907,7 @@ class TimelineHUD:
             gpu.state.blend_set('NONE')
             
         except Exception as e:
-            print(f"❌ Error drawing bar: {e}")
+            print(f"[ERROR] Error drawing bar: {e}")
     
     def draw_timeline_label(self, text, x, y, color, small=False):
         """Draw text label on timeline"""
@@ -919,7 +919,7 @@ class TimelineHUD:
             blf.draw(self.font_id, text)
             
         except Exception as e:
-            print(f"❌ Error drawing timeline label '{text}': {e}")
+            print(f"[ERROR] Error drawing timeline label '{text}': {e}")
     
     def draw_gpu_rect(self, x, y, w, h, color):
         """Draws a simple rectangle"""

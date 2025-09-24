@@ -111,23 +111,23 @@ def edit_work_schedule(
                     fallback_id = original_schedules[0].id()
                     props.active_work_schedule_id = fallback_id
                     props.editing_type = "TASKS"
-                    print(f"🎯 EDIT_WORK_SCHEDULE: Preserving original schedule ID {fallback_id} - '{original_schedules[0].Name}'")
+                    print(f"[INFO] EDIT_WORK_SCHEDULE: Preserving original schedule ID {fallback_id} - '{original_schedules[0].Name}'")
                 elif all_schedules:
                     # If there are no originals, use any available schedule
                     fallback_id = all_schedules[0].id()
                     props.active_work_schedule_id = fallback_id
                     props.editing_type = "TASKS"
-                    print(f"🎯 EDIT_WORK_SCHEDULE: Using available schedule ID {fallback_id} - '{all_schedules[0].Name}'")
+                    print(f"[INFO] EDIT_WORK_SCHEDULE: Using available schedule ID {fallback_id} - '{all_schedules[0].Name}'")
                 else:
                     # Only reset if there are really no schedules
                     props.active_work_schedule_id = 0
                     props.editing_type = ""
-                    print("ℹ️ EDIT_WORK_SCHEDULE: No schedules available, resetting")
+                    print("[INFO] EDIT_WORK_SCHEDULE: No schedules available, resetting")
             else:
                 # Only reset if there are really no schedules
                 props.active_work_schedule_id = 0
                 props.editing_type = ""
-                print("ℹ️ EDIT_WORK_SCHEDULE: No schedules available, resetting")
+                print("[INFO] EDIT_WORK_SCHEDULE: No schedules available, resetting")
             
             # Force UI update
             import bpy
@@ -284,7 +284,7 @@ def _auto_sync_task_predefined_type(task_id: int, predefined_type: str) -> None:
         if task_pg:
             # 2. Call central logic to update the data
             UnifiedColorTypeManager.sync_default_group_to_predefinedtype(bpy.context, task_pg)
-            print(f"✅ Auto-Sync: Task {task_id} updated to DEFAULT ColorType '{predefined_type}'.")
+            print(f"[INFO] Auto-Sync: Task {task_id} updated to DEFAULT ColorType '{predefined_type}'.")
 
             # 3. THE KEY PART! Force Properties UI redraw.
             # Blender doesn't always detect changes in nested collections, so we force it.
@@ -294,7 +294,7 @@ def _auto_sync_task_predefined_type(task_id: int, predefined_type: str) -> None:
                         area.tag_redraw()
 
     except Exception as e:
-        print(f"❌ ERROR in _auto_sync_task_predefined_type: {e}")
+        print(f"[ERROR] ERROR in _auto_sync_task_predefined_type: {e}")
 
 
 def edit_task(ifc: type[tool.Ifc], sequence: type[tool.Sequence], task: ifcopenshell.entity_instance) -> None:
@@ -781,7 +781,7 @@ def visualise_work_schedule_date_range(
     # Get time configuration (dates, frames, speed)
     settings = sequence.get_animation_settings()
     if not settings:
-        print("❌ Error: Could not calculate animation configuration")
+        print("[ERROR] Error: Could not calculate animation configuration")
         return
 
 
@@ -811,17 +811,17 @@ def visualise_work_schedule_date_range(
     
     # Warn if there are discrepancies
     if earliest_task_date and earliest_task_date < settings["start"]:
-        print(f"⚠️ Warning: Earliest task starts {(settings['start'] - earliest_task_date).days} days before visualization range")
+        print(f"[WARNING] Warning: Earliest task starts {(settings['start'] - earliest_task_date).days} days before visualization range")
     if latest_task_date and latest_task_date > settings["finish"]:
-        print(f"⚠️ Warning: Latest task ends {(latest_task_date - settings['finish']).days} days after visualization range")
+        print(f"[WARNING] Warning: Latest task ends {(latest_task_date - settings['finish']).days} days after visualization range")
     if out_of_range_count > 0:
-        print(f"⚠️ {out_of_range_count} tasks are completely outside the visualization range")
+        print(f"[WARNING] {out_of_range_count} tasks are completely outside the visualization range")
     # Get animation properties
     animation_props = sequence.get_animation_props()
 
     # If no groups configured, create and use DEFAULT
     if not animation_props.animation_group_stack:
-        print("⚠️ No ColorType groups configured")
+        print("[WARNING] No ColorType groups configured")
         print("   Creating DEFAULT group automatically...")
 
         # Create DEFAULT group with basic ColorTypes
@@ -832,22 +832,22 @@ def visualise_work_schedule_date_range(
         item.group = "DEFAULT"
         item.enabled = True
 
-        print("✅ DEFAULT group added to the stack")
+        print("[INFO] DEFAULT group added to the stack")
 
     # Generate frame information with states
-    print(f"📊 Procesando tareas del cronograma...")
+    print(f"[INFO] Processing schedule tasks...")
     product_frames = sequence.get_animation_product_frames_enhanced(
         work_schedule, settings
     )
 
     if not product_frames:
-        print("⚠️ No products found to animate")
+        print("[WARNING] No products found to animate")
         return
 
-    print(f"✅ {len(product_frames)} productos encontrados")
+    print(f"[INFO] {len(product_frames)} products found")
 
     # ALWAYS use ColorType system (no fallback)
-    print(f"🎬 Applying animation with Animation Color Schemes...")
+    print(f"[INFO] Applying animation with Animation Color Schemes...")
     sequence.animate_objects_with_ColorTypes(settings, product_frames)
 
     # Add additional elements
@@ -855,9 +855,9 @@ def visualise_work_schedule_date_range(
     add_task_bars(sequence)  # Gantt bars (optional)
     sequence.set_object_shading()  # Configure view for colors
 
-    print(f"✅ Animation created: {settings['total_frames']:.0f} frames")
-    print(f"   Desde: {settings['start'].strftime('%Y-%m-%d')}")
-    print(f"   Hasta: {settings['finish'].strftime('%Y-%m-%d')}")
+    print(f"[INFO] Animation created: {settings['total_frames']:.0f} frames")
+    print(f"   From: {settings['start'].strftime('%Y-%m-%d')}")
+    print(f"   To: {settings['finish'].strftime('%Y-%m-%d')}")
 
 def visualise_work_schedule_date(sequence: type[tool.Sequence], work_schedule: ifcopenshell.entity_instance) -> None:
     """Visualizes the schedule state at a specific date.

@@ -180,7 +180,7 @@ class Spatial(bonsai.core.tool.Spatial):
 
         Args:
             products: Iterable de productos IFC (puede ser None)
-            unhide: Si debe mostrar objetos ocultos
+            unhide: Si debe mostrar objects ocultos
         """
         try:
             # Validación de seguridad: manejar None y tipos no iterables
@@ -195,7 +195,7 @@ class Spatial(bonsai.core.tool.Spatial):
                 print(f"Warning: products is not iterable: {type(products)}")
                 return
 
-            # Deseleccionar todos los objetos primero
+            # Deseleccionar todos los objects primero
             bpy.ops.object.select_all(action="DESELECT")
 
             selected_count = 0

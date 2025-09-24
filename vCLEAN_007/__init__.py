@@ -180,65 +180,65 @@ except Exception:
 
 def clear_animation_caches(*args):
     """Clears ALL animation caches when a new file is loaded"""
-    print("🗂️ NEW FILE LOADED: Clearing all animation caches...")
+    print("[INFO] NEW FILE LOADED: Clearing all animation caches...")
 
     try:
-        # 1. Invalidar cache de IFC lookup
+        # 1. Invalidate IFC lookup cache
         from . import ifc_lookup
         ifc_lookup.invalidate_all_lookups()
-        print("✅ IFC lookup cache cleared")
+        print("[INFO] IFC lookup cache cleared")
     except Exception as e:
-        print(f"❌ Could not clear IFC lookup cache: {e}")
+        print(f"[ERROR] Could not clear IFC lookup cache: {e}")
 
     try:
-        # 2. Invalidar cache de performance
+        # 2. Invalidate performance cache
         from . import performance_cache
         performance_cache.invalidate_cache()
-        print("✅ Performance cache cleared")
+        print("[INFO] Performance cache cleared")
     except Exception as e:
-        print(f"❌ Could not clear performance cache: {e}")
+        print(f"[ERROR] Could not clear performance cache: {e}")
 
     try:
-        # 3. Invalidar ColorType cache global
+        # 3. Invalidate global ColorType cache
         from . import colortype_cache
         colortype_cache.clear_global_cache()
-        print("✅ ColorType cache cleared")
+        print("[INFO] ColorType cache cleared")
     except Exception as e:
-        print(f"❌ Could not clear ColorType cache: {e}")
+        print(f"[ERROR] Could not clear ColorType cache: {e}")
 
     try:
-        # 4. Invalidar HUD Legend cache
+        # 4. Invalidate HUD Legend cache
         from . import hud
         hud.invalidate_legend_hud_cache()
-        print("✅ HUD Legend cache cleared")
+        print("[INFO] HUD Legend cache cleared")
     except Exception as e:
-        print(f"❌ Could not clear HUD Legend cache: {e}")
+        print(f"[ERROR] Could not clear HUD Legend cache: {e}")
 
     try:
-        # 5. Limpiar flags de animación activa
+        # 5. Clear active animation flags
         import bpy
         if hasattr(bpy.context, 'scene'):
             if "is_snapshot_mode" in bpy.context.scene:
                 del bpy.context.scene["is_snapshot_mode"]
-                print("✅ Snapshot mode flag cleared")
+                print("[INFO] Snapshot mode flag cleared")
 
             # Reset animation properties
             try:
                 import bonsai.tool as tool
                 anim_props = tool.Sequence.get_animation_props()
                 anim_props.is_animation_created = False
-                print("✅ Animation active flag cleared")
+                print("[INFO] Animation active flag cleared")
             except Exception:
                 pass
     except Exception as e:
-        print(f"❌ Could not clear animation flags: {e}")
+        print(f"[ERROR] Could not clear animation flags: {e}")
 
-    print("🎉 Cache invalidation complete - ready for new project!")
+    print("[INFO] Cache invalidation complete - ready for new project!")
 
 # Register handler to clear caches on file load
 if clear_animation_caches not in bpy.app.handlers.load_post:
     bpy.app.handlers.load_post.append(clear_animation_caches)
-    print("✅ Animation cache invalidation handler registered")
+    print("[INFO] Animation cache invalidation handler registered")
 
 
 def unregister():
@@ -246,9 +246,9 @@ def unregister():
     try:
         if clear_animation_caches in bpy.app.handlers.load_post:
             bpy.app.handlers.load_post.remove(clear_animation_caches)
-            print("🧹 Animation cache invalidation handler removed")
+            print("[INFO] Animation cache invalidation handler removed")
     except Exception as e:
-        print(f"⚠️ Could not remove cache handler: {e}")
+        print(f"[WARNING] Could not remove cache handler: {e}")
 
     # Unregister operators from operators module first
     operators.unregister()

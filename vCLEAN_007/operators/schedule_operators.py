@@ -247,7 +247,7 @@ class AddTaskBars(bpy.types.Operator):
                 anim_props = tool.Sequence.get_animation_props()
                 is_animation_active = getattr(anim_props, 'is_animation_created', False)
                 if is_animation_active:
-                    print("⚠️ Generating task bars during active animation - using safe mode")
+                    print("[WARNING] Generating task bars during active animation - using safe mode")
                     # Continue but with more protections
             except Exception:
                 pass  # If it cannot be verified, continue normally

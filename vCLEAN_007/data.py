@@ -31,12 +31,12 @@ from datetime import datetime, date
 try:
     import numpy as np
     NUMPY_AVAILABLE = True
-    print("📊 NumPy disponible para optimizaciones de rendimiento")
-    print(f"📊 NumPy version: {np.__version__}")
+    print("[INFO] NumPy available for performance optimizations")
+    print(f"[INFO] NumPy version: {np.__version__}")
 except ImportError:
     NUMPY_AVAILABLE = False
-    print("⚠️ NumPy no disponible - usando implementación Python nativa")
-    print("⚠️ Instala NumPy para obtener mejoras de 50-100x en rendimiento: pip install numpy")
+    print("[WARNING] NumPy not available - using native Python implementation")
+    print("[WARNING] Install NumPy for 50-100x performance improvements: pip install numpy")
 
 
 def refresh():
@@ -80,7 +80,7 @@ class SequenceCache:
         cls._processing_locks.clear()
         cls._performance_stats.clear()
         cls._ifc_file_hash = None
-        print("🗑️ SequenceCache: Cache cleared")
+        print("[INFO] SequenceCache: Cache cleared")
     
     @classmethod
     def get_performance_stats(cls) -> Dict[str, Any]:
@@ -132,7 +132,7 @@ class SequenceCache:
             
             # Auto-cleanup if cache gets too large (>100 entries)
             if cache_count > 100:
-                print(f"🧹 Auto-cleanup: Cache has {cache_count} entries, cleaning oldest...")
+                print(f"[INFO] Auto-cleanup: Cache has {cache_count} entries, cleaning oldest...")
                 
                 # Remove oldest 25% of cache entries
                 timestamps_sorted = sorted(cls._cache_timestamps.items(), key=lambda x: x[1])
@@ -143,16 +143,16 @@ class SequenceCache:
                     cls._cache_timestamps.pop(cache_key, None)
                     cls._processing_locks.pop(cache_key, None)
                 
-                print(f"🧹 Auto-cleanup: Removed {entries_to_remove} old cache entries")
+                print(f"[INFO] Auto-cleanup: Removed {entries_to_remove} old cache entries")
                 
                 # Force garbage collection if numpy is available
                 if NUMPY_AVAILABLE:
                     import gc
                     gc.collect()
-                    print("🧹 Auto-cleanup: Forced garbage collection")
+                    print("[INFO] Auto-cleanup: Forced garbage collection")
                     
         except Exception as e:
-            print(f"⚠️ Auto-cleanup error (non-critical): {e}")
+            print(f"[WARNING] Auto-cleanup error (non-critical): {e}")
     
     @classmethod
     def _get_ifc_file_hash(cls) -> Optional[str]:
@@ -233,11 +233,11 @@ class SequenceCache:
         
         # Prevent infinite loops
         if cache_key in cls._processing_locks:
-            print(f"⚠️ SequenceCache: Already processing {cache_key}, returning None to prevent loop")
+            print(f"[WARNING] SequenceCache: Already processing {cache_key}, returning None to prevent loop")
             return None
         
         cls._processing_locks[cache_key] = True
-        print(f"🔄 SequenceCache: Computing schedule dates for {work_schedule_id} ({date_source})")
+        print(f"[INFO] SequenceCache: Computing schedule dates for {work_schedule_id} ({date_source})")
         start_time = time.time()
         
         try:
@@ -299,12 +299,12 @@ class SequenceCache:
             cls._set_cache(cache_key, result)
             
             elapsed = time.time() - start_time
-            print(f"✅ SequenceCache: Cached {len(tasks_dates)} task dates in {elapsed:.3f}s")
+            print(f"[INFO] SequenceCache: Cached {len(tasks_dates)} task dates in {elapsed:.3f}s")
             
             return result
             
         except Exception as e:
-            print(f"❌ SequenceCache: Error computing schedule dates: {e}")
+            print(f"[ERROR] SequenceCache: Error computing schedule dates: {e}")
             return None
         finally:
             # Always release the processing lock
@@ -322,11 +322,11 @@ class SequenceCache:
         
         # Prevent infinite loops
         if cache_key in cls._processing_locks:
-            print(f"⚠️ SequenceCache: Already processing {cache_key}, returning None to prevent loop")
+            print(f"[WARNING] SequenceCache: Already processing {cache_key}, returning None to prevent loop")
             return None
         
         cls._processing_locks[cache_key] = True
-        print(f"🔄 SequenceCache: Computing task products for {work_schedule_id}")
+        print(f"[INFO] SequenceCache: Computing task products for {work_schedule_id}")
         start_time = time.time()
         
         try:
@@ -377,12 +377,12 @@ class SequenceCache:
             
             elapsed = time.time() - start_time
             total_products = sum(len(products) for products in task_products.values())
-            print(f"✅ SequenceCache: Cached {len(task_products)} tasks with {total_products} products in {elapsed:.3f}s")
+            print(f"[INFO] SequenceCache: Cached {len(task_products)} tasks with {total_products} products in {elapsed:.3f}s")
             
             return task_products
             
         except Exception as e:
-            print(f"❌ SequenceCache: Error computing task products: {e}")
+            print(f"[ERROR] SequenceCache: Error computing task products: {e}")
             return None
         finally:
             # Always release the processing lock
@@ -403,7 +403,7 @@ class SequenceCache:
         if cls._is_cache_valid(cache_key):
             return cls._cache[cache_key]
         
-        print(f"🔄 SequenceCache: Computing task hierarchy for {work_schedule_id}")
+        print(f"[INFO] SequenceCache: Computing task hierarchy for {work_schedule_id}")
         start_time = time.time()
         
         try:
@@ -471,12 +471,12 @@ class SequenceCache:
             cls._set_cache(cache_key, result)
             
             elapsed = time.time() - start_time
-            print(f"✅ SequenceCache: Cached hierarchy for {len(task_tree)} tasks in {elapsed:.3f}s")
+            print(f"[INFO] SequenceCache: Cached hierarchy for {len(task_tree)} tasks in {elapsed:.3f}s")
             
             return result
             
         except Exception as e:
-            print(f"❌ SequenceCache: Error computing task hierarchy: {e}")
+            print(f"[ERROR] SequenceCache: Error computing task hierarchy: {e}")
             return None
     
     @classmethod
@@ -505,7 +505,7 @@ class SequenceCache:
         if cls._is_cache_valid(cache_key):
             return cls._cache[cache_key]
         
-        print(f"🚀 NumPy: Computing vectorized task states for {work_schedule_id}")
+        print(f"[INFO] NumPy: Computing vectorized task states for {work_schedule_id}")
         start_time = time.time()
         
         try:
@@ -592,7 +592,7 @@ class SequenceCache:
             
             elapsed = time.time() - start_time
             items_per_sec = int(n_tasks / elapsed) if elapsed > 0 else 0
-            print(f"🚀 NumPy: Processed {n_tasks} tasks in {elapsed:.3f}s (vectorized - ~{items_per_sec}/s)")
+            print(f"[INFO] NumPy: Processed {n_tasks} tasks in {elapsed:.3f}s (vectorized - ~{items_per_sec}/s)")
             
             # Track performance metrics
             cls._track_performance("vectorized_task_states", elapsed, n_tasks, "NumPy")
@@ -600,7 +600,7 @@ class SequenceCache:
             return result
             
         except Exception as e:
-            print(f"❌ NumPy: Error in vectorized computation: {e}")
+            print(f"[ERROR] NumPy: Error in vectorized computation: {e}")
             return None
     
     @classmethod
@@ -636,7 +636,7 @@ class SequenceCache:
             return interpolated_dates
             
         except Exception as e:
-            print(f"❌ NumPy: Error in date interpolation: {e}")
+            print(f"[ERROR] NumPy: Error in date interpolation: {e}")
             return None
     
     @classmethod
@@ -662,7 +662,7 @@ class SequenceCache:
         if cls._is_cache_valid(cache_key):
             return cls._cache[cache_key]
         
-        print(f"🚀 NumPy: Computing vectorized frame processing for {work_schedule_id}")
+        print(f"[INFO] NumPy: Computing vectorized frame processing for {work_schedule_id}")
         start_time = time.time()
         
         try:
@@ -731,7 +731,7 @@ class SequenceCache:
             
             elapsed = time.time() - start_time
             frames_per_sec = int(n_frames / elapsed) if elapsed > 0 else 0
-            print(f"🚀 NumPy: Processed {n_frames} frames in {elapsed:.3f}s (~{frames_per_sec}/s)")
+            print(f"[INFO] NumPy: Processed {n_frames} frames in {elapsed:.3f}s (~{frames_per_sec}/s)")
             
             # Track performance metrics
             cls._track_performance("vectorized_frame_processing", elapsed, n_frames, "NumPy")
@@ -739,7 +739,7 @@ class SequenceCache:
             return frame_results
             
         except Exception as e:
-            print(f"❌ NumPy: Error in vectorized frame processing: {e}")
+            print(f"[ERROR] NumPy: Error in vectorized frame processing: {e}")
             return None
 
 

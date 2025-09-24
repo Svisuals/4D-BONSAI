@@ -45,7 +45,7 @@ except Exception:
                 try:
                     setattr(task_obj, "selected_colortype_in_active_group", value)
                 except Exception as e:
-                    print(f"❌ Fallback safe_set failed: {e}")
+                    print(f"[ERROR] Fallback safe_set failed: {e}")
         prop = PropFallback()
 
 # Import helper functions from other modules
@@ -225,24 +225,24 @@ class RemoveWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
         schedule_to_remove_id = self.work_schedule
         schedule_to_remove = tool.Ifc.get().by_id(schedule_to_remove_id)
         
-        print(f"\n🔍 === DEBUGGING SCHEDULE DELETION ===")
-        print(f"🗑️ Deleting schedule ID {schedule_to_remove_id} - '{schedule_to_remove.Name}'")
+        print(f"\n[DEBUG] === DEBUGGING SCHEDULE DELETION ===")
+        print(f"[INFO] Deleting schedule ID {schedule_to_remove_id} - '{schedule_to_remove.Name}'")
         
         # BEFORE deleting: Inspect the state
         ifc_file = tool.Ifc.get()
         all_schedules_before = ifc_file.by_type("IfcWorkSchedule")
         
-        print(f"📊 BEFORE - Total schedules: {len(all_schedules_before)}")
+        print(f"[INFO] BEFORE - Total schedules: {len(all_schedules_before)}")
         for ws in all_schedules_before:
             tasks = ifcopenshell.util.sequence.get_root_tasks(ws)
-            print(f"  📅 '{ws.Name}' (ID:{ws.id()}) - {len(tasks)} root tasks")
+            print(f"  [INFO] '{ws.Name}' (ID:{ws.id()}) - {len(tasks)} root tasks")
             for i, task in enumerate(tasks[:3]):  # Only first 3 tasks
-                print(f"    📝 Task {i+1}: '{task.Name}' (ID:{task.id()})")
+                print(f"    [INFO] Task {i+1}: '{task.Name}' (ID:{task.id()})")
         
         # Current active schedule
         ws_props = tool.Sequence.get_work_schedule_props()
         current_active = ws_props.active_work_schedule_id
-        print(f"🎯 Current active schedule: {current_active}")
+        print(f"[INFO] Current active schedule: {current_active}")
         
         # Delete the schedule (original operation)
         core.remove_work_schedule(tool.Ifc, work_schedule=schedule_to_remove)
@@ -250,22 +250,22 @@ class RemoveWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
         # AFTER deleting: Inspect the state
         all_schedules_after = ifc_file.by_type("IfcWorkSchedule")
         
-        print(f"📊 AFTER - Total schedules: {len(all_schedules_after)}")
+        print(f"[INFO] AFTER - Total schedules: {len(all_schedules_after)}")
         for ws in all_schedules_after:
             try:
                 tasks = ifcopenshell.util.sequence.get_root_tasks(ws)
-                print(f"  📅 '{ws.Name}' (ID:{ws.id()}) - {len(tasks)} root tasks")
+                print(f"  [INFO] '{ws.Name}' (ID:{ws.id()}) - {len(tasks)} root tasks")
                 for i, task in enumerate(tasks[:3]):  # Only first 3 tasks
-                    print(f"    📝 Task {i+1}: '{task.Name}' (ID:{task.id()})")
+                    print(f"    [INFO] Task {i+1}: '{task.Name}' (ID:{task.id()})")
             except Exception as e:
-                print(f"  ❌ Error inspecting '{ws.Name}': {e}")
+                print(f"  [ERROR] Error inspecting '{ws.Name}': {e}")
         
         # Check active schedule after deletion
         current_active_after = ws_props.active_work_schedule_id
         print(f"🎯 Active schedule after: {current_active_after}")
         
-        print(f"✅ Schedule deleted: ID {schedule_to_remove_id}")
-        print(f"🔍 === END DELETION DEBUGGING ===\n")
+        print(f"[INFO] Schedule deleted: ID {schedule_to_remove_id}")
+        print(f"[DEBUG] === END DELETION DEBUGGING ===\n")
 
 
 class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
@@ -279,7 +279,7 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
         import ifcopenshell.util.sequence
         
         # Take a snapshot BEFORE capturing to ensure everything is saved
-        print(f"🔄 Forcing full snapshot before duplicating...")
+        print(f"[INFO] Forcing full snapshot before duplicating...")
         from .filter_operators import snapshot_all_ui_state
         snapshot_all_ui_state(context)
         
@@ -287,18 +287,18 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
         source_schedule = tool.Ifc.get().by_id(self.work_schedule)
         source_colortype_config = self._capture_schedule_colortype_config(context, source_schedule)
         
-        print(f"\n🔍 === DEBUGGING SCHEDULE DUPLICATION ===")
-        print(f"📋 Duplicating schedule '{source_schedule.Name}' (ID:{source_schedule.id()})")
+        print(f"\n[DEBUG] === DEBUGGING SCHEDULE DUPLICATION ===")
+        print(f"[INFO] Duplicating schedule '{source_schedule.Name}' (ID:{source_schedule.id()})")
         
         # BEFORE duplicating: Inspect the state
         ifc_file = tool.Ifc.get()
         all_schedules_before = ifc_file.by_type("IfcWorkSchedule")
         source_tasks = ifcopenshell.util.sequence.get_root_tasks(source_schedule)
         
-        print(f"📊 BEFORE - Total schedules: {len(all_schedules_before)}")
-        print(f"📝 Source schedule has {len(source_tasks)} root tasks:")
+        print(f"[INFO] BEFORE - Total schedules: {len(all_schedules_before)}")
+        print(f"[INFO] Source schedule has {len(source_tasks)} root tasks:")
         for i, task in enumerate(source_tasks[:3]):  # Only first 3 tasks
-            print(f"  📝 Task {i+1}: '{task.Name}' (ID:{task.id()})")
+            print(f"  [INFO] Task {i+1}: '{task.Name}' (ID:{task.id()})")
         
         # 2. Execute the copy logic that now creates a duplicate in the IFC.
         core.copy_work_schedule(tool.Sequence, work_schedule=source_schedule)
@@ -306,7 +306,7 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
         # AFTER duplicating: Inspect the state
         all_schedules_after = ifc_file.by_type("IfcWorkSchedule")
         
-        print(f"📊 AFTER - Total schedules: {len(all_schedules_after)}")
+        print(f"[INFO] AFTER - Total schedules: {len(all_schedules_after)}")
         
         # Find the newly duplicated schedule
         new_schedules = [ws for ws in all_schedules_after if ws.id() not in [s.id() for s in all_schedules_before]]
@@ -317,9 +317,9 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
             print(f"🆕 Duplicated schedule: '{duplicate_schedule.Name}' (ID:{duplicate_schedule.id()})")
             print(f"📝 Duplicated schedule has {len(duplicate_tasks)} root tasks:")
             for i, task in enumerate(duplicate_tasks[:3]):  # Only first 3 tasks
-                print(f"  📝 Task {i+1}: '{task.Name}' (ID:{task.id()})")
+                print(f"  [INFO] Task {i+1}: '{task.Name}' (ID:{task.id()})")
         else:
-            print("❌ No duplicated schedule found!")
+            print("[ERROR] No duplicated schedule found!")
         
         # Verify if the tasks have different IDs
         if new_schedules and source_tasks:
@@ -331,7 +331,7 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
                 if source_tasks[0].id() == duplicate_tasks[0].id():
                     print("🚨 PROBLEM!!! Tasks share the same ID!")
                 else:
-                    print("✅ Tasks have different IDs")
+                    print("[DEBUG] Tasks have different IDs")
         
         print(f"🔍 === END DUPLICATION DEBUGGING ===\n")
 
@@ -384,10 +384,10 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
             try:
                 tprops = tool.Sequence.get_task_tree_props()
                 if not tprops:
-                    print(f"❌ Could not get task_tree_props")
+                    print(f"[ERROR] Could not get task_tree_props")
                     return {}
                 
-                print(f"✅ task_tree_props obtained successfully")
+                print(f"[DEBUG] task_tree_props obtained successfully")
                 
                 # Examine the complete structure of tprops
                 print(f"🔎 Structure of tprops:")
@@ -446,7 +446,7 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
                     # Find the task in the UI
                     if task_id in task_id_to_ui:
                         ui_task = task_id_to_ui[task_id]
-                        print(f"    ✅ Found in UI")
+                        print(f"    [DEBUG] Found in UI")
                         
                         # Capture color groups DIRECTLY
                         groups_list = []
@@ -499,10 +499,10 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
                             "is_expanded": getattr(ui_task, 'is_expanded', False),
                         }
                         
-                        print(f"    ✅ Configuration captured: {len(groups_list)} groups, active={use_active}")
+                        print(f"    [DEBUG] Configuration captured: {len(groups_list)} groups, active={use_active}")
                         
                     else:
-                        print(f"    ❌ Task {task_id} '{task_name}' NOT found in UI")
+                        print(f"    [ERROR] Task {task_id} '{task_name}' NOT found in UI")
                         print(f"       Available IDs in UI: {list(task_id_to_ui.keys())}")
                 
                 print(f"\n🎨 === DIRECT CAPTURE SUMMARY ===")
@@ -521,13 +521,13 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
                 return config
                 
             except Exception as ui_error:
-                print(f"❌ Error capturing from UI: {ui_error}")
+                print(f"[ERROR] Error capturing from UI: {ui_error}")
                 import traceback
                 traceback.print_exc()
                 return {}
             
         except Exception as e:
-            print(f"❌ General error during capture: {e}")
+            print(f"[ERROR] General error during capture: {e}")
             import traceback
             traceback.print_exc()
             return {}
@@ -543,7 +543,7 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
             print(f"🔄🔄🔄 === STARTING EXHAUSTIVE APPLICATION ===")
             
             if not source_config:
-                print(f"❌ source_config is empty, nothing to apply")
+                print(f"[ERROR] source_config is empty, nothing to apply")
                 return
             
             print(f"📊 source_config tiene {len(source_config)} entradas")
@@ -559,10 +559,10 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
                 print(f"  - {schedule.id()}: '{schedule_name}'")
                 if schedule_name and schedule_name.startswith("Copy of "):
                     duplicate_schedule = schedule
-                    print(f"    ✅ This is the duplicated schedule")
+                    print(f"    [DEBUG] This is the duplicated schedule")
             
             if not duplicate_schedule:
-                print("❌ No duplicated schedule found")
+                print("[ERROR] No duplicated schedule found")
                 return
             
             # Get all tasks from the duplicated schedule
@@ -615,7 +615,7 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
                         config_data = source_config[source_task_id_str].copy()
                         duplicate_config[target_task_id_str] = config_data
                         
-                        print(f"  ✅ ColorType copied successfully")
+                        print(f"  [DEBUG] ColorType copied successfully")
                         print(f"    📁 Keys in original config: {list(config_data.keys())}")
 
                         # Verify structure in detail
@@ -633,7 +633,7 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
                                 if group_name == "DEFAULT":
                                     print(f"      🔍 DEFAULT DETECTED: enabled={enabled}, value='{value}'")
                         else:
-                            print(f"    ❌ 'groups' field NOT found in configuration")
+                            print(f"    [ERROR] 'groups' field NOT found in configuration")
                         
                         # Verify active checkbox
                         active = config_data.get("active", False)
@@ -642,13 +642,13 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
                         print(f"    📋 Selected value: '{selected}'")
                         
                     else:
-                        print(f"  ❌ Source ID {source_task_id_str} NOT found in source_config")
+                        print(f"  [ERROR] Source ID {source_task_id_str} NOT found in source_config")
                         print(f"      Available IDs: {list(source_config.keys())}")
                         
                 print(f"🎨 Exact mapping result: {len(duplicate_config)} configurations transferred")
 
             else:
-                print(f"⚠️ No exact mapping, using fallback method by Identification")
+                print(f"[WARNING] No exact mapping, using fallback method by Identification")
                 # Fallback: mapping by Identification (previous method)
                 for source_task_id, config_data in source_config.items():
                     print(f"🔍 Searching for correspondence for source task {source_task_id}")
@@ -658,19 +658,19 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
                         duplicate_task_id = str(duplicate_task.id())
                         if duplicate_task_id not in duplicate_config:
                             duplicate_config[duplicate_task_id] = config_data.copy() # pyright: ignore[reportUnusedVariable]
-                            print(f"  ✅ Assigned by Identification '{identification}': {source_task_id} → {duplicate_task_id}")
+                            print(f"  [DEBUG] Assigned by Identification '{identification}': {source_task_id} → {duplicate_task_id}")
                             break
                 
                 # If there are not enough mappings by Identification, apply sequentially
                 if len(duplicate_config) < len(source_config):
-                    print(f"⚠️ Insufficient mapping by Identification, applying sequentially")
+                    print(f"[WARNING] Insufficient mapping by Identification, applying sequentially")
                     duplicate_task_ids = [str(task.id()) for task in all_duplicate_tasks]
                     source_configs = list(source_config.values())
                     
                     for i, duplicate_task_id in enumerate(duplicate_task_ids):
                         if duplicate_task_id not in duplicate_config and i < len(source_configs): # pyright: ignore[reportUnusedVariable]
                             duplicate_config[duplicate_task_id] = source_configs[i].copy()
-                            print(f"  ✅ Asignado secuencialmente: índice {i} → {duplicate_task_id}")
+                            print(f"  [INFO] Assigned sequentially: index {i} → {duplicate_task_id}")
             
             print(f"\n📊 === FINAL CONFIGURATION RESULT ===")
             print(f"Total configurations to apply: {len(duplicate_config)}")
@@ -695,7 +695,7 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
             
             config_json = json.dumps(duplicate_config)
             context.scene[snap_key_duplicate] = config_json # pyright: ignore[reportUnusedVariable]
-            print(f"✅ Saved to snapshot: {len(config_json)} characters")
+            print(f"[DEBUG] Saved to snapshot: {len(config_json)} characters")
             
             # Also update the general cache
             try:
@@ -703,19 +703,19 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
                 cache_data = json.loads(cache_raw) if cache_raw else {}
                 cache_data.update(duplicate_config)
                 context.scene[cache_key] = json.dumps(cache_data) # pyright: ignore[reportUnusedVariable]
-                print(f"✅ General cache updated")
+                print(f"[DEBUG] General cache updated")
             except Exception as cache_error:
-                print(f"⚠️ Error updating general cache: {cache_error}")
+                print(f"[WARNING] Error updating general cache: {cache_error}")
                 context.scene[cache_key] = json.dumps(duplicate_config)
-                print(f"✅ General cache recreated")
+                print(f"[DEBUG] General cache recreated")
             
             # Verify that it was actually saved
             verification = context.scene.get(snap_key_duplicate, "")
             if verification:
                 verification_data = json.loads(verification)
-                print(f"✅ Verification: {len(verification_data)} entries saved correctly")
+                print(f"[DEBUG] Verification: {len(verification_data)} entries saved correctly")
             else:
-                print(f"❌ ERROR: Could not verify save")
+                print(f"[ERROR] ERROR: Could not verify save")
             
             print(f"🎨 Applied ColorType config to {len(duplicate_config)} tasks in duplicated schedule '{duplicate_schedule.Name}'") # pyright: ignore[reportUnusedVariable]
             
@@ -738,7 +738,7 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
                     # Restore the configuration in the UI
                     print(f"🔄 Executing restore_persistent_task_state...")
                     restore_persistent_task_state(context)
-                    print(f"✅ restore_persistent_task_state completed")
+                    print(f"[DEBUG] restore_persistent_task_state completed")
                     
                     # Switch back to the original schedule
                     if original_active_id != 0:
@@ -747,19 +747,19 @@ class CopyWorkSchedule(bpy.types.Operator, tool.Ifc.Operator):
                         original_schedule = tool.Ifc.get().by_id(original_active_id) # pyright: ignore[reportUnusedVariable]
                         tool.Sequence.load_task_tree(original_schedule)
                     
-                    print(f"✅ ColorType configuration loaded into duplicated schedule UI")
+                    print(f"[DEBUG] ColorType configuration loaded into duplicated schedule UI")
                     
                 except Exception as ui_error:
-                    print(f"❌ Error loading configuration into UI: {ui_error}")
+                    print(f"[ERROR] Error loading configuration into UI: {ui_error}")
                     import traceback
                     traceback.print_exc()
             else:
-                print(f"❌ No configuration to load into UI") # pyright: ignore[reportUnusedVariable]
+                print(f"[ERROR] No configuration to load into UI") # pyright: ignore[reportUnusedVariable]
             
             print(f"🎨 === ColorType duplication process COMPLETED ===")
 
         except Exception as e:
-            print(f"❌ Error general aplicando ColorType config: {e}")
+            print(f"[ERROR] General error applying ColorType config: {e}")
             import traceback
             traceback.print_exc()
 
@@ -1124,7 +1124,7 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                             colortype_cache[task_key] = tool.Sequence.get_assigned_ColorType_for_task(
                                 task, animation_props, active_group_name)
                         except Exception as e:
-                            print(f"⚠️ Error getting ColorType for task {task_key}: {e}")
+                            print(f"[WARNING] Error getting ColorType for task {task_key}: {e}")
                             colortype_cache[task_key] = None
 
                     ColorType = colortype_cache[task_key]
@@ -1159,7 +1159,7 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                             print(f"   PRIORITY MODE: Using active range {active_range} for START state")
                             if active_range[1] >= active_range[0]:
                                 visibility_ops.append({'obj': obj, 'frame': active_range[0], 'hide': False})
-                                print(f"      ✅ PRIORITY MODE: ADDED VISIBILITY OP: {obj.name} hide=False at frame {active_range[0]}")
+                                print(f"      [DEBUG] PRIORITY MODE: ADDED VISIBILITY OP: {obj.name} hide=False at frame {active_range[0]}")
 
                                 # START COLOR using REAL ColorType
                                 use_original = getattr(ColorType, 'use_start_original_color', False)
@@ -1170,7 +1170,7 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                                     transparency = getattr(ColorType, 'start_transparency', 0.0)
                                     color = [start_color[0], start_color[1], start_color[2], 1.0 - transparency]
                                 color_ops.append({'obj': obj, 'frame': active_range[0], 'color': color})
-                                print(f"      ✅ PRIORITY MODE: ADDED COLOR OP: {obj.name} at frame {active_range[0]}")
+                                print(f"      [DEBUG] PRIORITY MODE: ADDED COLOR OP: {obj.name} at frame {active_range[0]}")
                             continue  # Skip normal logic for priority mode
 
                         # START state with REAL ColorType
@@ -1184,7 +1184,7 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                                # If consider_start is enabled, start from frame 0
                                 start_frame = 0 if consider_start else before_start[0]
                                 visibility_ops.append({'obj': obj, 'frame': start_frame, 'hide': False})
-                                print(f"      ✅ ADDED VISIBILITY OP: {obj.name} hide=False at frame {start_frame} (consider_start={consider_start})")
+                                print(f"      [DEBUG] ADDED VISIBILITY OP: {obj.name} hide=False at frame {start_frame} (consider_start={consider_start})")
                            
                                 # START COLOR using REAL ColorType
                                 use_original = getattr(ColorType, 'use_start_original_color', False)
@@ -1196,10 +1196,10 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                                     color = [start_color[0], start_color[1], start_color[2], 1.0 - transparency]
 
                                 color_ops.append({'obj': obj, 'frame': start_frame, 'color': color})
-                                print(f"      ✅ ADDED COLOR OP: {obj.name} START color at frame {start_frame}") 
+                                print(f"      [DEBUG] ADDED COLOR OP: {obj.name} START color at frame {start_frame}") 
                                        
                             else:
-                                print(f"      ❌ NOT ADDING VISIBILITY OP: object should stay hidden")    
+                                print(f"      [ERROR] NOT ADDING VISIBILITY OP: object should stay hidden")    
 
                         # ACTIVE state with REAL ColorType
                         active = states.get("active", (0, -1))
@@ -1220,7 +1220,7 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
 
                             if not consider_end:
                                 # If consider_end=False, hide objects at END phase (like snapshot logic)
-                                print(f"      ✅ HIDING OBJECT: {obj.name} at frame {after_end[0]} (consider_end=False)")
+                                print(f"      [DEBUG] HIDING OBJECT: {obj.name} at frame {after_end[0]} (consider_end=False)")
                                 visibility_ops.append({'obj': obj, 'frame': after_end[0], 'hide': True})
                             else:
                                 should_hide_at_end = getattr(ColorType, 'hide_at_end', False)
@@ -1290,7 +1290,7 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                     op['obj'].keyframe_insert(data_path="hide_render", frame=op['frame'])
                     executed_ops += 1
 
-            print(f"✅ Executed {executed_ops} visibility_ops")
+            print(f"[DEBUG] Executed {executed_ops} visibility_ops")
 
             for op in color_ops:
                 if op['obj'] in assigned_objects: # pyright: ignore[reportUnboundVariable]
@@ -1301,11 +1301,11 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
             opt_total = time.time() - opt_start
 
             print(f"⚡ Executed {len(visibility_ops)} visibilities + {len(color_ops)} colors in {exec_time:.3f}s")
-            print(f"✅ Complete system applied in {opt_total:.3f}s")
+            print(f"[DEBUG] Complete system applied in {opt_total:.3f}s")
 
             anim_time = time.time() - anim_start
             print(f"🎬 DIRECT SCRIPT ANIMATION COMPLETED: {anim_time:.2f}s")
-            print("✅ Optimized animation applied (core only, like the script)")
+            print("[DEBUG] Optimized animation applied (core only, like the script)")
 
             # Ensure we are at frame 0 and FORCE objects to be hidden
             context.scene.frame_set(0)
@@ -1326,8 +1326,8 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
             visible_check = sum(1 for obj in assigned_objects if not obj.hide_viewport)
             hidden_check = sum(1 for obj in assigned_objects if obj.hide_viewport)
             print(f"🔍 FINAL VERIFICATION (FRAME {current_frame}):")
-            print(f"   ✅ Hidden objects: {hidden_check}")
-            print(f"   ❌ Visible objects: {visible_check}")
+            print(f"   [DEBUG] Hidden objects: {hidden_check}")
+            print(f"   [ERROR] Visible objects: {visible_check}")
 
             if visible_check == 0:
                 print("🎉 SUCCESS: All objects hidden in viewport at frame 0")
@@ -1335,16 +1335,16 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
             # Only basic functionalities to avoid crash
             # Add functionalities one by one to identify the cause of the crash
 
-            print("⚠️ CRASH PREVENTION: Only adding basic functionalities")
+            print("[WARNING] CRASH PREVENTION: Only adding basic functionalities")
 
             # BÁSICO 1: Text animation handler (SAFE - no auto-arrange)
             print("🔧🔧 [DEBUG] OPERATOR: About to call add_text_animation_handler")
             try:
                 tool.Sequence.add_text_animation_handler(settings)
-                print("✅ Text animation handler added (SAFE MODE)")
-                print("⚠️ Auto-arrange disabled to prevent crashes")
+                print("[DEBUG] Text animation handler added (SAFE MODE)")
+                print("[WARNING] Auto-arrange disabled to prevent crashes")
             except Exception as e:
-                print(f"❌ Text animation handler failed: {e}")
+                print(f"[ERROR] Text animation handler failed: {e}")
                 import traceback
                 traceback.print_exc()
 
@@ -1355,9 +1355,9 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
 
             try:
                 tool.Sequence.set_object_shading()
-                print("✅ Viewport shading configured (exact copy from current system)")
+                print("[DEBUG] Viewport shading configured (exact copy from current system)")
             except Exception as e:
-                print(f"❌ Viewport shading failed: {e}")
+                print(f"[ERROR] Viewport shading failed: {e}")
 
             try:
                 anim_props = tool.Sequence.get_animation_props()
@@ -1390,9 +1390,9 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                             if area.type == 'VIEW_3D':
                                 area.tag_redraw()
 
-                print("✅ Collection visibility configured (exact copy from current system)")
+                print("[DEBUG] Collection visibility configured (exact copy from current system)")
             except Exception as e: # pyright: ignore[reportUnusedVariable]
-                print(f"❌ Collection visibility failed: {e}")
+                print(f"[ERROR] Collection visibility failed: {e}")
 
             # SAFE 5: HUD Legend profile restoration
             try:
@@ -1404,11 +1404,11 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                     # Invalidate legend HUD cache
                     from ..hud import invalidate_legend_hud_cache
                     invalidate_legend_hud_cache()
-                    print("✅ HUD Legend profiles restored")
+                    print("[DEBUG] HUD Legend profiles restored")
                 else:
-                    print("⚠️ Animation props not available")
+                    print("[WARNING] Animation props not available")
             except Exception as e:
-                print(f"❌ HUD Legend restoration failed: {e}")
+                print(f"[ERROR] HUD Legend restoration failed: {e}")
 
             # SAFE 6: 3D Legend HUD support - MOVED AFTER HUD INITIALIZATION
 
@@ -1416,14 +1416,14 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
             try:
                 if hasattr(tool.Sequence, 'setup_camera_360_support'):
                     tool.Sequence.setup_camera_360_support()
-                    print("✅ Camera 360/pingpong support configured")
+                    print("[DEBUG] Camera 360/pingpong support configured")
                 else:
-                    print("⚠️ Camera 360 support method not available")
+                    print("[WARNING] Camera 360 support method not available")
             except Exception as e:
-                print(f"❌ Camera 360 support failed: {e}")
+                print(f"[ERROR] Camera 360 support failed: {e}")
 
             # Revert to the stable version without batch creation
-            print("⚠️ Task bars functionality DISABLED (reverting to stable version)")
+            print("[WARNING] Task bars functionality DISABLED (reverting to stable version)")
 
             # The camera will only be created when the user specifies it via camera_action
 
@@ -1434,13 +1434,13 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                 if settings and settings.get("start") and settings.get("finish"):
                     print("🎬 Auto-configuring HUD Compositor for high-quality renders...")
                     bpy.ops.bim.setup_hud_compositor()
-                    print("✅ HUD Compositor auto-configured successfully")
+                    print("[DEBUG] HUD Compositor auto-configured successfully")
                     print("📹 Regular renders (Ctrl+F12) will now include HUD overlay")
                 else:  # Fallback to Viewport HUD if there is no timeline
                     bpy.ops.bim.enable_schedule_hud()
-                print("✅ HUD setup completed (exact copy from current system)")
+                print("[DEBUG] HUD setup completed (exact copy from current system)")
             except Exception as e:
-                print(f"⚠️ Auto-setup of HUD failed: {e}. Falling back to Viewport HUD.")
+                print(f"[WARNING] Auto-setup of HUD failed: {e}. Falling back to Viewport HUD.")
                 try:
                     bpy.ops.bim.enable_schedule_hud()
                 except Exception:
@@ -1461,13 +1461,13 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                     if legend_enabled:
                         print("🎨 3D Legend HUD enabled - attempting to create...")
                         bpy.ops.bim.setup_3d_legend_hud()
-                        print("✅ 3D Legend HUD created successfully")
+                        print("[DEBUG] 3D Legend HUD created successfully")
                     else:
                         print("📋 3D Legend HUD ready (enable via checkbox when needed)")
                 else:
-                    print("⚠️ Animation props not available for 3D Legend HUD")
+                    print("[WARNING] Animation props not available for 3D Legend HUD")
             except Exception as e:
-                print(f"⚠️ 3D Legend HUD setup failed: {e}")
+                print(f"[WARNING] 3D Legend HUD setup failed: {e}")
 
             # --- 3D TEXTS CREATION ---
             try:
@@ -1512,13 +1512,13 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                 _ensure_local_text_settings_on_obj(text_obj, settings)
 
             except Exception as e:
-                print(f"⚠️ Could not create schedule name text: {e}")
+                print(f"[WARNING] Could not create schedule name text: {e}")
 
             # Auto-arrange texts to default layout after creation
             try:
                 bpy.ops.bim.arrange_schedule_texts()
             except Exception as e:
-                print(f"⚠️ Could not auto-arrange schedule texts: {e}")
+                print(f"[WARNING] Could not auto-arrange schedule texts: {e}")
 
             # --- PARENT TEXTS TO A CONSTRAINED EMPTY ---
             try:
@@ -1541,7 +1541,7 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                     from ..prop import callbacks_prop
                     callbacks_prop.update_schedule_display_parent_constraint(context)
             except Exception as e:
-                print(f"⚠️ Could not parent schedule texts: {e}")
+                print(f"[WARNING] Could not parent schedule texts: {e}")
             tool.Sequence.set_object_shading()
             bpy.context.scene.frame_start = settings["start_frame"]
             bpy.context.scene.frame_end = int(settings["start_frame"] + settings["total_frames"])
@@ -1580,7 +1580,7 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                             print(f"🎯 SUCCESS: Using camera from selector: {camera_name_str}")
                         else:
                             existing_cam = None
-                            print(f"⚠️ FAILED: Camera '{camera_name_str}' not found or invalid")
+                            print(f"[WARNING] FAILED: Camera '{camera_name_str}' not found or invalid")
 
                     # Fallback: if there is no active camera, use the first one available
                     if not existing_cam:
@@ -1589,14 +1589,14 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                             print(f"🔄 FALLBACK: No active camera selected, using first available: {existing_cam.name}")
 
                 except Exception as e:
-                    print(f"⚠️ ERROR getting active camera, using fallback: {e}")
+                    print(f"[WARNING] ERROR getting active camera, using fallback: {e}")
                     existing_cam = next((obj for obj in bpy.data.objects if "4D_Animation_Camera" in obj.name), None)
 
                 if self.camera_action == 'UPDATE':
                     print(f"🔄 UPDATE ACTION: existing_cam = {existing_cam}")
                     if existing_cam:
-                        self.report({'INFO'}, f"✅ UPDATING EXISTING camera: {existing_cam.name}")
-                        print(f"✅ UPDATING: Using update_animation_camera() for {existing_cam.name}")
+                        self.report({'INFO'}, f"[DEBUG] UPDATING EXISTING camera: {existing_cam.name}")
+                        print(f"[DEBUG] UPDATING: Using update_animation_camera() for {existing_cam.name}")
 
                         # NEW: Save panel values to the camera BEFORE updating # pyright: ignore[reportUnusedVariable]
                         try:
@@ -1615,16 +1615,16 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                             existing_cam['orbit_path_method'] = camera_props.orbit_path_method
                             existing_cam['interpolation_mode'] = camera_props.interpolation_mode
 
-                            print(f"✅ SAVED: height={camera_props.orbit_height}, angle={camera_props.orbit_start_angle_deg}, direction={camera_props.orbit_direction}")
+                            print(f"[DEBUG] SAVED: height={camera_props.orbit_height}, angle={camera_props.orbit_start_angle_deg}, direction={camera_props.orbit_direction}")
                         except Exception as save_error:
-                            print(f"⚠️ Error saving panel values: {save_error}")
+                            print(f"[WARNING] Error saving panel values: {save_error}")
 
                         # Call the function only with the camera object.
                         tool.Sequence.update_animation_camera(existing_cam)
-                        print(f"✅ UPDATE COMPLETED: Camera {existing_cam.name} updated without recreation")
+                        print(f"[DEBUG] UPDATE COMPLETED: Camera {existing_cam.name} updated without recreation")
                     else:
-                        self.report({'INFO'}, "❌ FALLBACK: No existing camera to update. Creating a new one instead.")
-                        print(f"❌ FALLBACK: existing_cam is None, creating new camera with add_animation_camera()")
+                        self.report({'INFO'}, "[ERROR] FALLBACK: No existing camera to update. Creating a new one instead.")
+                        print(f"[ERROR] FALLBACK: existing_cam is None, creating new camera with add_animation_camera()")
                         # Call the function without arguments.
                         tool.Sequence.add_animation_camera()
                 elif self.camera_action == 'CREATE_NEW':
@@ -1637,12 +1637,12 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                 if settings and settings.get("start") and settings.get("finish"):
                     print("🎬 Auto-configuring HUD Compositor for high-quality renders...")
                     bpy.ops.bim.setup_hud_compositor()
-                    print("✅ HUD Compositor auto-configured successfully")
+                    print("[DEBUG] HUD Compositor auto-configured successfully")
                     print("📹 Regular renders (Ctrl+F12) will now include HUD overlay") # pyright: ignore[reportUnusedVariable]
                 else: # Fallback al HUD de Viewport si no hay timeline
                     bpy.ops.bim.enable_schedule_hud()
             except Exception as e:
-                print(f"⚠️ Auto-setup of HUD failed: {e}. Falling back to Viewport HUD.")
+                print(f"[WARNING] Auto-setup of HUD failed: {e}. Falling back to Viewport HUD.")
                 try:
                     bpy.ops.bim.enable_schedule_hud()
                 except Exception:
@@ -1678,7 +1678,7 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                             if area.type == 'VIEW_3D':
                                 area.tag_redraw()
             except Exception as e:
-                print(f"⚠️ Could not sync 3D text visibility: {e}")
+                print(f"[WARNING] Could not sync 3D text visibility: {e}")
         
 
             # Restore profile visibility in HUD Legend
@@ -1693,7 +1693,7 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                     invalidate_legend_hud_cache()
                     print("🎨 colortype group visibility restored in HUD Legend")
             except Exception as legend_e:
-                print(f"⚠️ Could not restore colortype group visibility: {legend_e}")
+                print(f"[WARNING] Could not restore colortype group visibility: {legend_e}")
 
              
  
@@ -1707,7 +1707,7 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                 if area.type in ['PROPERTIES', 'VIEW_3D']:
                     area.tag_redraw()
 
-            print("✅ DEBUG: Animation UI redraw forced")
+            print("[DEBUG] DEBUG: Animation UI redraw forced")
             return {'FINISHED'}
 
         except Exception as e:
@@ -1731,7 +1731,7 @@ class VisualiseWorkScheduleDateRange(bpy.types.Operator):
                     self.camera_action = 'UPDATE'
                     return self.execute(context)
         except Exception as e:
-            print(f"⚠️ Error checking active camera: {e}")
+            print(f"[WARNING] Error checking active camera: {e}")
 
         # FALLBACK: Search for any existing 4D camera and use the first one available
         existing_cam = next((obj for obj in bpy.data.objects if "4D_Animation_Camera" in obj.name), None)
